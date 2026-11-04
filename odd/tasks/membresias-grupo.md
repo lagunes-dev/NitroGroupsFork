@@ -29,7 +29,7 @@ Rama de trabajo: `feat/group-membership` (a partir de `develop`). Entrega en dos
 
 ## Tasks
 
-- [ ] T1 (S1, S3, S4) Agregado `GroupMembershipRequest` + EF config + migración + tests de transiciones del dominio.
+- [x] T1 (S1, S3, S4) Agregado `GroupMembershipRequest` + EF config + migración + tests de transiciones del dominio.
 - [ ] T2 (S2) `IUsersModuleApi` (búsqueda de músicos abiertos y resumen sin email) + `GET api/musicians/open-to-join` + tests.
 - [ ] T3 (S1, S3, S4) Casos de uso y endpoints de Groups: invitar, pedir unirse, aceptar/rechazar, cancelar, bandejas; alta del `GroupMember` al aceptar; tests de integración y de endpoints (401, 404 a ajenos).
 - [ ] T4 (S5) Avisos por email vía outbox (invitación, solicitud, resolución).
@@ -46,3 +46,5 @@ Rama de trabajo: `feat/group-membership` (a partir de `develop`). Entrega en dos
 - L5 (usuario, elección): "Sí, a varios (Recomendado)".
 - L6 (usuario, elección): "Dos PRs: backend y después interfaz (Recomendado)".
 - Hallazgos de la exploración: `ApprovedBy` es `int` no nulo en una columna de ids `long`; existe un índice único (GroupId, UserId) en `GroupMemberConfiguration.cs:36` pero no se confirmó en la migración; un handler de Groups debe recibir `IUnitOfWorkGroups` (`ApplicationArchitectureTests`); `IntegrationTestFixture` construye `UnitOfWorkGroups` a mano, así que agregar un repositorio obliga a actualizarlo.
+- L7 (T1): hecho en el commit `feat(groups): add GroupMembershipRequest aggregate` (hash en el reporte del agente; un commit no puede contener su propio hash). Cubre S1, S3 y S4 en el modelo: `GroupMembershipRequest` con dos sentidos, único Pending por (grupo, músico) y sin bloqueo de pertenencia múltiple; el rol inicial `Member` se asigna en T3. Pruebas: suite completa verde (Integration 143, Endpoints 108, con `NITRO_TEST_POSTGRES`). Migración `AddGroupMembershipRequests` aplicada a la base local; solo agrega la tabla y sus 3 índices.
+- L8 (T1, verificación del hallazgo): el índice único (GroupId, UserId) de `group_members` SÍ existe: `unique: true` en `InitialModuleSchema`, `IsUnique()` en el snapshot y `IX_group_members_group_id_user_id UNIQUE` en la base local (`\d groups.group_members`). Queda confirmado; no requiere corrección.
