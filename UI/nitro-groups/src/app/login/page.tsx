@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Lock, Mail } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
@@ -52,81 +53,55 @@ export default function LoginPage() {
                     <h1 className="titulo">
                         Entrar
                     </h1>
-                    <p className="text-muted-foreground">
+                    <p className="text-tinta-2">
                         Inicia sesión para continuar con NitroGroups
                     </p>
                 </div>
 
                 {/* Login Form */}
                 <div className="space-y-6">
-                    {error && (
-                        <Alert variant="destructive">
-                            <AlertDescription>{error}</AlertDescription>
-                        </Alert>
-                    )}
+                    <div aria-live="polite">
+                        {error && (
+                            <Alert variant="destructive">
+                                <AlertDescription>{error}</AlertDescription>
+                            </Alert>
+                        )}
+                    </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit} className="space-y-5">
                         <Input
                             label="Correo electrónico"
                             type="email"
+                            autoComplete="email"
                             placeholder="tu@email.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
-                            icon={
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="20"
-                                    height="20"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                >
-                                    <rect width="20" height="16" x="2" y="4" rx="2" />
-                                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                                </svg>
-                            }
+                            icon={<Mail aria-hidden />}
                         />
 
                         <Input
                             label="Contraseña"
                             type="password"
+                            autoComplete="current-password"
                             placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
-                            icon={
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="20"
-                                    height="20"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                >
-                                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                </svg>
-                            }
+                            icon={<Lock aria-hidden />}
                         />
 
-                        <div className="flex items-center justify-between text-sm">
-                            <label className="flex items-center space-x-2 cursor-pointer">
+                        <div className="flex items-center justify-between gap-4 text-sm">
+                            <label className="flex min-h-11 items-center gap-2 cursor-pointer">
                                 <input
                                     type="checkbox"
-                                    className="rounded border-input text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                                    className="size-4 accent-acento"
                                 />
-                                <span className="text-muted-foreground">Recordarme</span>
+                                <span className="text-tinta-2">Recordarme</span>
                             </label>
                             <Link
                                 href="/forgot-password"
-                                className="text-primary hover:underline"
+                                className="text-acento hover:underline"
                             >
                                 ¿Olvidaste tu contraseña?
                             </Link>
@@ -153,15 +128,15 @@ export default function LoginPage() {
                 </div>
 
                 {/* Sign Up Link */}
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-tinta-2">
                     ¿No tienes una cuenta?{" "}
-                    <Link href="/signup" className="text-primary font-medium hover:underline">
+                    <Link href="/signup" className="text-acento font-medium hover:underline">
                         Regístrate gratis
                     </Link>
                 </p>
             </div>
-            <aside className="hidden md:flex md:col-span-5 md:col-start-8 items-center">
-                <p className="text-[clamp(1.5rem,2.4vw,2.25rem)] leading-snug text-tinta-2 max-w-[22ch]">
+            <aside className="hidden md:block md:col-span-4 md:col-start-8">
+                <p className="border-l border-linea pl-6 text-base leading-relaxed text-tinta-2 max-w-[34ch]">
                     Tus solicitudes, tus fechas y cada conversación con los grupos, en un solo lugar.
                 </p>
             </aside>
