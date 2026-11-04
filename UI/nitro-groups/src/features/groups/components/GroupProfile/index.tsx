@@ -191,7 +191,7 @@ function ProfileSkeleton() {
           <div className="h-4 w-44 bg-fondo-2" />
         </div>
       </div>
-      <div aria-hidden className="mt-8 h-[7.5rem] bg-fondo-2 xl:h-[5.25rem]" />
+      <div aria-hidden className="mt-8 h-[14.75rem] rounded-[12px] bg-fondo-2 sm:h-[10.25rem] xl:h-[5.75rem]" />
     </div>
   );
 }

@@ -60,7 +60,7 @@ export default function GroupProfileView({ group, isPublic, toggleEdit }: GroupP
         </div>
 
         {!isPublic && (
-          <div className="col-span-2 flex flex-wrap gap-2 md:col-span-1 md:justify-end">
+          <div className="col-span-2 flex gap-2 md:col-span-1 md:justify-end [&>*]:flex-1 md:[&>*]:flex-none">
             <Button variant="secondary" onClick={toggleEdit}>
               <Pencil aria-hidden /> Editar perfil
             </Button>
@@ -76,17 +76,20 @@ export default function GroupProfileView({ group, isPublic, toggleEdit }: GroupP
       </div>
 
       {(group.description || genres.length > 0) && (
-        <div className="mt-6 max-w-[64ch] space-y-1">
+        <div className="mt-6 max-w-[64ch] space-y-2">
           {group.description && <p className="text-tinta">{group.description}</p>}
           {genres.length > 0 && <p className="text-tinta-2">{joinSpanish(genres)}</p>}
         </div>
       )}
 
-      <dl className="mt-8 grid grid-cols-2 gap-x-8 gap-y-5 bg-fondo-2 rounded-xl px-5 py-5 sm:grid-cols-3 md:px-6 xl:grid-cols-6">
+      <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-5 rounded-[12px] bg-fondo-2 p-5 sm:grid-cols-3 md:px-6 xl:grid-cols-6">
         {facts.map((fact) => (
           <div key={fact.label} className="min-w-0">
-            <dt className="text-sm text-tinta-2">{fact.label}</dt>
-            <dd className={`mt-1 tabular ${fact.missing ? "text-tinta-2" : "type-heading text-xl text-tinta"}`}>
+            <dt className="text-sm leading-5 text-tinta-2">{fact.label}</dt>
+            <dd
+              title={fact.value}
+              className={`type-heading mt-1 truncate text-lg leading-7 tabular ${fact.missing ? "text-tinta-2" : "text-tinta"}`}
+            >
               {fact.value}
             </dd>
           </div>
@@ -94,13 +97,13 @@ export default function GroupProfileView({ group, isPublic, toggleEdit }: GroupP
       </dl>
 
       {gaps.length > 0 && (
-        <div className="mt-0.5 flex flex-col gap-3 bg-fondo-2 rounded-xl px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
+        <div className="mt-4 flex flex-col gap-3 rounded-[12px] bg-fondo-2 p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 md:px-6">
           <p className="text-tinta">
             <span className="text-tinta-2">A tu perfil le falta </span>
             {joinSpanish(gaps)}.
             <span className="text-tinta-2"> Con esos datos un cliente se decide sin tener que escribirte.</span>
           </p>
-          <Button size="sm" variant="link" onClick={toggleEdit} className="self-start px-0 sm:self-auto">
+          <Button size="sm" variant="link" onClick={toggleEdit} className="self-start sm:shrink-0 sm:self-auto">
             Completar perfil
           </Button>
         </div>
