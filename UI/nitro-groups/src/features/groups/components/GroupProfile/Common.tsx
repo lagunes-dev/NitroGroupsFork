@@ -1,8 +1,7 @@
 import type { FieldProps } from "./types";
 
-/** Control de formulario: relleno fondo-2, sin borde, anillo acento al enfocar (DESIGN.md → Inputs). */
-export const fieldClass =
-  "block h-12 w-full bg-fondo-2 px-4 text-base text-tinta placeholder:text-tinta-2/70 outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acento disabled:opacity-50";
+/** Shared with `components/ui`: the one field spec (DESIGN.md → Shapes). */
+export { fieldClass } from "@/components/ui/field";
 
 export const hintId = (htmlFor: string) => `${htmlFor}-hint`;
 
