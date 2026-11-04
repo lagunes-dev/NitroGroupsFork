@@ -8,6 +8,7 @@ import GroupProfile from "@/features/groups/components/GroupProfile";
 import GroupCalendar from "@/features/groupAvailability/components/GroupCalendar";
 import GroupGallery from "@/features/groupMedia/components/GroupGallery";
 import { GroupInbox } from "@/features/bookings/components/GroupInbox";
+import { TeamTab } from "@/features/membership/components/TeamTab";
 
 /**
  * Panel del grupo. Arriba, quién es y en qué estado está; abajo, el trabajo diario:
@@ -36,6 +37,9 @@ export default function MusicianDashboardPage() {
         <TabbedSection label="Gestión del grupo" className="mt-16 md:mt-20">
           <TabItem title="Solicitudes" tabKey="solicitudes">
             <GroupInbox groupId={group.id} />
+          </TabItem>
+          <TabItem title="Equipo" tabKey="equipo">
+            <TeamTab groupId={group.id} />
           </TabItem>
           <TabItem title="Galería" tabKey="galeria">
             <GroupGallery />
