@@ -29,6 +29,10 @@ export const membershipService = {
     requestToJoin: async (groupId: number, message?: string) =>
         toRequest((await apiClient.post<WireRequest>(`/groups/${groupId}/membership-requests`, { message: message?.trim() || undefined })).data),
 
+    /** Public list (ids only, no names). Used to tell whether the viewer already belongs to the group. */
+    groupMembers: async (groupId: number) =>
+        (await apiClient.get<{ userId: number; isActive: boolean }[]>(`/groups/${groupId}/members`)).data.map(({ userId, isActive }) => ({ userId, isActive })),
+
     accept: async (id: number) => toRequest((await apiClient.post<WireRequest>(`/membership-requests/${id}/accept`)).data),
     decline: async (id: number) => toRequest((await apiClient.post<WireRequest>(`/membership-requests/${id}/decline`)).data),
     cancel: async (id: number) => toRequest((await apiClient.post<WireRequest>(`/membership-requests/${id}/cancel`)).data),

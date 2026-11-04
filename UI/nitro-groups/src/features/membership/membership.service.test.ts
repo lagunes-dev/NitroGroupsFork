@@ -65,4 +65,10 @@ describe("membershipService", () => {
         await membershipService.requestToJoin(3);
         expect(post).toHaveBeenLastCalledWith("/groups/3/membership-requests", { message: undefined });
     });
+
+    it("reads the public members list and keeps only user id and active flag", async () => {
+        get.mockResolvedValue({ data: [{ id: 1, groupId: 3, userId: 4, role: "Owner", isActive: true, approvedBy: 0 }] });
+        expect(await membershipService.groupMembers(3)).toEqual([{ userId: 4, isActive: true }]);
+        expect(get).toHaveBeenCalledWith("/groups/3/members");
+    });
 });

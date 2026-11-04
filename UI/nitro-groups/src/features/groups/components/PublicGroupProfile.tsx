@@ -6,6 +6,7 @@ import { formatEventDate, priceLabel } from "@/lib/format";
 import type { MusicGroup } from "../types/MusicGroup";
 import type { GroupMediaResponse } from "@/features/groupMedia/types/GroupMedia";
 import { RequestForm } from "@/features/bookings/components/RequestForm";
+import { RequestToJoin } from "@/features/membership/components/RequestToJoin";
 
 const kind = (m: GroupMediaResponse) => m.type.toLowerCase();
 
@@ -174,6 +175,15 @@ export function PublicGroupProfile({ group, requestedDate, signedIn = false }: {
                     )}
                 </section>
             )}
+
+            <RequestToJoin
+                groupId={group.id}
+                groupName={group.groupName}
+                slug={group.slug}
+                active={group.active}
+                ownerUserId={group.ownerUserId}
+                signedIn={signedIn}
+            />
         </article>
     );
 }
