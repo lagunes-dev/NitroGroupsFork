@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { membershipErrorMessage } from "./errors";
+import { joinRequestErrorMessage, membershipErrorMessage } from "./errors";
 
 const http = (status: number, data?: unknown) => ({ response: { status, data } });
 
@@ -22,5 +22,26 @@ describe("membershipErrorMessage", () => {
     it("el resto usa el fallback", () => {
         expect(membershipErrorMessage(http(500), "Fallback")).toBe("Fallback");
         expect(membershipErrorMessage(new Error("red"), "Fallback")).toBe("Fallback");
+    });
+});
+
+describe("joinRequestErrorMessage", () => {
+    it("409 prefers the API detail", () => {
+        expect(joinRequestErrorMessage(http(409, { detail: "Ya tienes una solicitud pendiente para este grupo." }), "x")).toBe(
+            "Ya tienes una solicitud pendiente para este grupo.",
+        );
+    });
+    it("409 without a body lists the possible reasons", () => {
+        expect(joinRequestErrorMessage(http(409), "x")).toBe("Ya eres miembro de este grupo, ya tienes una solicitud pendiente o el grupo no está activo.");
+    });
+    it("403 says only musician accounts can ask to join", () => {
+        expect(joinRequestErrorMessage(http(403), "x")).toBe("Solo las cuentas de músico pueden pedir unirse a un grupo.");
+    });
+    it("404 says the group is no longer available", () => {
+        expect(joinRequestErrorMessage(http(404), "x")).toBe("Este grupo ya no está disponible.");
+    });
+    it("400 and the rest use the API text or the fallback", () => {
+        expect(joinRequestErrorMessage(http(400, { detail: "El mensaje es demasiado largo." }), "x")).toBe("El mensaje es demasiado largo.");
+        expect(joinRequestErrorMessage(http(500), "Fallback")).toBe("Fallback");
     });
 });

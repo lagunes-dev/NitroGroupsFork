@@ -22,6 +22,13 @@ export const membershipService = {
     forGroup: async (groupId: number, filters?: MembershipFilters) =>
         (await apiClient.get<WireRequest[]>(`/groups/${groupId}/membership-requests`, { params: filters })).data.map(toRequest),
 
+    /** The caller's own rows: invitations received and join requests sent. */
+    mine: async (filters?: MembershipFilters) =>
+        (await apiClient.get<WireRequest[]>("/membership-requests/mine", { params: filters })).data.map(toRequest),
+
+    requestToJoin: async (groupId: number, message?: string) =>
+        toRequest((await apiClient.post<WireRequest>(`/groups/${groupId}/membership-requests`, { message: message?.trim() || undefined })).data),
+
     accept: async (id: number) => toRequest((await apiClient.post<WireRequest>(`/membership-requests/${id}/accept`)).data),
     decline: async (id: number) => toRequest((await apiClient.post<WireRequest>(`/membership-requests/${id}/decline`)).data),
     cancel: async (id: number) => toRequest((await apiClient.post<WireRequest>(`/membership-requests/${id}/cancel`)).data),

@@ -17,3 +17,19 @@ export function membershipErrorMessage(error: unknown, fallback: string): string
             return apiErrorMessage(error, fallback);
     }
 }
+
+/** Failures of "ask to join" on the public group profile (403 = the account is a Client). */
+export function joinRequestErrorMessage(error: unknown, fallback: string): string {
+    const response = (error as { response?: { status?: number; data?: ErrorBody } })?.response;
+    const serverText = response?.data?.detail || response?.data?.error;
+    switch (response?.status) {
+        case 409:
+            return serverText || "Ya eres miembro de este grupo, ya tienes una solicitud pendiente o el grupo no está activo.";
+        case 403:
+            return "Solo las cuentas de músico pueden pedir unirse a un grupo.";
+        case 404:
+            return "Este grupo ya no está disponible.";
+        default:
+            return apiErrorMessage(error, fallback);
+    }
+}

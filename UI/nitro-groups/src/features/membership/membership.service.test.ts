@@ -41,4 +41,28 @@ describe("membershipService", () => {
         await membershipService[action](7);
         expect(post).toHaveBeenCalledWith(`/membership-requests/7/${action}`);
     });
+
+    it("lists my own rows with optional filters and normalizes the enums", async () => {
+        get.mockResolvedValue({ data: [row, { ...row, id: 8, direction: "Invitation", status: "Declined" }] });
+        const result = await membershipService.mine({ direction: "Invitation", status: "Pending" });
+        expect(get).toHaveBeenCalledWith("/membership-requests/mine", { params: { direction: "Invitation", status: "Pending" } });
+        expect(result.map((r) => [r.direction, r.status])).toEqual([["Request", "Pending"], ["Invitation", "Declined"]]);
+        await membershipService.mine();
+        expect(get).toHaveBeenLastCalledWith("/membership-requests/mine", { params: undefined });
+    });
+
+    it("asks to join a group with a trimmed message", async () => {
+        post.mockResolvedValue({ data: row });
+        const created = await membershipService.requestToJoin(3, "  Toco el bajo ");
+        expect(post).toHaveBeenCalledWith("/groups/3/membership-requests", { message: "Toco el bajo" });
+        expect(created.status).toBe("Pending");
+    });
+
+    it("asks to join without a message when it is blank or missing", async () => {
+        post.mockResolvedValue({ data: row });
+        await membershipService.requestToJoin(3, "   ");
+        expect(post).toHaveBeenLastCalledWith("/groups/3/membership-requests", { message: undefined });
+        await membershipService.requestToJoin(3);
+        expect(post).toHaveBeenLastCalledWith("/groups/3/membership-requests", { message: undefined });
+    });
 });
