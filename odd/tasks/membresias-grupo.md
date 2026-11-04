@@ -31,7 +31,7 @@ Rama de trabajo: `feat/group-membership` (a partir de `develop`). Entrega en dos
 
 - [x] T1 (S1, S3, S4) Agregado `GroupMembershipRequest` + EF config + migración + tests de transiciones del dominio.
 - [x] T2 (S2) `IUsersModuleApi` (búsqueda de músicos abiertos y resumen sin email) + `GET api/musicians/open-to-join` + tests.
-- [ ] T3 (S1, S3, S4) Casos de uso y endpoints de Groups: invitar, pedir unirse, aceptar/rechazar, cancelar, bandejas; alta del `GroupMember` al aceptar; tests de integración y de endpoints (401, 404 a ajenos).
+- [x] T3 (S1, S3, S4) Casos de uso y endpoints de Groups: invitar, pedir unirse, aceptar/rechazar, cancelar, bandejas; alta del `GroupMember` al aceptar; tests de integración y de endpoints (401, 404 a ajenos).
 - [ ] T4 (S5) Avisos por email vía outbox (invitación, solicitud, resolución).
 - [ ] T5 (S2, S5) Front: servicio y pestaña "Equipo" del manager (buscar, invitar, ver pendientes).
 - [ ] T6 (S1, S5) Front: bandeja "Invitaciones" del músico y "Pedir unirse" en el perfil público del grupo.
@@ -53,3 +53,21 @@ Rama de trabajo: `feat/group-membership` (a partir de `develop`). Entrega en dos
   - Respuesta: `PagedResult<OpenMusicianSummary>` → `{ items: [{ userId, fullName, profilePictureUrl, yearsExperience }], pageNumber, pageSize, totalCount, totalPages, hasPreviousPage, hasNextPage }`. `OpenMusicianSummary` es un tipo distinto de `UserSummary` y NO tiene email: la privacidad la garantiza el tipo.
   - Solo aparecen músicos con `IsOpenToJoin = true` cuyo usuario está `Active`; el filtro de nombre es insensible a mayúsculas y matchea nombre, apellido o "nombre apellido".
   - Para T3: `IUsersModuleApi.GetMusicianSummariesAsync(IEnumerable<long> userIds, CancellationToken)` devuelve `IReadOnlyDictionary<long, OpenMusicianSummary>` por `UserId` y NO filtra por `IsOpenToJoin` (una invitación pendiente debe seguir mostrando el nombre aunque el músico haya cerrado su perfil).
+- L10 (T3): hecho en **dos commits** (el cambio pasa de ~400 líneas): `feat(groups): invite musicians and answer membership requests` (e198a4d) y `feat(groups): request to join a group and membership inboxes`. Cubre S1, S3 y S4, más S2 en la puerta de invitación. Suite completa verde con `NITRO_TEST_POSTGRES`: **Integration 178, Endpoints 149, 0 failed** (baseline de T2: 152 y 111).
+  - **Decisión (S2, opción A aprobada por el usuario)**: la regla "solo los abiertos a unirse se pueden invitar" vive en el handler de invitación y consulta `IUsersModuleApi.IsMusicianOpenToJoinAsync(userId)`, miembro nuevo del contrato de Users implementado como `Musicians.AnyAsync(m => m.UserId == userId && m.IsOpenToJoin && m.User.UserType == Musician && m.User.Active)`. Se eligió sobre ampliar `OpenMusicianSummary` para no cambiar la forma del resumen de T2 (que a propósito no filtra por `IsOpenToJoin`, porque una invitación pendiente debe seguir mostrando el nombre de quien cerró su perfil). Un `Client` devuelve siempre `false`.
+  - Rutas nuevas (todas privadas; no se tocó la allowlist pública):
+
+    | Ruta | Quién | Éxito | Errores |
+    |---|---|---|---|
+    | `POST api/groups/{groupId:long}/membership-invitations` (`{ musicianUserId, message? }`) | Owner/Manager (`RequireGroupManager`) | 201 + `Location: api/membership-requests/{id}` | 400 body inválido · 401 sin token · 403 no administra · 404 grupo o músico inexistente · 409 grupo inactivo, músico no abierto a unirse, ya es miembro activo o ya hay una pendiente |
+    | `POST api/groups/{groupId:long}/membership-requests` (`{ message? }`, body opcional) | usuario sincronizado que sea `Musician` | 201 + `Location` | 400 mensaje > 2000 · 401 sin token o sin sincronizar · 403 cuenta `Client` · 404 grupo o usuario inexistente · 409 grupo inactivo, ya es miembro o ya hay una pendiente |
+    | `POST api/membership-requests/{id:long}/accept` \| `/decline` \| `/cancel` | aceptar/rechazar: el músico invitado (invitación) o Owner/Manager (solicitud); cancelar: quien la inició | 200 con la solicitud | 401 · 403 participa pero su papel no permite la acción · 404 ajeno (no se revela) o inexistente · 409 transición inválida o conflicto de concurrencia |
+    | `GET api/groups/{groupId:long}/membership-requests?direction=&status=` | Owner/Manager (`RequireGroupManager`) | 200 lista | 401 · 403 no administra · 404 grupo inexistente |
+    | `GET api/membership-requests/mine?direction=&status=` | el propio usuario | 200 lista de sus filas | 401 |
+
+  - Mapeo error → HTTP (`GroupsErrorKind` → `ToHttp`, mismo patrón que `BookingResult` pero local a Groups): Validation 400, Unauthorized 401, Forbidden 403, NotFound 404, Conflict 409.
+  - Respuesta `GroupMembershipRequestResponse`: ids, `direction`, `status`, `message`, `createdAt`/`updatedAt`, `musicianName`, `groupName`, `groupSlug` y `counterpartName` (el músico para el grupo; el grupo para el músico). El nombre del músico sale de `IUsersModuleApi.GetMusicianSummariesAsync`: nunca viaja un email.
+  - Al aceptar: se inserta `GroupMember` con `Role = Member` (S3: nunca Manager), `IsActive = true`, `JoinedAt = UtcNow`, `JoinedVia = Invitation | Request` y `ApprovedBy` = quien resolvió. Si ya existe una fila (groupId, userId) —por ejemplo alguien que salió— **no se inserta otra**: se reactiva la misma (`IsActive = true`, `LeftAt = null`, `Role = Member`, `JoinedVia` y `JoinedAt` actualizados), respetando el índice único (group_id, user_id).
+  - Una sola pendiente por (grupo, músico): se comprueba antes de insertar y, si dos peticiones se cruzan, la violación del índice único parcial (`IX_group_membership_requests_group_id_musician_user_id`, SQLSTATE 23505) se traduce a `false` en el repositorio y el endpoint responde 409, nunca 500.
+  - `GET api/groups/{id}/members` no cambió de forma y no muestra pendientes (test: invitar no crea `GroupMember`).
+  - Sin eventos de dominio ni outbox: los avisos por email son T4.

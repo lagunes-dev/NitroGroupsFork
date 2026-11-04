@@ -86,9 +86,12 @@ public class SecurityEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
     [InlineData("GET", "api/users/1/groups")]
     [InlineData("GET", "api/musicians/open-to-join")]
     [InlineData("POST", "api/groups/1/membership-invitations")]
+    [InlineData("POST", "api/groups/1/membership-requests")]
     [InlineData("POST", "api/membership-requests/1/accept")]
     [InlineData("POST", "api/membership-requests/1/decline")]
     [InlineData("POST", "api/membership-requests/1/cancel")]
+    [InlineData("GET", "api/groups/1/membership-requests")]
+    [InlineData("GET", "api/membership-requests/mine")]
     public async Task EndpointsPrivados_SinToken_Returns401(string method, string url)
     {
         using var request = new HttpRequestMessage(new HttpMethod(method), url) { Content = JsonContent.Create(new { }) };
@@ -112,6 +115,7 @@ public class SecurityEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
     [InlineData("PUT", "api/groups/999/busy-schedules/3")]
     [InlineData("DELETE", "api/groups/999/busy-schedules/3")]
     [InlineData("POST", "api/groups/999/membership-invitations")]
+    [InlineData("GET", "api/groups/999/membership-requests")]
     public async Task EscriturasDeGrupo_SinSerOwnerNiManager_Returns403(string method, string url)
     {
         using var request = new HttpRequestMessage(new HttpMethod(method), url) { Content = JsonContent.Create(new { }) };
