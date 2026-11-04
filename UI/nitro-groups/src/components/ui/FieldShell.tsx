@@ -23,7 +23,7 @@ export function describedBy(id: string, error?: string, helperText?: string) {
 /** Label above, control, then error (never colour alone: it has text) or helper text, on one 8px rhythm. */
 export function FieldShell({ id, label, error, helperText, className, children }: FieldShellProps) {
     return (
-        <div className={cn("w-full min-w-0 space-y-2", className)}>
+        <div className={cn("flex w-full min-w-0 flex-col gap-2", className)}>
             {label && (
                 <label htmlFor={id} className="block text-sm font-medium leading-5 text-tinta">
                     {label}
