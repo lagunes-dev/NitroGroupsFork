@@ -3,10 +3,9 @@
 import { useId, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui";
+import { Button, Textarea } from "@/components/ui";
 import { ROUTES } from "@/config/routes";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { fieldClass } from "@/features/groups/components/GroupProfile/Common";
 import { membershipService } from "../membership.service";
 import { joinRequestErrorMessage } from "../errors";
 import { JOIN_MESSAGE_MAX, joinOffer, prepareJoinMessage } from "../join";
@@ -90,30 +89,28 @@ export function RequestToJoin({ groupId, groupName, slug, active, ownerUserId, s
                         send.mutate(prepared.message);
                     }}
                 >
-                    <p className="mb-8 max-w-[52ch] text-lg text-tinta">
+                    <p className="mb-6 max-w-[52ch] text-lg text-tinta">
                         Los managers de {groupName} reciben tu solicitud y te responden. Puedes añadir un mensaje breve.
                     </p>
-                    <label htmlFor={`${id}-mensaje`} className="block text-sm font-medium text-tinta-2 mb-2">
-                        Mensaje <span className="text-tinta-2/70">(opcional)</span>
-                    </label>
-                    <textarea
-                        id={`${id}-mensaje`}
+                    <Textarea
+                        label="Mensaje (opcional)"
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         rows={4}
                         aria-describedby={`${id}-ayuda`}
                         placeholder="Toco la batería y me encantaría sumarme."
-                        className={`${fieldClass} h-auto rounded-xl py-3 resize-y leading-relaxed`}
                     />
-                    <p id={`${id}-ayuda`} className="mt-2 text-sm text-tinta-2 tabular">{message.trim().length} de {JOIN_MESSAGE_MAX}</p>
                     {(send.isError || invalid) && (
                         <p id={`${id}-error`} role="alert" className="mt-4 text-error">
                             {invalid || joinRequestErrorMessage(send.error, "No pudimos enviar la solicitud. Inténtalo de nuevo.")}
                         </p>
                     )}
-                    <Button type="submit" size="lg" className="mt-6" disabled={send.isPending}>
-                        {send.isPending ? "Enviando…" : "Pedir unirme"}
-                    </Button>
+                    <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <p id={`${id}-ayuda`} className="text-sm text-tinta-2 tabular">{message.trim().length} de {JOIN_MESSAGE_MAX}</p>
+                        <Button type="submit" size="lg" className="w-full sm:w-auto" disabled={send.isPending}>
+                            {send.isPending ? "Enviando…" : "Pedir unirme"}
+                        </Button>
+                    </div>
                 </form>
             )}
         </section>
