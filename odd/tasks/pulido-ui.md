@@ -35,11 +35,11 @@ La verificación visual la hace el orquestador con Playwright (los workers no ti
 ## Tasks
 
 - [x] T1 (S1, S2, S3) Cimientos en `components/ui/`: `Select` (Radix), `DatePicker` (react-day-picker en popover), `TimeSelect`, y unificar `Input`, `Textarea` y `Field` (radio, alto, sangría) con una red de seguridad en CSS para controles nativos restantes.
-- [ ] T2 (S1, S2) Reemplazar los 4 `<select>` y los 3 campos de fecha y hora (H1, H2) en `SearchForm`, `GroupProfileEdit`, `RequestForm` y `GroupGallery`.
-- [ ] T3 (S3, S4) Registro y asistente (H4 a H8, H10): candado, país, alto de botones, íconos en vez de emojis, títulos alineados, cabecera sin hueco.
-- [ ] T4 (S3, S4) Panel, Equipo e Invitaciones (H3, H9): campos unificados, filas como tarjetas, avatar con iniciales correctas, formulario de edición alineado.
-- [ ] T5 (S3, S4) Páginas públicas (`/groups`, perfil del grupo, inicio) y revisión a 390 px.
-- [ ] T6 (S5) Pasada final con Playwright a 1440 px y 390 px en todas las pantallas, con capturas y lista de lo que queda.
+- [x] T2 (S1, S2) Reemplazar los 4 `<select>` y los 3 campos de fecha y hora (H1, H2) en `SearchForm`, `GroupProfileEdit`, `RequestForm` y `GroupGallery`.
+- [x] T3 (S3, S4) Registro y asistente (H4 a H8, H10): candado, país, alto de botones, íconos en vez de emojis, títulos alineados, cabecera sin hueco.
+- [x] T4 (S3, S4) Panel, Equipo e Invitaciones (H3, H9): campos unificados, filas como tarjetas, avatar con iniciales correctas, formulario de edición alineado.
+- [x] T5 (S3, S4) Páginas públicas (`/groups`, perfil del grupo, inicio) y revisión a 390 px.
+- [x] T6 (S5) Pasada final con Playwright a 1440 px y 390 px en todas las pantallas, con capturas y lista de lo que queda.
 
 ## Log
 
@@ -65,3 +65,11 @@ La verificación visual la hace el orquestador con Playwright (los workers no ti
 - L9: la franja de datos del panel recortaba "Guadalajara, Jalisco" a 1440 px; la columna de la ciudad pasó a 1.5fr y ya no se recorta ningún valor.
 - Pendiente de ver renderizado: `/groups`, formulario de solicitud y "Pedir unirse" en el perfil público, modal de la galería, edición del perfil, pestaña Invitaciones con datos, cabecera durante la carga y todo a 390 px.
 - Observación para T5: el formulario del login arranca en x=229 y el del registro en x=128 (margen de la página); conviene unificarlo.
+- L10 (verificación final con Playwright, 1440 px y 390 px, sesión real): portada y `/groups` (selector de género envía `?genero=mariachi`, etiquetas y campos en la misma línea), perfil público (solicitud con error por campo, foco a la fecha, días pasados deshabilitados; "Pedir unirse" envía y aparece en Invitaciones), modal de la galería (panel por encima del modal, Escape cierra solo el selector), edición del perfil (moneda), login y registro alineados a x=128, asistente de manager (nota lateral a la altura del stepper, y=313).
+- L11 (membresías con datos reales): invitar a Luis Ramírez crea una tarjeta Pendiente con "Cancelar invitación"; cancelar la manda al historial; la solicitud del músico aparece en "Solicitudes enviadas (1)". Defecto corregido en `eca08d7`: el botón "Invitar" seguía activo con una invitación pendiente (habría respondido 409); ahora dice "Invitación pendiente" o "Pidió unirse".
+- L12 (subida de imágenes): `feat/profile-image-upload` nunca se había unido a esta línea, por eso "Foto de perfil" y "Portada" solo pedían URL. Se trajo con `13b4fef` y se adaptó al campo unificado. Prueba real: un PNG de 121.746 bytes subió a R2, se sirvió como `image/png` y se borró del bucket (204 y luego 404).
+- L13 (otros defectos corregidos): interruptor "Recibir solicitudes" cuadrado, ahora píldora (`c9d4090`); en celular la franja de datos recortaba valores y el enlace "Completar perfil" quedaba sangrado 20 px (`2ae3435`).
+- L14 (entorno): el servidor de desarrollo llevaba 13 horas y 3,3 GB de memoria con la swap llena; eso colgaba `tsc` y el navegador. Se reinició con `--max-old-space-size=1536`.
+- Totales finales: vitest 178 en 21 archivos, `tsc` limpio, `eslint` sin errores, cero `<select>` y `type="date|time"` nativos fuera de `src/app/dev`.
+- No verificado: la cabecera durante la carga de sesión (H8), el asistente de manager a 390 px, una invitación *recibida* por un músico (el seed no tiene login real), y las fotos del grupo "Mariachi Sol de Jalisco" ("En vivo" se ve como un bloque vacío porque `picsum.photos` no carga en este entorno).
+- Pendiente de decisión del usuario: la política de contraseñas del tenant exige 15 caracteres y el placeholder dice "Mínimo 8" (H7).
