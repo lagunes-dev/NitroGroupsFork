@@ -82,7 +82,7 @@ export default function GroupProfileView({ group, isPublic, toggleEdit }: GroupP
         </div>
       )}
 
-      <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-5 rounded-[12px] bg-fondo-2 p-5 sm:grid-cols-3 md:px-6 xl:grid-cols-6">
+      <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-5 rounded-[12px] bg-fondo-2 p-5 sm:grid-cols-3 md:px-6 xl:grid-cols-[1fr_1.5fr_1fr_1fr_1fr_1.3fr]">
         {facts.map((fact) => (
           <div key={fact.label} className="min-w-0">
             <dt className="text-sm leading-5 text-tinta-2">{fact.label}</dt>
