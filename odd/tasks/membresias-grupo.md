@@ -35,7 +35,7 @@ Rama de trabajo: `feat/group-membership` (a partir de `develop`). Entrega en dos
 - [x] T4 (S5) Avisos por email vía outbox (invitación, solicitud, resolución).
 - [x] T5 (S2, S5) Front: servicio y pestaña "Equipo" del manager (buscar, invitar, ver pendientes).
 - [x] T6 (S1, S5) Front: bandeja "Invitaciones" del músico y "Pedir unirse" en el perfil público del grupo.
-- [ ] T7 (S5) Documentación (README) y decisión en Engram.
+- [x] T7 (S5) Documentación (README) y decisión en Engram.
 
 ## Log
 
@@ -98,3 +98,4 @@ Rama de trabajo: `feat/group-membership` (a partir de `develop`). Entrega en dos
   - **Músico sin grupo**: el panel (`dashboard/musician`) solo mostraba pestañas con grupo. Ahora las pestañas del grupo siguen condicionadas a tener grupo y "Invitaciones" aparece siempre, una vez resuelta la consulta del grupo (con 404 el panel espera los reintentos de React Query antes de mostrarla). La cabecera sigue mostrando "Todavía no encontramos tu grupo" y el enlace para crearlo; no se tocó la lógica de la guardia.
   - Quién ve "Pedir unirse": anónimo → enlace a entrar o crear cuenta de músico; Client → nada; Musician no miembro de un grupo activo → formulario con mensaje opcional (máx. 2000, también validado en el cliente); tras el éxito se muestra "Solicitud enviada" y no hay segundo envío. El resto del perfil público no cambió.
   - **No verificado**: el renderizado de la pestaña y del formulario (no hay login en este entorno, no se vieron en un navegador), el foco y los anuncios `aria-live` en uso real, ni un viaje real contra la API; solo hay pruebas de lógica pura y de servicio con `apiClient` simulado.
+- L14 (T7): sección "Membresías de grupo" agregada al README (rutas, reglas y pantallas) y decisión guardada en Engram con el topic `odd/membresias-grupo/tasks`. Verificación final: backend con Postgres, Integration 186/186 y Endpoints 149/149; frontend 117 tests, `tsc` y `eslint` limpios. Sin verificar: el renderizado de las pantallas y un viaje real contra la API (no hay login disponible hasta activar la Action de Auth0).
