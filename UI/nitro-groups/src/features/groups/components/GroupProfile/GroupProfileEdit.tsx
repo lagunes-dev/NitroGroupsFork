@@ -180,11 +180,11 @@ export default function GroupProfileEdit({
               aria-labelledby={id("accepting-label")}
               aria-describedby={id("accepting-hint")}
               onClick={() => set("isAcceptingBookings", !group.isAcceptingBookings)}
-              className={`relative mt-0.5 h-7 w-12 shrink-0 transition-colors duration-150 ${group.isAcceptingBookings ? "bg-acento" : "bg-fondo-3"}`}
+              className={`relative mt-0.5 h-7 w-12 shrink-0 rounded-full transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento ${group.isAcceptingBookings ? "bg-acento" : "bg-fondo-3"}`}
             >
               <span
                 aria-hidden
-                className={`absolute left-0 top-1 size-5 transition-transform duration-150 ${group.isAcceptingBookings ? "translate-x-6 bg-fondo" : "translate-x-1 bg-tinta-2"}`}
+                className={`absolute left-0 top-1 size-5 rounded-full transition-transform duration-150 ${group.isAcceptingBookings ? "translate-x-6 bg-fondo" : "translate-x-1 bg-tinta-2"}`}
               />
             </button>
           </div>

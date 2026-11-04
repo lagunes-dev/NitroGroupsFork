@@ -192,14 +192,14 @@ export function SwitchField({
                 aria-describedby={`${id}-desc`}
                 onClick={() => onChange(!checked)}
                 className={cn(
-                    "relative mt-0.5 h-7 w-12 shrink-0 transition-colors duration-150",
+                    "relative mt-0.5 h-7 w-12 shrink-0 rounded-full transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento",
                     checked ? "bg-acento" : "bg-fondo-3"
                 )}
             >
                 <span
                     aria-hidden
                     className={cn(
-                        "absolute top-1 left-1 size-5 transition-transform duration-150",
+                        "absolute top-1 left-1 size-5 rounded-full transition-transform duration-150",
                         checked ? "translate-x-5 bg-fondo" : "translate-x-0 bg-tinta-2"
                     )}
                 />
