@@ -8,8 +8,9 @@ import { ROUTES } from "@/config/routes";
 import { membershipService } from "../membership.service";
 import { membershipErrorMessage } from "../errors";
 import { musicianActions, splitMyRequests } from "../inbox";
-import { directionLabel, statusLabel, statusTone } from "../status";
+import { directionLabel } from "../status";
 import type { MembershipRequest } from "../types";
+import { RequestCard, RequestGroup, RequestSkeleton } from "./RequestCard";
 
 type Action = "accept" | "decline" | "cancel";
 
@@ -20,10 +21,6 @@ const DONE: Record<Action, (group: string) => string> = {
     decline: (group) => `Rechazaste la invitación de ${group}.`,
     cancel: (group) => `Cancelaste tu solicitud para unirte a ${group}.`,
 };
-
-const toneClass = { attention: "text-acento font-semibold", ok: "text-ok", muted: "text-tinta-2" } as const;
-
-const formatDate = (iso: string) => new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" });
 
 /** Bandeja del músico: invitaciones que recibió y solicitudes que envió; lo resuelto, como historial. */
 export function MyInvitations() {
@@ -52,8 +49,19 @@ export function MyInvitations() {
         onSettled: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
     });
 
-    if (requests.isPending) return <p className="text-tinta-2 py-6" aria-busy>Cargando tus invitaciones…</p>;
-    if (requests.isError) return <p role="alert" className="text-error py-6">No pudimos cargar tus invitaciones. Recarga la página en un momento.</p>;
+    if (requests.isPending) return (
+        <div aria-busy className="py-6">
+            <span className="sr-only" role="status">Cargando tus invitaciones…</span>
+            <RequestSkeleton />
+        </div>
+    );
+    if (requests.isError) return (
+        <div className="py-6">
+            <div role="alert" className="superficie rounded-[12px] px-6 py-8 text-center text-error">
+                No pudimos cargar tus invitaciones. Recarga la página en un momento.
+            </div>
+        </div>
+    );
 
     const { received, sent, history } = splitMyRequests(requests.data);
     const onAction = (action: Action, request: MembershipRequest) => respond.mutate({ action, request });
@@ -68,53 +76,55 @@ export function MyInvitations() {
             )}
 
             {requests.data.length === 0 ? (
-                <p className="text-tinta-2 max-w-[56ch]">
-                    Aún no tienes invitaciones ni solicitudes. Cuando un grupo te invite, la verás aquí; también puedes pedir unirte desde el perfil de un grupo.
-                </p>
+                <div className="superficie rounded-[12px] px-6 py-10 text-center">
+                    <p className="mx-auto max-w-[48ch] text-tinta-2">
+                        Aún no tienes invitaciones ni solicitudes. Cuando un grupo te invite, la verás aquí; también puedes pedir unirte desde el perfil de un grupo.
+                    </p>
+                </div>
             ) : (
                 <>
-                    <Section id="inv-recibidas" title="Invitaciones recibidas" empty="No tienes invitaciones pendientes." rows={received} busy={respond.isPending} onAction={onAction} />
-                    <Section id="inv-enviadas" title="Solicitudes enviadas" empty="No tienes solicitudes pendientes." rows={sent} busy={respond.isPending} onAction={onAction} />
-                    {history.length > 0 && <Section id="inv-historial" title="Historial" rows={history} busy={respond.isPending} muted onAction={onAction} />}
+                    <RequestGroup id="inv-recibidas" title="Invitaciones recibidas" count={received.length} as="h3">
+                        {received.length === 0 ? <p className="text-tinta-2">No tienes invitaciones pendientes.</p> : <Rows rows={received} busy={respond.isPending} onAction={onAction} />}
+                    </RequestGroup>
+                    <RequestGroup id="inv-enviadas" title="Solicitudes enviadas" count={sent.length} as="h3">
+                        {sent.length === 0 ? <p className="text-tinta-2">No tienes solicitudes pendientes.</p> : <Rows rows={sent} busy={respond.isPending} onAction={onAction} />}
+                    </RequestGroup>
+                    {history.length > 0 && (
+                        <RequestGroup id="inv-historial" title="Historial" count={history.length} collapsible as="h3">
+                            <Rows rows={history} busy={respond.isPending} onAction={onAction} />
+                        </RequestGroup>
+                    )}
                 </>
             )}
         </div>
     );
 }
 
-function Section({ id, title, rows, empty, busy, muted, onAction }: {
-    id: string;
-    title: string;
+function Rows({ rows, busy, onAction }: {
     rows: MembershipRequest[];
-    empty?: string;
     busy: boolean;
-    muted?: boolean;
     onAction: (action: Action, request: MembershipRequest) => void;
 }) {
     return (
-        <section aria-labelledby={id}>
-            <h3 id={id} className={`type-heading text-xl ${muted ? "text-tinta-2" : ""}`}>{title}</h3>
-            {rows.length === 0 ? (
-                <p className="mt-2 text-tinta-2">{empty}</p>
-            ) : (
-                <ul className="mt-2 flex flex-col">
-                    {rows.map((r) => {
-                        const actions = musicianActions(r);
-                        return (
-                            <li key={r.id} className="py-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3 [&+&]:shadow-[inset_0_1px_0_var(--fondo-3)]">
-                                <div className="min-w-0">
-                                    <p className="font-semibold text-tinta">
-                                        {r.groupSlug ? (
-                                            <Link href={ROUTES.GROUPS.PUBLIC_PROFILE(r.groupSlug)} className="underline decoration-acento decoration-2 underline-offset-4">{r.counterpartName}</Link>
-                                        ) : r.counterpartName}
-                                    </p>
-                                    <p className="text-tinta-2 text-sm">
-                                        {r.direction === "Invitation" ? "Te invitó a unirte" : directionLabel(r.direction)} · {formatDate(r.createdAt)}
-                                    </p>
-                                    {r.message && <p className="mt-1 text-tinta max-w-[56ch]">“{r.message}”</p>}
-                                    <p className={`mt-1 text-sm ${toneClass[statusTone(r.status)]}`}>{statusLabel(r.status)}</p>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
+        <ul className="flex flex-col gap-4">
+            {rows.map((r) => {
+                const actions = musicianActions(r);
+                return (
+                    <RequestCard
+                        key={r.id}
+                        name={r.counterpartName}
+                        title={
+                            r.groupSlug ? (
+                                <Link href={ROUTES.GROUPS.PUBLIC_PROFILE(r.groupSlug)} className="underline decoration-acento decoration-2 underline-offset-4">{r.counterpartName}</Link>
+                            ) : r.counterpartName
+                        }
+                        direction={r.direction === "Invitation" ? "Te invitó a unirte" : directionLabel(r.direction)}
+                        createdAt={r.createdAt}
+                        status={r.status}
+                        message={r.message}
+                        actions={
+                            actions.accept || actions.decline || actions.cancel ? (
+                                <>
                                     {actions.accept && (
                                         <Button size="sm" disabled={busy} onClick={() => onAction("accept", r)} aria-label={`Aceptar invitación de ${r.counterpartName}`}>Aceptar</Button>
                                     )}
@@ -124,12 +134,12 @@ function Section({ id, title, rows, empty, busy, muted, onAction }: {
                                     {actions.cancel && (
                                         <Button size="sm" variant="outline" disabled={busy} onClick={() => onAction("cancel", r)} aria-label={`Cancelar solicitud a ${r.counterpartName}`}>Cancelar solicitud</Button>
                                     )}
-                                </div>
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
-        </section>
+                                </>
+                            ) : null
+                        }
+                    />
+                );
+            })}
+        </ul>
     );
 }
