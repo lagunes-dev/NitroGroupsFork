@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { signupErrorMessage } from "@/lib/auth0SignupError";
 
 interface SignupRequest {
     email: string;
@@ -56,19 +57,8 @@ export async function POST(request: NextRequest) {
         const auth0Data = await auth0Response.json();
 
         if (!auth0Response.ok) {
-            // Handle specific Auth0 errors
-            let errorMessage = "Error al crear la cuenta";
-
-            if (auth0Data.code === "invalid_signup") {
-                errorMessage = "Este correo ya está registrado";
-            } else if (auth0Data.code === "invalid_password") {
-                errorMessage = auth0Data.description || "La contraseña no cumple con los requisitos";
-            } else if (auth0Data.description) {
-                errorMessage = auth0Data.description;
-            }
-
             return NextResponse.json(
-                { error: errorMessage },
+                { error: signupErrorMessage(auth0Data) },
                 { status: auth0Response.status }
             );
         }
