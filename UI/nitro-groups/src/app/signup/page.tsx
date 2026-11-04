@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { Briefcase, Lock, Mail, Music, PartyPopper, type LucideIcon } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
@@ -62,6 +63,48 @@ function getPasswordStrength(password: string): PasswordStrength {
     if (score <= 2) return { score: 2, label: "Regular", color: "text-orange-500", barColor: "bg-orange-500" };
     if (score <= 3) return { score: 3, label: "Buena", color: "text-yellow-500", barColor: "bg-yellow-500" };
     return { score: 4, label: "Fuerte", color: "text-green-500", barColor: "bg-green-500" };
+}
+
+interface RoleCardProps {
+    icon: LucideIcon;
+    title: string;
+    description: string;
+    badges?: string[];
+    highlighted?: boolean;
+    selected: boolean;
+    disabled: boolean;
+    onSelect: () => void;
+}
+
+/** One role option. Hover and selection only change the edge colour (2px border always present), so nothing shifts. */
+function RoleCard({ icon: Icon, title, description, badges, highlighted, selected, disabled, onSelect }: RoleCardProps) {
+    return (
+        <button
+            type="button"
+            onClick={onSelect}
+            disabled={disabled}
+            aria-busy={selected || undefined}
+            className={`flex h-full w-full flex-col items-start gap-3 rounded-[12px] border-2 bg-fondo-2 p-6 text-left transition-colors duration-300 disabled:opacity-50 ${selected ? "border-acento" : "border-[var(--linea-fuerte)] enabled:hover:border-acento/60"}`}
+        >
+            <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-[8px] bg-acento/10 text-acento">
+                <Icon className="size-5" />
+            </span>
+            <h3 className="text-lg font-semibold leading-snug">{title}</h3>
+            <p className="text-sm text-tinta-2">{description}</p>
+            {badges && (
+                <div className="mt-auto flex flex-wrap gap-2 pt-1">
+                    {badges.map((badge) => (
+                        <span
+                            key={badge}
+                            className={`rounded-[6px] px-2 py-1 text-xs ${highlighted ? "bg-acento/10 text-acento" : "bg-fondo-3 text-tinta-2"}`}
+                        >
+                            {badge}
+                        </span>
+                    ))}
+                </div>
+            )}
+        </button>
+    );
 }
 
 export default function SignupPage() {
@@ -284,16 +327,15 @@ export default function SignupPage() {
 
     return (
         <div className="page-frame py-16 md:py-24 grid md:grid-cols-12 gap-x-8 gap-y-10">
-            <div className="md:col-span-7 w-full max-w-2xl space-y-10">
-                {/* Header */}
-                <div className="space-y-3">
-                    <h1 className="titulo">
-                        Crear cuenta
-                    </h1>
-                    <p className="text-muted-foreground">
-                        Crea tu cuenta y comienza a conectar con la música
-                    </p>
-                </div>
+            <header className="md:col-span-7 w-full max-w-2xl space-y-3">
+                <h1 className="titulo">
+                    Crear cuenta
+                </h1>
+                <p className="text-tinta-2">
+                    Crea tu cuenta y comienza a conectar con la música
+                </p>
+            </header>
+            <div className="md:col-span-7 md:row-start-2 w-full max-w-2xl space-y-10">
 
                 {/* Progress Steps */}
                 <ProgressSteps steps={STEPS} currentStep={currentStep} />
@@ -320,12 +362,7 @@ export default function SignupPage() {
                                     required
                                     error={emailError}
                                     success={touched.email && !!formData.email && !emailError}
-                                    icon={
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <rect width="20" height="16" x="2" y="4" rx="2" />
-                                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                                        </svg>
-                                    }
+                                    icon={<Mail aria-hidden />}
                                 />
 
                                 <div className="space-y-2">
@@ -338,12 +375,7 @@ export default function SignupPage() {
                                         onBlur={() => markTouched("password")}
                                         required
                                         error={passwordError}
-                                        icon={
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-                                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                            </svg>
-                                        }
+                                        icon={<Lock aria-hidden />}
                                     />
                                     {/* Password Strength Bar */}
                                     {formData.password.length > 0 && (
@@ -363,7 +395,7 @@ export default function SignupPage() {
                                                 <p className={`text-xs font-medium ${passwordStrength.color}`}>
                                                     {passwordStrength.label}
                                                 </p>
-                                                <p className="text-xs text-muted-foreground">
+                                                <p className="text-xs text-tinta-2">
                                                     Usa letras, números y símbolos
                                                 </p>
                                             </div>
@@ -381,6 +413,7 @@ export default function SignupPage() {
                                     required
                                     success={confirmPasswordSuccess}
                                     error={confirmPasswordError}
+                                    icon={<Lock aria-hidden />}
                                 />
                             </div>
                         )}
@@ -425,96 +458,44 @@ export default function SignupPage() {
                         {/* Step 3: User Type Selection */}
                         {currentStep === 3 && (
                             <div className="space-y-6 animate-in fade-in-50 slide-in-from-right-4 duration-300">
-                                <p className="text-lg font-medium text-center">
+                                <p className="text-lg font-medium">
                                     ¿Qué vienes a hacer a NitroGroups?
                                 </p>
 
-                                {/* Client Option */}
-                                <button
-                                    type="button"
-                                    onClick={() => handleSelectUserType("client")}
+                                <RoleCard
+                                    icon={PartyPopper}
+                                    title="Contratar músicos"
+                                    description="Quiero encontrar y contratar músicos para mis eventos"
+                                    selected={formData.userType === "client" && isLoading}
                                     disabled={isLoading}
-                                    className={`w-full p-6 border-2 rounded-lg transition-all hover:shadow-lg text-left disabled:opacity-50 ${formData.userType === "client" && isLoading
-                                        ? "border-primary bg-primary/5"
-                                        : "border-muted hover:border-primary/50"
-                                        }`}
-                                >
-                                    <div className="flex items-start gap-4">
-                                        <div className="text-4xl">🎉</div>
-                                        <div className="space-y-1">
-                                            <h3 className="font-semibold text-lg">Contratar músicos</h3>
-                                            <p className="text-sm text-muted-foreground">
-                                                Quiero encontrar y contratar músicos para mis eventos
-                                            </p>
-                                        </div>
-                                    </div>
-                                </button>
+                                    onSelect={() => handleSelectUserType("client")}
+                                />
 
-                                <div className="relative">
-                                    <div className="absolute inset-0 flex items-center">
-                                        <div className="w-full border-t border-muted" />
-                                    </div>
-                                    <div className="relative flex justify-start text-sm">
-                                        <span className="bg-background pr-3 text-muted-foreground">
-                                            Ofrecer servicios
-                                        </span>
-                                    </div>
+                                <div className="flex items-center gap-3 text-sm text-tinta-2">
+                                    <span>Ofrecer servicios</span>
+                                    <span aria-hidden className="h-px flex-1 bg-linea" />
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {/* Musician Option */}
-                                    <button
-                                        type="button"
-                                        onClick={() => handleSelectUserType("musician")}
+                                    <RoleCard
+                                        icon={Music}
+                                        title="Músico / Líder de Banda"
+                                        description="Toco música y quiero ofrecer mis servicios. Puedo liderar o formar parte de grupos."
+                                        badges={["Apareces en catálogo", "Perfil de músico"]}
+                                        highlighted
+                                        selected={formData.userType === "musician" && isLoading}
                                         disabled={isLoading}
-                                        className={`p-6 border-2 rounded-lg transition-all hover:shadow-lg text-left disabled:opacity-50 ${formData.userType === "musician" && isLoading
-                                            ? "border-primary bg-primary/5"
-                                            : "border-muted hover:border-primary/50"
-                                            }`}
-                                    >
-                                        <div className="space-y-3">
-                                            <div className="text-4xl">🎸</div>
-                                            <h3 className="font-semibold text-lg">Músico / Líder de Banda</h3>
-                                            <p className="text-sm text-muted-foreground">
-                                                Toco música y quiero ofrecer mis servicios. Puedo liderar o formar parte de grupos.
-                                            </p>
-                                            <div className="flex flex-wrap gap-2 pt-2">
-                                                <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">
-                                                    Apareces en catálogo
-                                                </span>
-                                                <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">
-                                                    Perfil de músico
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </button>
-
-                                    {/* Manager Option */}
-                                    <button
-                                        type="button"
-                                        onClick={() => handleSelectUserType("band_member")}
+                                        onSelect={() => handleSelectUserType("musician")}
+                                    />
+                                    <RoleCard
+                                        icon={Briefcase}
+                                        title="Manager / Representante"
+                                        description="Administro grupos musicales pero no toco. Gestiono contratos y agenda."
+                                        badges={["Solo administración", "Invita músicos"]}
+                                        selected={formData.userType === "band_member" && isLoading}
                                         disabled={isLoading}
-                                        className={`p-6 border-2 rounded-lg transition-all hover:shadow-lg text-left disabled:opacity-50 ${formData.userType === "band_member" && isLoading
-                                            ? "border-primary bg-primary/5"
-                                            : "border-muted hover:border-primary/50"
-                                            }`}
-                                    >
-                                        <div className="space-y-3">
-                                            <div className="text-4xl">💼</div>
-                                            <h3 className="font-semibold text-lg">Manager / Representante</h3>
-                                            <p className="text-sm text-muted-foreground">
-                                                Administro grupos musicales pero no toco. Gestiono contratos y agenda.
-                                            </p>
-                                            <div className="flex flex-wrap gap-2 pt-2">
-                                                <span className="text-xs px-2 py-1 bg-muted text-muted-foreground rounded-full">
-                                                    Solo administración
-                                                </span>
-                                                <span className="text-xs px-2 py-1 bg-muted text-muted-foreground rounded-full">
-                                                    Invita músicos
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </button>
+                                        onSelect={() => handleSelectUserType("band_member")}
+                                    />
                                 </div>
                             </div>
                         )}
@@ -525,6 +506,7 @@ export default function SignupPage() {
                                 <Button
                                     type="button"
                                     variant="outline"
+                                    size="lg"
                                     onClick={handleBack}
                                     className="flex-1"
                                     disabled={isLoading}
@@ -548,7 +530,7 @@ export default function SignupPage() {
                             {currentStep === STEPS.length && isLoading && (
                                 <div className="flex-1 flex items-center justify-center gap-2 py-3">
                                     <Loader inline />
-                                    <span className="text-sm text-muted-foreground">Creando cuenta...</span>
+                                    <span className="text-sm text-tinta-2">Creando cuenta...</span>
                                 </div>
                             )}
                         </div>
@@ -558,15 +540,16 @@ export default function SignupPage() {
                 </div>
 
                 {/* Login Link */}
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-tinta-2">
                     ¿Ya tienes una cuenta?{" "}
-                    <Link href="/login" className="text-primary font-medium hover:underline">
+                    <Link href="/login" className="text-acento font-medium hover:underline">
                         Inicia sesión
                     </Link>
                 </p>
             </div>
-            <aside className="hidden md:block md:col-span-4 md:col-start-9 md:pt-40">
-                <p className="text-[clamp(1.35rem,2vw,1.85rem)] leading-snug text-tinta-2 max-w-[24ch]">
+            {/* Row 2, column 2: its top edge is the stepper's top edge. */}
+            <aside className="hidden md:block md:col-span-4 md:col-start-9 md:row-start-2">
+                <p className="border-l border-linea pl-6 text-base leading-relaxed text-tinta-2 max-w-[34ch]">
                     Una cuenta de cliente para contratar grupos, o de músico para publicar el tuyo. Lo eliges al final.
                 </p>
             </aside>

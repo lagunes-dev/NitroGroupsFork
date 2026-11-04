@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect, useId } from "react";
 import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { fieldClass, floatingPanelClass } from "./field";
 
 interface CountryCode {
     code: string;
@@ -42,7 +44,7 @@ interface PhoneInputProps {
     error?: string;
 }
 
-/** Teléfono con lada: mismo lenguaje que `Input` (relleno fondo-2, sin borde, anillo al enfocar). */
+/** Teléfono con lada: un solo campo con la forma de `fieldClass` (48 px, 8 px, fondo-2) y un divisor entre la lada y el número. */
 export default function PhoneInput({ label, value, onChange, required, error }: PhoneInputProps) {
     const [selectedCountry, setSelectedCountry] = useState<CountryCode>(COUNTRY_CODES[0]); // Por defecto: México
     const [isOpen, setIsOpen] = useState(false);
@@ -103,10 +105,16 @@ export default function PhoneInput({ label, value, onChange, required, error }: 
                     {label}
                 </label>
             )}
-            <div className="flex gap-0.5">
+            <div
+                className={cn(
+                    fieldClass,
+                    "flex items-stretch px-0 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-acento"
+                )}
+                aria-invalid={error ? true : undefined}
+            >
                 {/* Lada */}
                 <div
-                    className="relative"
+                    className="relative flex"
                     ref={dropdownRef}
                     onKeyDown={(e) => {
                         if (e.key === "Escape" && isOpen) {
@@ -123,16 +131,16 @@ export default function PhoneInput({ label, value, onChange, required, error }: 
                         aria-expanded={isOpen}
                         aria-controls={isOpen ? listId : undefined}
                         aria-label={`Lada: ${selectedCountry.name} ${selectedCountry.dial}. Cambiar país`}
-                        className="flex h-12 items-center gap-2 whitespace-nowrap bg-fondo-2 px-3.5 text-tinta tabular transition-colors hover:bg-fondo-3 focus-visible:-outline-offset-2"
+                        className="flex h-full items-center gap-2 whitespace-nowrap rounded-l-[8px] px-4 text-base leading-none text-tinta tabular transition-colors hover:bg-fondo-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acento"
                     >
-                        <span className="text-sm text-tinta-2">{selectedCountry.code}</span>
+                        <span className="text-tinta-2">{selectedCountry.code}</span>
                         <span>{selectedCountry.dial}</span>
                         <ChevronDown aria-hidden className={`size-4 text-tinta-2 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                     </button>
+                    <span aria-hidden className="my-3 w-px bg-[var(--linea-fuerte)]" />
 
                     {isOpen && (
-                        // Menú flotante: es lo único que lleva sombra (DESIGN.md → Tokens).
-                        <div className="absolute left-0 top-full z-50 mt-1 max-h-72 w-72 overflow-auto bg-fondo-2 shadow-[0_12px_32px_-8px_var(--fondo)]">
+                        <div className={cn(floatingPanelClass, "absolute left-0 top-full mt-1 max-h-72 w-72 overflow-auto")}>
                             <div className="sticky top-0 bg-fondo-2 p-2">
                                 <input
                                     type="text"
@@ -140,7 +148,7 @@ export default function PhoneInput({ label, value, onChange, required, error }: 
                                     aria-label="Buscar país"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="h-10 w-full bg-fondo px-3 text-sm text-tinta placeholder:text-tinta-2/70 outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acento"
+                                    className="h-10 w-full rounded-[8px] bg-fondo px-3 text-sm text-tinta placeholder:text-tinta-2/70 outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acento"
                                     autoFocus
                                 />
                             </div>
@@ -182,7 +190,7 @@ export default function PhoneInput({ label, value, onChange, required, error }: 
                     required={required}
                     aria-invalid={error ? true : undefined}
                     aria-describedby={error ? errorId : undefined}
-                    className={`h-12 min-w-0 flex-1 bg-fondo-2 px-4 text-base text-tinta tabular placeholder:text-tinta-2/70 outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acento ${error ? "shadow-[inset_0_-2px_0_var(--error)]" : ""}`}
+                    className="h-full min-w-0 flex-1 bg-transparent px-4 text-base text-tinta tabular placeholder:text-tinta-2 outline-none"
                 />
             </div>
             {error && <p id={errorId} className="text-sm text-error">{error}</p>}

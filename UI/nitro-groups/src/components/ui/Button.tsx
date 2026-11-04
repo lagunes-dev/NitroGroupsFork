@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 
 // Botones rectangulares de 8px, Poppins de 14px, un relleno por variante (DESIGN.md → Components).
 const buttonVariants = cva(
-    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-[family-name:var(--font-display)] font-semibold transition-[background-color,color,box-shadow] duration-300 ease-[var(--ease-out)] disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:size-[1.1em] [&_svg]:shrink-0",
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[8px] font-[family-name:var(--font-display)] font-semibold transition-[background-color,color,box-shadow] duration-300 ease-[var(--ease-out)] disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:size-[1.1em] [&_svg]:shrink-0",
     {
         variants: {
             variant: {
