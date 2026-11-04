@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import { ImageUrlField } from "./ImageUrlField";
 import type { MusicGroup } from "../../types/MusicGroup";
 import type { GenreListItem } from "../../services/groups.service";
 
@@ -120,10 +121,11 @@ export default function GroupProfileEdit({
           </div>
 
           <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2">
-            <Input id={id("avatar")} label="Foto de perfil (URL)" value={group.profilePictureUrl || ""} onChange={(e) => set("profilePictureUrl", e.target.value)}
-              placeholder="https://…" type="url" inputMode="url" />
-            <Input id={id("cover")} label="Portada (URL)" value={group.coverImageUrl || ""} onChange={(e) => set("coverImageUrl", e.target.value)}
-              placeholder="https://…" type="url" inputMode="url" helperText="Sin portada, tu perfil usa la primera foto de la galería." />
+            <ImageUrlField id={id("avatar")} label="Foto de perfil" groupId={group.id}
+              value={group.profilePictureUrl || ""} onChange={(url) => set("profilePictureUrl", url)} />
+            <ImageUrlField id={id("cover")} label="Portada" groupId={group.id}
+              value={group.coverImageUrl || ""} onChange={(url) => set("coverImageUrl", url)}
+              helperText="Sin portada, tu perfil usa la primera foto de la galería." />
           </div>
         </fieldset>
 
