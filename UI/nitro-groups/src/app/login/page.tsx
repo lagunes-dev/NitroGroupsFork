@@ -47,7 +47,7 @@ export default function LoginPage() {
 
     return (
         <div className="page-frame min-h-[calc(100vh-4rem)] grid md:grid-cols-12 gap-x-8 gap-y-10 content-center py-16">
-            <div className="md:col-span-5 md:col-start-2 w-full max-w-md space-y-8">
+            <div className="md:col-span-7 w-full max-w-md space-y-8">
                 {/* Header */}
                 <div className="space-y-3">
                     <h1 className="titulo">
@@ -135,7 +135,7 @@ export default function LoginPage() {
                     </Link>
                 </p>
             </div>
-            <aside className="hidden md:block md:col-span-4 md:col-start-8">
+            <aside className="hidden md:block md:col-span-4 md:col-start-9">
                 <p className="border-l border-linea pl-6 text-base leading-relaxed text-tinta-2 max-w-[34ch]">
                     Tus solicitudes, tus fechas y cada conversación con los grupos, en un solo lugar.
                 </p>
