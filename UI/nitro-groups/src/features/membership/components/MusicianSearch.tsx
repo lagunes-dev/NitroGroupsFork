@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription, Button } from "@/components/ui";
 import { fieldClass } from "@/features/groups/components/GroupProfile/Common";
+import { Avatar } from "./Avatar";
 import { membershipService } from "../membership.service";
 import { membershipErrorMessage } from "../errors";
 import { debounced, normalizeQuery } from "../search";
@@ -85,12 +86,7 @@ export function MusicianSearch({ groupId }: { groupId: number }) {
                     {data.items.map((m) => (
                         <li key={m.userId} className="py-4 flex flex-wrap items-center justify-between gap-4 [&+&]:shadow-[inset_0_1px_0_var(--fondo-3)]">
                             <div className="flex min-w-0 items-center gap-4">
-                                {m.profilePictureUrl ? (
-                                    // eslint-disable-next-line @next/next/no-img-element -- origen arbitrario del perfil
-                                    <img src={m.profilePictureUrl} alt="" className="size-12 rounded-full bg-fondo-3 object-cover" />
-                                ) : (
-                                    <span aria-hidden className="grid size-12 place-items-center rounded-full bg-fondo-3 text-tinta-2">{m.fullName.charAt(0).toUpperCase()}</span>
-                                )}
+                                <Avatar name={m.fullName} src={m.profilePictureUrl} />
                                 <div className="min-w-0">
                                     <p className="font-semibold text-tinta">{m.fullName}</p>
                                     {m.yearsExperience ? <p className="text-sm text-tinta-2">{m.yearsExperience} {m.yearsExperience === 1 ? "año" : "años"} de experiencia</p> : null}
