@@ -73,9 +73,12 @@ public sealed class IntegrationTestFixture : IDisposable
             new OpenMusicianSearchRepository(context));
 
     public IUnitOfWorkGroups CreateGroupsUnitOfWork(GroupsDbContext context)
+        => CreateGroupsUnitOfWork(context, Substitute.For<IOutboxService>());
+
+    public IUnitOfWorkGroups CreateGroupsUnitOfWork(GroupsDbContext context, IOutboxService outbox)
         => new UnitOfWorkGroups(
             context,
-            Substitute.For<IOutboxService>(),
+            outbox,
             new GenericRepository<Group, long>(context),
             new GenericRepository<GroupMember, long>(context),
             new GenericRepository<MusicGenre, long>(context),

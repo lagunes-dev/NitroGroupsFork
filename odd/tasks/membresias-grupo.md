@@ -32,7 +32,7 @@ Rama de trabajo: `feat/group-membership` (a partir de `develop`). Entrega en dos
 - [x] T1 (S1, S3, S4) Agregado `GroupMembershipRequest` + EF config + migración + tests de transiciones del dominio.
 - [x] T2 (S2) `IUsersModuleApi` (búsqueda de músicos abiertos y resumen sin email) + `GET api/musicians/open-to-join` + tests.
 - [x] T3 (S1, S3, S4) Casos de uso y endpoints de Groups: invitar, pedir unirse, aceptar/rechazar, cancelar, bandejas; alta del `GroupMember` al aceptar; tests de integración y de endpoints (401, 404 a ajenos).
-- [ ] T4 (S5) Avisos por email vía outbox (invitación, solicitud, resolución).
+- [x] T4 (S5) Avisos por email vía outbox (invitación, solicitud, resolución).
 - [ ] T5 (S2, S5) Front: servicio y pestaña "Equipo" del manager (buscar, invitar, ver pendientes).
 - [ ] T6 (S1, S5) Front: bandeja "Invitaciones" del músico y "Pedir unirse" en el perfil público del grupo.
 - [ ] T7 (S5) Documentación (README) y decisión en Engram.
@@ -71,3 +71,17 @@ Rama de trabajo: `feat/group-membership` (a partir de `develop`). Entrega en dos
   - Una sola pendiente por (grupo, músico): se comprueba antes de insertar y, si dos peticiones se cruzan, la violación del índice único parcial (`IX_group_membership_requests_group_id_musician_user_id`, SQLSTATE 23505) se traduce a `false` en el repositorio y el endpoint responde 409, nunca 500.
   - `GET api/groups/{id}/members` no cambió de forma y no muestra pendientes (test: invitar no crea `GroupMember`).
   - Sin eventos de dominio ni outbox: los avisos por email son T4.
+- L11 (T4): hecho en el commit `feat(groups): send membership notices through the outbox` (hash en el reporte del agente). Cubre S1 (los dos sentidos avisan a quien debe responder) y S5 (avisos por email dentro del PR backend), más la forma de Bookings. Suite: Integration 181 passed + 5 skipped (los `PostgresFact`, sin `NITRO_TEST_POSTGRES` en este entorno), Endpoints 149, 0 failed; con `NITRO_TEST_POSTGRES` los 3 `EventRequestConcurrencyPostgresTests` de Bookings fallan por `Failed to connect to 127.0.0.1:5433` (entorno, no este cambio).
+  - Cuatro eventos de integración en `Shared.Domain.DomainEvents.Groups` con su envoltorio `INotification` en `Groups.Application.Events.GroupMembershipEvents` (el outbox los resuelve por el nombre de la clase base, igual que `BookingEvents`):
+
+    | Evento | Se dispara cuando | Recibe | Asunto |
+    |---|---|---|---|
+    | `GroupMembershipInvitationCreatedEvent` | un manager invita a un músico | el músico invitado | `{grupo} te invitó a unirte` |
+    | `GroupMembershipJoinRequestCreatedEvent` | un músico pide unirse | Owner + Managers activos (`GetManagerUserIdsAsync`) | `Nueva solicitud para unirse a {grupo}` |
+    | `GroupMembershipInvitationResolvedEvent` | el músico acepta/rechaza (aviso al grupo) o el grupo retira la invitación (aviso al músico) | la parte que no actuó | `{músico} aceptó/rechazó tu invitación a {grupo}` · `{grupo} canceló su invitación para unirte` |
+    | `GroupMembershipJoinRequestResolvedEvent` | el grupo acepta/rechaza (aviso al músico) o el músico retira la solicitud (aviso al grupo) | la parte que no actuó | `{grupo} aceptó/rechazó tu solicitud para unirte` · `{músico} canceló su solicitud para unirse a {grupo}` |
+
+  - El agregado levanta los eventos (`RaiseCreatedEvent` después de guardar, cuando ya hay Id; `Resolve` levanta el de resolución) y los casos de uso los mandan al outbox: `PendingMembershipRequests.CreateAsync` (invitar y pedir unirse) y `RespondToMembershipRequestCommandHandler` (`SaveEventsAsync` → `ClearDomainEvents` → `CompleteAsync`, el mismo orden que `RespondToEventRequestCommand`). El camino de creación guarda dos veces porque `TryCreatePendingAsync` ya guardó para tener Id, igual que `CreateEventRequestCommand`.
+  - Los cuerpos no llevan el texto del mensaje (queda en la plataforma) ni la dirección de nadie: solo el nombre del grupo o del músico y una invitación a entrar. `GroupMembershipEmailRecipients` resuelve direcciones con `IGroupsModuleApi`/`IUsersModuleApi` solo para entregar; la regla de T2 (contratos de grupo sin email) sigue intacta porque el email nunca sale de `IUsersModuleApi.GetUserAsync/GetUsersAsync`.
+  - `RaiseCreatedEvent` cubre invite y request; la resolución cubre Accept/Decline/Cancel (el usuario listó las tres transiciones). Un manager que retira su propia invitación no recibe aviso de sí mismo: el aviso de una cancelación de invitación va al músico.
+  - Sin SMTP (`Email:Smtp:Host` sin definir) sigue mandando `LoggingEmailSender`, que registra destinatario y asunto y nunca el cuerpo (test propio).

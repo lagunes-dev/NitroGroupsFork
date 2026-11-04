@@ -81,6 +81,9 @@ public sealed class RespondToMembershipRequestCommandHandler(
 
         try
         {
+            // Un solo guardado: estado (y la fila de miembro si se aceptó) + aviso para el outbox.
+            await unitOfWork.OutboxService.SaveEventsAsync(request.DomainEvents);
+            request.ClearDomainEvents();
             await unitOfWork.CompleteAsync();
         }
         catch (ConcurrencyConflictException)

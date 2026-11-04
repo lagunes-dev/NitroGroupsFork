@@ -1,4 +1,5 @@
 using NitroGroups.Shared.Domain;
+using NitroGroups.Shared.Domain.DomainEvents.Groups;
 using NitroGroups.Shared.Domain.DomainEvents.Groups.Enums;
 
 namespace NitroGroups.Core.Groups.Domain.Entities;
@@ -51,6 +52,33 @@ public class GroupMembershipRequest : AuditableModel
         };
     }
 
+    /// <summary>
+    /// Raises the "you have a pending request" event. Called after saving, once there is an Id
+    /// (same order as Bookings): inviting notifies the musician, asking to join notifies the group.
+    /// </summary>
+    public void RaiseCreatedEvent()
+    {
+        if (Direction == MembershipDirection.Invitation)
+        {
+            AddDomainEvent(new GroupMembershipInvitationCreatedEvent
+            {
+                MembershipRequestId = Id,
+                GroupId = GroupId,
+                MusicianUserId = MusicianUserId,
+                InvitedByUserId = InitiatedByUserId
+            });
+            return;
+        }
+
+        AddDomainEvent(new GroupMembershipJoinRequestCreatedEvent
+        {
+            MembershipRequestId = Id,
+            GroupId = GroupId,
+            MusicianUserId = MusicianUserId,
+            RequestedByUserId = InitiatedByUserId
+        });
+    }
+
     /// <summary>The receiving side accepts. Only from Pending.</summary>
     public void Accept(long resolverUserId) => Resolve(MembershipRequestStatus.Accepted, resolverUserId, "accepted");
 
@@ -70,5 +98,32 @@ public class GroupMembershipRequest : AuditableModel
 
         Status = newStatus;
         ResolvedByUserId = userId;
+        RaiseResolvedEvent(newStatus, userId);
+    }
+
+    /// <summary>The notice goes to the party that did not act; the handler decides who that is.</summary>
+    private void RaiseResolvedEvent(MembershipRequestStatus newStatus, long resolverUserId)
+    {
+        if (Direction == MembershipDirection.Invitation)
+        {
+            AddDomainEvent(new GroupMembershipInvitationResolvedEvent
+            {
+                MembershipRequestId = Id,
+                GroupId = GroupId,
+                MusicianUserId = MusicianUserId,
+                ResolvedByUserId = resolverUserId,
+                NewStatus = newStatus
+            });
+            return;
+        }
+
+        AddDomainEvent(new GroupMembershipJoinRequestResolvedEvent
+        {
+            MembershipRequestId = Id,
+            GroupId = GroupId,
+            MusicianUserId = MusicianUserId,
+            ResolvedByUserId = resolverUserId,
+            NewStatus = newStatus
+        });
     }
 }

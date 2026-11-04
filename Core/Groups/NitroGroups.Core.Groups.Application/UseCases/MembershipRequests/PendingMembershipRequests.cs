@@ -56,6 +56,11 @@ internal static class PendingMembershipRequests
         if (!await unitOfWork.MembershipRequests.TryCreatePendingAsync(request, cancellationToken))
             return GroupsResult<GroupMembershipRequestResponse>.Conflict(DuplicateMessage);
 
+        // El evento lleva el Id, así que se levanta después de guardar (mismo orden que Bookings).
+        request.RaiseCreatedEvent();
+        await unitOfWork.OutboxService.SaveEventsAsync(request.DomainEvents);
+        request.ClearDomainEvents();
+
         var response = await MembershipRequestResponses.BuildAsync(
             request,
             group,

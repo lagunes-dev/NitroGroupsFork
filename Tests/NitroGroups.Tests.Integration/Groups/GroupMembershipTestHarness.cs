@@ -10,6 +10,7 @@ using NitroGroups.Core.Users.Domain.Entities;
 using NitroGroups.Core.Users.Infrastructure.Adapters;
 using NitroGroups.Core.Users.Infrastructure.Persistence;
 using NitroGroups.Core.Users.Infrastructure.Repositories;
+using NitroGroups.Shared.Abstractions.Events;
 using NitroGroups.Shared.Contracts.Groups.Responses;
 using NitroGroups.Shared.Contracts.Modules;
 using NitroGroups.Shared.Domain.DomainEvents.Groups.Enums;
@@ -36,24 +37,34 @@ internal sealed partial class GroupMembershipTestHarness : IAsyncDisposable
 
     private readonly GroupsDbContext _groups;
     private readonly UsersDbContext _users;
+    private readonly IntegrationTestFixture _fixture;
 
     private GroupMembershipTestHarness(GroupsDbContext groups, UsersDbContext users, IntegrationTestFixture fixture)
     {
         _groups = groups;
         _users = users;
+        _fixture = fixture;
         UnitOfWork = fixture.CreateGroupsUnitOfWork(groups);
         Users = new UsersModuleApi(users, new OpenMusicianSearchRepository(users));
         GroupsApi = new GroupsModuleApi(groups);
         Time = new FixedTimeProvider(FixedNow);
     }
 
-    internal IUnitOfWorkGroups UnitOfWork { get; }
+    internal IUnitOfWorkGroups UnitOfWork { get; private set; }
+    internal GroupsDbContext GroupsContext => _groups;
     internal IUsersModuleApi Users { get; }
     internal IGroupsModuleApi GroupsApi { get; }
     internal TimeProvider Time { get; }
 
     internal static GroupMembershipTestHarness Create(IntegrationTestFixture fixture)
         => new(fixture.CreateGroupsContext(), fixture.CreateUsersContext(), fixture);
+
+    /// <summary>Cambia el outbox simulado por uno real (los avisos por email necesitan guardarse de verdad).</summary>
+    internal GroupMembershipTestHarness UseOutbox(IOutboxService outbox)
+    {
+        UnitOfWork = _fixture.CreateGroupsUnitOfWork(_groups, outbox);
+        return this;
+    }
 
     internal Task<GroupsResult<GroupMembershipRequestResponse>> Invite(InviteMusicianCommand command)
         => new InviteMusicianCommandHandler(UnitOfWork, Users).Handle(command, CancellationToken.None);
