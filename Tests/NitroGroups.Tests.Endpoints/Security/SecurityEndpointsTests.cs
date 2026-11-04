@@ -84,6 +84,7 @@ public class SecurityEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
     [InlineData("POST", "api/groups")]
     [InlineData("POST", "api/auth/sync")]
     [InlineData("GET", "api/users/1/groups")]
+    [InlineData("GET", "api/musicians/open-to-join")]
     public async Task EndpointsPrivados_SinToken_Returns401(string method, string url)
     {
         using var request = new HttpRequestMessage(new HttpMethod(method), url) { Content = JsonContent.Create(new { }) };

@@ -11,9 +11,11 @@ namespace NitroGroups.Core.Users.Infrastructure
         UsersDbContext context,
         IOutboxService outboxService,
         IGenericRepository<User, long> users,
-        IGenericRepository<Musician, long> musicians) : UnitOfWork(context, outboxService), IUnitOfWorkUser
+        IGenericRepository<Musician, long> musicians,
+        IOpenMusicianSearchRepository openMusicians) : UnitOfWork(context, outboxService), IUnitOfWorkUser
     {
         public IGenericRepository<User, long> Users { get; } = users;
         public IGenericRepository<Musician, long> Musicians { get; } = musicians;
+        public IOpenMusicianSearchRepository OpenMusicians { get; } = openMusicians;
     }
 }

@@ -1,3 +1,4 @@
+using NitroGroups.Shared.Contracts.Users.Responses;
 using NitroGroups.Shared.Domain.DomainEvents.Users.Enums;
 
 namespace NitroGroups.Shared.Contracts.Modules
@@ -23,5 +24,14 @@ namespace NitroGroups.Shared.Contracts.Modules
         Task<long?> GetUserIdByAuth0IdAsync(string auth0Id, CancellationToken cancellationToken = default);
         Task<UserSummary?> GetUserAsync(long userId, CancellationToken cancellationToken = default);
         Task<IReadOnlyDictionary<long, UserSummary>> GetUsersAsync(IEnumerable<long> userIds, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Resumen sin email de los músicos indicados (por id de usuario), para que otros módulos
+        /// muestren su nombre sin conocer el email. No filtra por <c>IsOpenToJoin</c>: sirve para
+        /// pintar invitaciones ya existentes.
+        /// </summary>
+        Task<IReadOnlyDictionary<long, OpenMusicianSummary>> GetMusicianSummariesAsync(
+            IEnumerable<long> userIds,
+            CancellationToken cancellationToken = default);
     }
 }

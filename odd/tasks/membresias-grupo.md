@@ -30,7 +30,7 @@ Rama de trabajo: `feat/group-membership` (a partir de `develop`). Entrega en dos
 ## Tasks
 
 - [x] T1 (S1, S3, S4) Agregado `GroupMembershipRequest` + EF config + migración + tests de transiciones del dominio.
-- [ ] T2 (S2) `IUsersModuleApi` (búsqueda de músicos abiertos y resumen sin email) + `GET api/musicians/open-to-join` + tests.
+- [x] T2 (S2) `IUsersModuleApi` (búsqueda de músicos abiertos y resumen sin email) + `GET api/musicians/open-to-join` + tests.
 - [ ] T3 (S1, S3, S4) Casos de uso y endpoints de Groups: invitar, pedir unirse, aceptar/rechazar, cancelar, bandejas; alta del `GroupMember` al aceptar; tests de integración y de endpoints (401, 404 a ajenos).
 - [ ] T4 (S5) Avisos por email vía outbox (invitación, solicitud, resolución).
 - [ ] T5 (S2, S5) Front: servicio y pestaña "Equipo" del manager (buscar, invitar, ver pendientes).
@@ -48,3 +48,8 @@ Rama de trabajo: `feat/group-membership` (a partir de `develop`). Entrega en dos
 - Hallazgos de la exploración: `ApprovedBy` es `int` no nulo en una columna de ids `long`; existe un índice único (GroupId, UserId) en `GroupMemberConfiguration.cs:36` pero no se confirmó en la migración; un handler de Groups debe recibir `IUnitOfWorkGroups` (`ApplicationArchitectureTests`); `IntegrationTestFixture` construye `UnitOfWorkGroups` a mano, así que agregar un repositorio obliga a actualizarlo.
 - L7 (T1): hecho en el commit `feat(groups): add GroupMembershipRequest aggregate` (hash en el reporte del agente; un commit no puede contener su propio hash). Cubre S1, S3 y S4 en el modelo: `GroupMembershipRequest` con dos sentidos, único Pending por (grupo, músico) y sin bloqueo de pertenencia múltiple; el rol inicial `Member` se asigna en T3. Pruebas: suite completa verde (Integration 143, Endpoints 108, con `NITRO_TEST_POSTGRES`). Migración `AddGroupMembershipRequests` aplicada a la base local; solo agrega la tabla y sus 3 índices.
 - L8 (T1, verificación del hallazgo): el índice único (GroupId, UserId) de `group_members` SÍ existe: `unique: true` en `InitialModuleSchema`, `IsUnique()` en el snapshot y `IX_group_members_group_id_user_id UNIQUE` en la base local (`\d groups.group_members`). Queda confirmado; no requiere corrección.
+- L9 (T2): hecho en el commit `feat(users): search musicians open to join without exposing email` (hash en el reporte del agente). Cubre S2. Suite completa verde con `NITRO_TEST_POSTGRES`: Integration 152, Endpoints 111.
+  - Endpoint privado (deny-by-default del `FallbackPolicy`, sin `AllowAnonymous`): `GET api/musicians/open-to-join?query=&page=1&size=10` (query opcional, `size` se limita a 1..48). 401 sin token.
+  - Respuesta: `PagedResult<OpenMusicianSummary>` → `{ items: [{ userId, fullName, profilePictureUrl, yearsExperience }], pageNumber, pageSize, totalCount, totalPages, hasPreviousPage, hasNextPage }`. `OpenMusicianSummary` es un tipo distinto de `UserSummary` y NO tiene email: la privacidad la garantiza el tipo.
+  - Solo aparecen músicos con `IsOpenToJoin = true` cuyo usuario está `Active`; el filtro de nombre es insensible a mayúsculas y matchea nombre, apellido o "nombre apellido".
+  - Para T3: `IUsersModuleApi.GetMusicianSummariesAsync(IEnumerable<long> userIds, CancellationToken)` devuelve `IReadOnlyDictionary<long, OpenMusicianSummary>` por `UserId` y NO filtra por `IsOpenToJoin` (una invitación pendiente debe seguir mostrando el nombre aunque el músico haya cerrado su perfil).

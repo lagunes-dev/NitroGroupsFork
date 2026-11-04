@@ -18,6 +18,7 @@ using NitroGroups.Core.Users.Application.Mappings;
 using NitroGroups.Core.Users.Domain.Entities;
 using NitroGroups.Core.Users.Infrastructure;
 using NitroGroups.Core.Users.Infrastructure.Persistence;
+using NitroGroups.Core.Users.Infrastructure.Repositories;
 using NitroGroups.Shared.Abstractions.Events;
 using NitroGroups.Shared.Infrastructure.Events;
 using NitroGroups.Shared.Infrastructure.Repository;
@@ -68,7 +69,8 @@ public sealed class IntegrationTestFixture : IDisposable
             context,
             outbox,
             new GenericRepository<User, long>(context),
-            new GenericRepository<Musician, long>(context));
+            new GenericRepository<Musician, long>(context),
+            new OpenMusicianSearchRepository(context));
 
     public IUnitOfWorkGroups CreateGroupsUnitOfWork(GroupsDbContext context)
         => new UnitOfWorkGroups(
