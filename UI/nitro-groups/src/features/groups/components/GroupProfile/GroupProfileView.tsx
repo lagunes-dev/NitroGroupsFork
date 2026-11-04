@@ -88,7 +88,7 @@ export default function GroupProfileView({ group, isPublic, toggleEdit }: GroupP
             <dt className="text-sm leading-5 text-tinta-2">{fact.label}</dt>
             <dd
               title={fact.value}
-              className={`type-heading mt-1 truncate text-lg leading-7 tabular ${fact.missing ? "text-tinta-2" : "text-tinta"}`}
+              className={`type-heading mt-1 break-words text-lg leading-7 tabular sm:truncate ${fact.missing ? "text-tinta-2" : "text-tinta"}`}
             >
               {fact.value}
             </dd>
@@ -103,7 +103,7 @@ export default function GroupProfileView({ group, isPublic, toggleEdit }: GroupP
             {joinSpanish(gaps)}.
             <span className="text-tinta-2"> Con esos datos un cliente se decide sin tener que escribirte.</span>
           </p>
-          <Button size="sm" variant="link" onClick={toggleEdit} className="self-start sm:shrink-0 sm:self-auto">
+          <Button size="sm" variant="link" onClick={toggleEdit} className="self-start px-0 sm:shrink-0 sm:self-auto">
             Completar perfil
           </Button>
         </div>
