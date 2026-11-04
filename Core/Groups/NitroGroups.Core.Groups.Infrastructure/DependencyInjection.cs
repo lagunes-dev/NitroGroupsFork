@@ -39,6 +39,7 @@ namespace NitroGroups.Core.Groups.Infrastructure
             services.AddModuleRepository<GroupsDbContext, GroupGenre>();
             services.AddModuleRepository<GroupsDbContext, GroupMedia>();
             services.AddScoped<IGroupSearchRepository, Repositories.GroupSearchRepository>();
+            services.AddScoped<IGroupMembershipRequestRepository, Repositories.GroupMembershipRequestRepository>();
             services.AddModuleUnitOfWork<IUnitOfWorkGroups, UnitOfWorkGroups, GroupsDbContext>();
             return services;
         }

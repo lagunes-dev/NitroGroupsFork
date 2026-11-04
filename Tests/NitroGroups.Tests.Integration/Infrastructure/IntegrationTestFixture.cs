@@ -81,7 +81,8 @@ public sealed class IntegrationTestFixture : IDisposable
             new GenericRepository<MusicGenre, long>(context),
             new GenericRepository<GroupGenre, long>(context),
             new GenericRepository<GroupMedia, long>(context),
-            new Core.Groups.Infrastructure.Repositories.GroupSearchRepository(context));
+            new Core.Groups.Infrastructure.Repositories.GroupSearchRepository(context),
+            new Core.Groups.Infrastructure.Repositories.GroupMembershipRequestRepository(context));
 
     public IUnitOfWorkSchedules CreateSchedulesUnitOfWork(SchedulesDbContext context)
     {

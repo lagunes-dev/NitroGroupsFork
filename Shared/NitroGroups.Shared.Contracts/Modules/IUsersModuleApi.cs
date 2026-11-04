@@ -33,5 +33,12 @@ namespace NitroGroups.Shared.Contracts.Modules
         Task<IReadOnlyDictionary<long, OpenMusicianSummary>> GetMusicianSummariesAsync(
             IEnumerable<long> userIds,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// true solo si el usuario es un músico (no un cliente) abierto a unirse a un grupo
+        /// (<c>IsOpenToJoin</c>) y su cuenta está activa. Otros módulos lo usan para no invitar a
+        /// quien cerró su perfil; el dato nunca sale del módulo Users.
+        /// </summary>
+        Task<bool> IsMusicianOpenToJoinAsync(long userId, CancellationToken cancellationToken = default);
     }
 }
