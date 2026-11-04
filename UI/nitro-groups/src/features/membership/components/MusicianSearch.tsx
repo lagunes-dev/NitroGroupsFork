@@ -8,6 +8,7 @@ import { Avatar } from "./Avatar";
 import { membershipService } from "../membership.service";
 import { membershipErrorMessage } from "../errors";
 import { experienceLabel } from "../experience";
+import { pendingByMusician, pendingLabel } from "../pending";
 import { debounced, normalizeQuery } from "../search";
 import type { OpenMusician } from "../types";
 
@@ -25,6 +26,10 @@ export function MusicianSearch({ groupId }: { groupId: number }) {
 
     const applyQuery = useMemo(() => debounced((value: string) => { setQuery(normalizeQuery(value)); setPage(1); }, DEBOUNCE_MS), []);
     useEffect(() => () => applyQuery.cancel(), [applyQuery]);
+
+    // Same key as the requests list, so inviting someone updates both at once.
+    const groupRequests = useQuery({ queryKey: ["membership-requests", groupId], queryFn: () => membershipService.forGroup(groupId) });
+    const pending = useMemo(() => pendingByMusician(groupRequests.data), [groupRequests.data]);
 
     const results = useQuery({
         queryKey: ["open-musicians", query, page],
@@ -124,7 +129,11 @@ export function MusicianSearch({ groupId }: { groupId: number }) {
                                     <p className={`truncate text-sm ${m.yearsExperience ? "text-tinta-2" : "text-tinta-2/80"}`}>{experienceLabel(m.yearsExperience)}</p>
                                 </div>
                             </div>
-                            <Button size="sm" className="mt-auto w-full" disabled={invite.isPending} onClick={() => invite.mutate(m)} aria-label={`Invitar a ${m.fullName}`}>Invitar</Button>
+                            {pending.has(m.userId) ? (
+                                <Button size="sm" variant="outline" className="mt-auto w-full" disabled aria-label={`${pendingLabel(pending.get(m.userId) ?? null)}: ${m.fullName}`}>{pendingLabel(pending.get(m.userId) ?? null)}</Button>
+                            ) : (
+                                <Button size="sm" className="mt-auto w-full" disabled={invite.isPending} onClick={() => invite.mutate(m)} aria-label={`Invitar a ${m.fullName}`}>Invitar</Button>
+                            )}
                         </li>
                     ))}
                 </ul>
