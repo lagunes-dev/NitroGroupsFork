@@ -33,19 +33,17 @@ export function OnboardingFrame({
 }) {
     return (
         <div className="page-frame py-16 md:py-24 grid md:grid-cols-12 gap-x-8 gap-y-10">
-            <div className="md:col-span-7 w-full max-w-2xl space-y-10">
-                <header className="space-y-3">
-                    <h1 className="titulo">{title}</h1>
-                    <p className="text-tinta-2 max-w-[52ch]">{intro}</p>
-                </header>
+            <header className="md:col-span-7 w-full max-w-2xl space-y-3">
+                <h1 className="titulo">{title}</h1>
+                <p className="text-tinta-2 max-w-[52ch]">{intro}</p>
+            </header>
+            <div className="md:col-span-7 md:row-start-2 w-full max-w-2xl space-y-10">
                 <ProgressSteps steps={steps} currentStep={currentStep} />
                 {children}
             </div>
-            <aside
-                aria-label="Qué sigue"
-                className="md:col-span-4 md:col-start-9 md:pt-40"
-            >
-                <div className="text-tinta-2 space-y-3 max-md:bg-fondo-2 rounded-xl max-md:p-5 md:text-[clamp(1.2rem,1.7vw,1.5rem)] md:leading-snug md:max-w-[26ch]">
+            {/* Row 2, column 2: its top edge is the stepper's top edge. */}
+            <aside aria-label="Qué sigue" className="md:col-span-4 md:col-start-9 md:row-start-2">
+                <div className="text-tinta-2 max-md:bg-fondo-2 rounded-xl max-md:p-5 md:border-l md:border-linea md:pl-6 md:text-base md:leading-relaxed md:max-w-[34ch]">
                     {aside}
                 </div>
             </aside>
