@@ -8,6 +8,8 @@ import { groupsService } from "@/features/groups/services/groups.service";
 import { uploadGroupMediaFile } from "@/lib/groupMediaUpload";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import type { GroupMediaResponse } from "../types/GroupMedia";
 
 type GroupGalleryProps = {
@@ -136,13 +138,19 @@ export default function GroupGallery({ media: mediaProp }: GroupGalleryProps) {
     useEffect(() => {
         if (!isAdding) return;
         // Al abrir, el foco entra al diálogo; Escape lo cierra.
-        dialogRef.current?.querySelector<HTMLElement>("input, select, button")?.focus();
-        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeDialogRef.current(); };
+        dialogRef.current?.querySelector<HTMLElement>("input, button")?.focus();
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== "Escape") return;
+            // Escape inside an open Select panel (rendered in a portal) only closes that panel, not the dialog.
+            if ((e.target as HTMLElement | null)?.closest('[role="listbox"], [aria-expanded="true"]')) return;
+            closeDialogRef.current();
+        };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, [isAdding]);
 
-    const field = "block h-12 w-full bg-fondo px-4 text-base text-tinta placeholder:text-tinta-2/70 outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acento";
+    // The dialog is fondo-2, the same step as a field, so its fields drop one step to stay visible.
+    const field = "bg-fondo";
     const modeTab = (active: boolean) =>
         `h-10 border-b-2 px-1 font-semibold transition-colors ${active ? "border-acento text-tinta" : "border-transparent text-tinta-2 hover:text-tinta"}`;
 
@@ -292,14 +300,14 @@ export default function GroupGallery({ media: mediaProp }: GroupGalleryProps) {
                             </div>
 
                             {addMode === "upload" && (
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium" htmlFor="group-media-file">Archivo</label>
-                                    <input
+                                <>
+                                    <Input
                                         id="group-media-file"
                                         key={fileInputKey}
                                         type="file"
+                                        label="Archivo"
                                         accept="image/*,video/*,audio/*"
-                                        aria-describedby="group-media-file-hint"
+                                        helperText={fileSelectionLabel ? `Elegido: ${fileSelectionLabel}` : "Imagen, video o audio, hasta 50 MB."}
                                         onClick={(e) => e.stopPropagation()}
                                         onChange={(e) => {
                                             e.stopPropagation();
@@ -311,60 +319,49 @@ export default function GroupGallery({ media: mediaProp }: GroupGalleryProps) {
                                                     : null
                                             );
                                         }}
-                                        className="block w-full min-w-0 bg-fondo text-sm text-tinta-2 file:mr-4 file:h-12 file:cursor-pointer file:border-0 file:bg-fondo-3 file:px-4 file:font-semibold file:text-tinta hover:file:bg-fondo-3/80"
+                                        className={`${field} cursor-pointer py-0 text-sm text-tinta-2 file:mr-4 file:cursor-pointer file:rounded-[6px] file:bg-fondo-3 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-tinta`}
                                     />
-                                    <p id="group-media-file-hint" className={`mt-2 text-sm ${fileSelectionLabel ? "text-ok" : "text-tinta-2"}`} aria-live="polite">
-                                        {fileSelectionLabel ? `Elegido: ${fileSelectionLabel}` : "Imagen, video o audio, hasta 50 MB."}
-                                    </p>
-                                </div>
+                                    <p className="sr-only" aria-live="polite">{fileSelectionLabel ? `Elegido: ${fileSelectionLabel}` : ""}</p>
+                                </>
                             )}
 
                             {addMode === "url" && (
                                 <>
-                                    <div>
-                                        <label className="mb-2 block text-sm font-medium" htmlFor="group-media-type">Tipo</label>
-                                        <select
-                                            id="group-media-type"
-                                            value={newMedia.type}
-                                            onChange={e => setNewMedia({ ...newMedia, type: e.target.value })}
-                                            className={field}
-                                        >
-                                            <option value="photo">Foto</option>
-                                            <option value="video">Video</option>
-                                            <option value="audio">Audio</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="mb-2 block text-sm font-medium" htmlFor="group-media-url">Enlace</label>
-                                        <input
-                                            id="group-media-url"
-                                            type="url"
-                                            inputMode="url"
-                                            value={newMedia.url}
-                                            onChange={e => setNewMedia({ ...newMedia, url: e.target.value })}
-                                            placeholder="https://"
-                                            aria-describedby="group-media-url-hint"
-                                            className={field}
-                                        />
-                                        <p id="group-media-url-hint" className="mt-2 text-sm text-tinta-2">Un enlace directo al archivo o a YouTube.</p>
-                                    </div>
+                                    <Select
+                                        id="group-media-type"
+                                        label="Tipo"
+                                        value={newMedia.type}
+                                        onValueChange={(type) => setNewMedia({ ...newMedia, type })}
+                                        options={[
+                                            { value: "photo", label: "Foto" },
+                                            { value: "video", label: "Video" },
+                                            { value: "audio", label: "Audio" },
+                                        ]}
+                                        className={field}
+                                    />
+                                    <Input
+                                        id="group-media-url"
+                                        label="Enlace"
+                                        type="url"
+                                        inputMode="url"
+                                        value={newMedia.url}
+                                        onChange={(e) => setNewMedia({ ...newMedia, url: e.target.value })}
+                                        placeholder="https://"
+                                        helperText="Un enlace directo al archivo o a YouTube."
+                                        className={field}
+                                    />
                                 </>
                             )}
 
-                            <div>
-                                <div className="mb-2 flex items-baseline justify-between gap-3">
-                                    <label className="text-sm font-medium" htmlFor="group-media-title">Título</label>
-                                    <span className="text-sm text-tinta-2">Opcional</span>
-                                </div>
-                                <input
-                                    id="group-media-title"
-                                    type="text"
-                                    value={newMedia.title}
-                                    onChange={e => setNewMedia({ ...newMedia, title: e.target.value })}
-                                    placeholder="Ej. Boda en Tlaquepaque, 2025"
-                                    className={field}
-                                />
-                            </div>
+                            <Input
+                                id="group-media-title"
+                                label="Título (opcional)"
+                                type="text"
+                                value={newMedia.title}
+                                onChange={(e) => setNewMedia({ ...newMedia, title: e.target.value })}
+                                placeholder="Ej. Boda en Tlaquepaque, 2025"
+                                className={field}
+                            />
 
                             {addMutation.isError && (
                                 <Alert variant="destructive" className="bg-fondo">
