@@ -34,7 +34,7 @@ La verificación visual la hace el orquestador con Playwright (los workers no ti
 
 ## Tasks
 
-- [ ] T1 (S1, S2, S3) Cimientos en `components/ui/`: `Select` (Radix), `DatePicker` (react-day-picker en popover), `TimeSelect`, y unificar `Input`, `Textarea` y `Field` (radio, alto, sangría) con una red de seguridad en CSS para controles nativos restantes.
+- [x] T1 (S1, S2, S3) Cimientos en `components/ui/`: `Select` (Radix), `DatePicker` (react-day-picker en popover), `TimeSelect`, y unificar `Input`, `Textarea` y `Field` (radio, alto, sangría) con una red de seguridad en CSS para controles nativos restantes.
 - [ ] T2 (S1, S2) Reemplazar los 4 `<select>` y los 3 campos de fecha y hora (H1, H2) en `SearchForm`, `GroupProfileEdit`, `RequestForm` y `GroupGallery`.
 - [ ] T3 (S3, S4) Registro y asistente (H4 a H8, H10): candado, país, alto de botones, íconos en vez de emojis, títulos alineados, cabecera sin hueco.
 - [ ] T4 (S3, S4) Panel, Equipo e Invitaciones (H3, H9): campos unificados, filas como tarjetas, avatar con iniciales correctas, formulario de edición alineado.
@@ -47,3 +47,14 @@ La verificación visual la hace el orquestador con Playwright (los workers no ti
 - L2: el login sí funciona. Se comprobó registrando una cuenta de prueba (`qa.nitrogroups.audit@example.com`, creada en el tenant de Auth0 del usuario, se puede borrar) y siguiendo el asistente de manager hasta crear el grupo "QA Audit Group" (id 26). Se corrige la afirmación anterior de que el login "no estaba disponible": nunca se había probado.
 - L3: la API que estaba corriendo era anterior a las membresías y había perdido la conexión a Postgres durante la caída de Docker; se reinició con el código de la rama. Con la API nueva las pestañas Equipo e Invitaciones funcionan contra datos reales: la búsqueda devolvió 2 músicos abiertos.
 - L4: el README de membresías no se había commiteado (la edición y el commit corrieron en paralelo); se corrigió en `bab43b1`.
+
+### T1 — Cimientos de `components/ui/` (S1, S2, S3)
+
+- Commits: `379d73e feat(ui): add date and time slot helpers and picker dependencies`, `fff142c feat(ui): unify the field spec and add Select, TimeSelect and Textarea`, `251710b feat(ui): add DatePicker and a CSS safety net for native controls`.
+- Dependencias: `@radix-ui/react-select` 2.4.1, `@radix-ui/react-popover` 1.3.1, `react-day-picker` 9.14.0 (la v10 era la última; se fijó la v9 pedida) y `date-fns` 4.4.0 (la usa el locale `es` de react-day-picker).
+- Tests: RED con los módulos inexistentes (`dateField`, `timeSlots`); GREEN con 135 tests (117 de base + 18 nuevos). `eslint` y `tsc --noEmit` sin errores. `next build --webpack` en una copia temporal (el dev server usa `.next`): compila, incluida la importación de `react-day-picker/style.css` desde `globals.css`.
+- Campo único (`components/ui/field.ts`, exportado también como `fieldClass` desde `Common.tsx`): alto 48 px, radio 8 px (DESIGN.md → Shapes; `Input` usaba `rounded-lg`, que en este tema son 16 px, y `fieldClass` 0 px), relleno lateral 16 px, relleno `fondo-2` con borde interior de 1 px `--linea` (más fuerte al pasar el cursor), anillo de foco `acento` de 2 px, error con borde y barra inferior `--error` vía `aria-invalid`. Con ícono a la izquierda el texto arranca a 44 px (`pl-11`); sin ícono, a 16 px. Select, DatePicker y TimeSelect llevan el ícono a la derecha, así que su texto siempre arranca a 16 px.
+- Contrastes comprobados (WCAG): tinta/fondo-2 16.97:1; tinta/fondo-3 (opción resaltada) 15.40:1; tinta-2/fondo-2 7.19:1; acento-ink/acento (día seleccionado) 10.72:1; acento/fondo-2 (anillo de foco, hoy) 10.59:1; error/fondo-2 8.61:1. El placeholder a tinta-2 al 70 % daba 4.11:1, por debajo de 4.5, y pasó a tinta-2 completo (7.19:1) en el campo unificado.
+- Sin verificar: nada se vio renderizado (los workers no tienen navegador). Pendiente con Playwright en `/dev/ui-kit`: posición y colisión de los paneles, foco inicial y devolución del foco en el calendario, `Select` y `DatePicker` dentro de modales (`z-50`; los paneles usan `z-[100]`), 390 px, validación `required` (el `DatePicker` y el `Select` con opción vacía solo marcan `aria-required`, el input oculto no valida).
+- Fuera de alcance, anotado para T3: `PhoneInput` y `Button` (`rounded-lg` = 16 px aunque el comentario dice 8 px) conservan su forma actual. La galería `src/app/dev/ui-kit/` queda sin versionar.
+
