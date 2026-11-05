@@ -7,6 +7,7 @@ import { ExternalLink } from "lucide-react";
 import { Alert, AlertDescription, Button, Input, Textarea } from "@/components/ui";
 import { musicianProfileHref } from "../links";
 import {
+    CITY_MAX,
     HEADLINE_MAX,
     INSTRUMENTS_MAX,
     SHORT_BIO_MAX,
@@ -57,6 +58,7 @@ export function MusicianProfileForm({ userId }: { userId: number }) {
 
     const headlineRef = useRef<HTMLInputElement>(null);
     const instrumentsRef = useRef<HTMLInputElement>(null);
+    const cityRef = useRef<HTMLInputElement>(null);
     const yearsRef = useRef<HTMLInputElement>(null);
     const videoRef = useRef<HTMLInputElement>(null);
     const bioRef = useRef<HTMLTextAreaElement>(null);
@@ -86,6 +88,7 @@ export function MusicianProfileForm({ userId }: { userId: number }) {
     const focusField = (field: ProfileField) => {
         if (field === "headline") headlineRef.current?.focus();
         else if (field === "instruments") instrumentsRef.current?.focus();
+        else if (field === "city") cityRef.current?.focus();
         else if (field === "yearsExperience") yearsRef.current?.focus();
         else if (field === "videoUrl") videoRef.current?.focus();
         else bioRef.current?.focus();
@@ -194,6 +197,18 @@ export function MusicianProfileForm({ userId }: { userId: number }) {
                     error={errors.instruments}
                 />
                 <Input
+                    ref={cityRef}
+                    id={id("city")}
+                    label="Ciudad (opcional)"
+                    value={values.city}
+                    onChange={(e) => set("city", e.target.value)}
+                    maxLength={CITY_MAX}
+                    autoComplete="address-level2"
+                    placeholder="Ej. Guadalajara"
+                    helperText={`Así te encuentran por ciudad en el directorio. ${values.city.length} de ${CITY_MAX}`}
+                    error={errors.city}
+                />
+                <Input
                     ref={yearsRef}
                     id={id("years")}
                     label="Años de experiencia (opcional)"
@@ -246,11 +261,11 @@ export function MusicianProfileForm({ userId }: { userId: number }) {
                 className="mt-6 flex min-h-14 w-full items-start justify-between gap-6 rounded-xl bg-fondo-2 px-4 py-4 text-left transition-colors duration-150 hover:bg-fondo-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
             >
                 <span className="min-w-0">
-                    <span id={id("open-label")} className="block font-medium text-tinta">Disponible para unirse a un grupo</span>
+                    <span id={id("open-label")} className="block font-medium text-tinta">Aparecer en el directorio y aceptar invitaciones</span>
                     <span id={id("open-hint")} className="mt-1 block text-sm text-tinta-2">
                         {values.isOpenToJoin
-                            ? "Sí: los grupos pueden invitarte desde su equipo."
-                            : "No: tu perfil sigue visible, pero nadie puede invitarte."}
+                            ? "Sí: sales en el directorio de músicos y los grupos pueden invitarte."
+                            : "No: tu perfil conserva su enlace, pero no sales en el directorio ni recibes invitaciones."}
                     </span>
                 </span>
                 <span

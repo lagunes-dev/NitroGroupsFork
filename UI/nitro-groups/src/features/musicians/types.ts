@@ -18,6 +18,7 @@ export interface MusicianProfileResponse {
     headline?: string | null;
     shortBio?: string | null;
     instruments?: string | null;
+    city?: string | null;
     yearsExperience?: number | null;
     profilePictureUrl?: string | null;
     videoUrl?: string | null;
@@ -33,6 +34,8 @@ export interface MusicianProfileUpdateRequest {
     headline: string;
     shortBio: string;
     instruments: string;
+    /** Optional; "" clears it. */
+    city: string;
     videoUrl: string;
     isOpenToJoin: boolean;
     yearsExperience?: number;

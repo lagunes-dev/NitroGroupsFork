@@ -62,6 +62,7 @@ export function PublicMusicianProfile({ profile, inviteAction }: { profile: Musi
         profile.instruments.length > 0 && { label: "Instrumentos", value: profile.instruments.join(", ") },
         // La API manda un entero y no distingue «sin dato» de 0, así que 0 no se presume: mismo
         // criterio que el perfil de un grupo, donde los años en cero tampoco se muestran.
+        profile.city && { label: "Ciudad", value: profile.city },
         profile.yearsExperience !== null && profile.yearsExperience > 0 && {
             label: "Experiencia",
             value: yearsText(profile.yearsExperience),
@@ -86,7 +87,7 @@ export function PublicMusicianProfile({ profile, inviteAction }: { profile: Musi
                     </div>
                 </div>
 
-                <dl className="mt-10 grid grid-cols-1 gap-x-8 gap-y-6 border-t border-linea pt-8 sm:grid-cols-3 md:mt-14">
+                <dl className="mt-10 grid grid-cols-1 gap-x-8 gap-y-6 border-t border-linea pt-8 sm:grid-cols-2 md:mt-14 lg:grid-cols-4">
                     {facts.map((fact) => (
                         <Fact key={fact.label} {...fact} />
                     ))}
