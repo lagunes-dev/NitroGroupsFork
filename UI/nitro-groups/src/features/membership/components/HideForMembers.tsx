@@ -18,10 +18,10 @@ interface HideForMembersProps {
  * filled in by accident.
  */
 export function HideForMembers({ groupId, slug, active, ownerUserId, signedIn, children }: HideForMembersProps) {
-    const { isMember, membershipsPending } = useJoinOffer({ groupId, slug, active, ownerUserId, signedIn });
+    const { isMember, membersPending } = useJoinOffer({ groupId, slug, active, ownerUserId, signedIn });
     // Un miembro nunca ve esto. Tampoco mientras se leen sus membresías: devolver los hijos ahí
     // hacía parpadear el formulario de contratación dentro del grupo propio (visto en la ronda 3).
     if (isMember) return null;
-    if (signedIn && membershipsPending) return null;
+    if (signedIn && membersPending) return null;
     return <>{children}</>;
 }
