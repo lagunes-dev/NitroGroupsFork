@@ -7,9 +7,10 @@ import { membershipService } from "../membership.service";
 import { membershipErrorMessage } from "../errors";
 import { splitGroupRequests } from "../inbox";
 import { availableActions, directionLabel } from "../status";
+import { teamQueryKey } from "../team";
 import type { MembershipRequest } from "../types";
-import { SEARCH_INPUT_ID } from "./MusicianSearch";
 import { RequestCard, RequestGroup, RequestSkeleton } from "./RequestCard";
+import { focusMusicianSearch } from "./searchFocus";
 
 type Action = "accept" | "decline" | "cancel";
 
@@ -41,7 +42,11 @@ export function MembershipRequestList({ groupId }: { groupId: number }) {
             setError(membershipErrorMessage(e, "No pudimos completar la acción. Inténtalo de nuevo."));
         },
         // También tras un error: un 404/409 casi siempre significa que la lista quedó vieja.
-        onSettled: () => queryClient.invalidateQueries({ queryKey: ["membership-requests", groupId] }),
+        onSettled: (_data, _error, { action }) => {
+            // Aceptar suma un miembro: el equipo que se ve arriba en la pestaña quedó viejo.
+            if (action === "accept") queryClient.invalidateQueries({ queryKey: teamQueryKey(groupId) });
+            return queryClient.invalidateQueries({ queryKey: ["membership-requests", groupId] });
+        },
     });
 
     if (requests.isPending) return (
@@ -71,7 +76,7 @@ export function MembershipRequestList({ groupId }: { groupId: number }) {
             {requests.data.length === 0 ? (
                 <div className="superficie flex flex-col items-center gap-4 rounded-[12px] px-6 py-10 text-center">
                     <p className="max-w-[48ch] text-tinta-2">Aún no hay solicitudes ni invitaciones. Invita a un músico o espera a que alguien pida unirse.</p>
-                    <Button variant="outline" onClick={focusSearch}>Busca músicos arriba para invitarlos</Button>
+                    <Button variant="outline" onClick={focusMusicianSearch}>Busca músicos arriba para invitarlos</Button>
                 </div>
             ) : (
                 <>
@@ -97,15 +102,6 @@ export function MembershipRequestList({ groupId }: { groupId: number }) {
             )}
         </div>
     );
-}
-
-/** The invite search sits above the lists: send the viewer there instead of leaving a dead end. */
-function focusSearch() {
-    const input = document.getElementById(SEARCH_INPUT_ID);
-    if (!input) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    input.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
-    input.focus({ preventScroll: true });
 }
 
 type Rowset = ReturnType<typeof splitGroupRequests>["incoming"];
