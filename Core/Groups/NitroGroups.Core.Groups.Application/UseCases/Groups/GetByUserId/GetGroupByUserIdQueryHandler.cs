@@ -3,6 +3,7 @@ using Cortex.Mediator.Queries;
 using NitroGroups.Core.Groups.Application.Abstractions;
 using NitroGroups.Shared.Contracts;
 using NitroGroups.Shared.Contracts.Groups.Responses;
+using NitroGroups.Shared.Domain.DomainEvents.Groups.Enums;
 
 namespace NitroGroups.Core.Groups.Application.UseCases.Groups.GetByUserId
 {
@@ -13,8 +14,16 @@ namespace NitroGroups.Core.Groups.Application.UseCases.Groups.GetByUserId
         private readonly IMapper _mapper = mapper;
         public async Task<Result<GroupResponse?>> Handle(GetGroupByUserIdQuery query, CancellationToken cancellationToken)
         {
-            var members = await _unitOfWork.GroupMembers.FindAsync(member => member.UserId == query.UserId);
-            var groupId = members.Select(member => member.GroupId).FirstOrDefault();
+            // Only active Owner/Manager rows manage a group; a plain Member must not get its management panel.
+            var members = await _unitOfWork.GroupMembers.FindAsync(member =>
+                member.UserId == query.UserId
+                && member.IsActive
+                && (member.Role == GroupMemberRole.Owner || member.Role == GroupMemberRole.Manager));
+            var groupId = members
+                .OrderBy(member => member.Role == GroupMemberRole.Owner ? 0 : 1)
+                .ThenBy(member => member.JoinedAt)
+                .Select(member => member.GroupId)
+                .FirstOrDefault();
 
             if (groupId == 0)
                 return "No se encontro ningun grupo que perteneciera al usuario";

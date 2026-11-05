@@ -30,7 +30,7 @@ Rama de trabajo: `feat/membership-ux` (a partir de `feat/ui-polish`). La verific
 
 ## Tasks
 
-- [ ] T1 (S6) Backend: `GET api/users/me/memberships` (grupos activos del usuario con rol) y `GetGroupByUserId` que solo considera membresías activas de Dueño o Manager (Dueño primero). Con tests.
+- [x] T1 (S6) Backend: `GET api/users/me/memberships` (grupos activos del usuario con rol) y `GetGroupByUserId` que solo considera membresías activas de Dueño o Manager (Dueño primero). Con tests.
 - [ ] T2 (S2, S3, S4, S5, S7) Frontend de navegación: dos caminos en el panel sin grupo, botón en el encabezado del perfil, contadores en menú y pestañas, renombrar pestañas y textos, vacíos con acción.
 - [ ] T3 (S6) Frontend: pestaña "Mis grupos" con membresías, rol y enlace, y herramientas de gestión solo para Dueño y Manager.
 - [ ] T4 (S1) Verificación con Playwright de todo el recorrido con dos cuentas reales, a 1440 px y 390 px.
@@ -39,3 +39,10 @@ Rama de trabajo: `feat/membership-ux` (a partir de `feat/ui-polish`). La verific
 
 - L1 (usuario, verbatim): "no se como está el flujo para envair solicitudes a musicos o como musico enviar solicitudes a grupos para formar parte, no e snada intuitivo"
 - L2: la base de datos local se perdió al reiniciarse la máquina (Docker sin el contenedor ni el volumen); se recreó con migraciones y seed. La cuenta de prueba de Auth0 (`qa.nitrogroups.audit@example.com`) quedó sin grupo, que es justo el caso del músico nuevo.
+
+### T1 (S6, H5, H6): backend
+- Commit: `feat(groups): list the caller's memberships and scope the managed group`.
+- Tests: Integration 193 (was 186), Endpoints 155 (was 149), 0 failed. RED observed first: 6 of 7 integration and 4 endpoint tests failed against a stub handler and a missing route.
+- New route `GET api/users/me/memberships`: private, identity from the token (`ICurrentUserService`), 401 when not synced. Returns 200 with `[{ groupId, groupName, slug, profilePictureUrl, role, joinedAt }]`, `role` as text (`Owner` | `Manager` | `Member`), `[]` when there are none. Order: Owner, Manager, Member, then `joinedAt` ascending. Only `group_members.IsActive = true`; member rows are the source of truth (`CreateGroupCommandHandler` and `SoloMusicianCreatedEventHandler` both create the Owner row).
+- Behavior change in `GetGroupByUserId` (`GET api/users/{userId}/groups`): it now considers only active Owner/Manager rows (Owner first, then earliest `JoinedAt`); a plain Member, an inactive row or no row gives the existing 404. Response shape unchanged.
+- No migration, no repository change (uses `GroupMembers`/`Groups` `FindAsync`).
