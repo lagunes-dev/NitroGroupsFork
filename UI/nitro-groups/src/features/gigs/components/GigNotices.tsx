@@ -27,12 +27,17 @@ interface NoticeActionProps {
  * sent today the button goes away and the slot says so, so it can never be sent twice.
  */
 export function NoticeAction({ kind, sent, notifying, onNotify }: NoticeActionProps) {
-    if (sent) return <span className="ml-2 text-sm text-tinta-2">{noticeSentLabel(kind)}</span>;
+    if (sent) return <span className="text-sm text-tinta-2">{noticeSentLabel(kind)}</span>;
 
+    // 44 px de alto y etiqueta propia por hueco: en el celular un enlace de 20 px es un blanco que
+    // se erra, y tres botones que dicen lo mismo no se distinguen (ronda 5, Mateo y Miguel).
     return (
         <Button
             variant="link"
-            className={cn("ml-2 h-auto p-0 text-sm font-normal text-tinta-2 hover:text-acento", notifying && "pointer-events-none opacity-45")}
+            className={cn(
+                "mt-1 flex min-h-11 w-fit items-center px-2 text-sm font-normal text-tinta-2 hover:text-acento sm:mt-0 sm:inline-flex sm:min-h-9",
+                notifying && "pointer-events-none opacity-45"
+            )}
             aria-label={noticeActionName(kind)}
             aria-disabled={notifying}
             aria-busy={notifying}
@@ -40,7 +45,7 @@ export function NoticeAction({ kind, sent, notifying, onNotify }: NoticeActionPr
                 if (!notifying) onNotify(kind);
             }}
         >
-            {NOTICE_ACTION_LABEL}
+            {noticeActionName(kind)}
         </Button>
     );
 }

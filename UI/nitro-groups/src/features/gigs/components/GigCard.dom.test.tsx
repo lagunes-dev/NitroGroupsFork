@@ -109,7 +109,12 @@ describe("GigCard notices", () => {
         );
 
         const actions = screen.getAllByRole("button", { name: /^Avisar que falta/ });
-        expect(actions.map((action) => action.textContent)).toEqual(["Avisar que falta", "Avisar que falta", "Avisar que falta"]);
+        // Cada hueco se nombra a sí mismo, a la vista y al lector de pantalla.
+        expect(actions.map((action) => action.textContent)).toEqual([
+            "Avisar que falta la llegada",
+            "Avisar que falta el pago",
+            "Avisar que falta el setlist",
+        ]);
         expect(actions.map((action) => action.getAttribute("aria-label"))).toEqual([
             "Avisar que falta la llegada",
             "Avisar que falta el pago",
@@ -118,6 +123,25 @@ describe("GigCard notices", () => {
 
         await userEvent.click(screen.getByRole("button", { name: "Avisar que falta el setlist" }));
         expect(onNotify).toHaveBeenCalledWith("Setlist");
+    });
+
+    it("asks nothing about a gig the musician already declined", () => {
+        render(
+            <GigCard
+                gig={toGigView({ ...row, attendance: "Declined" })}
+                saving={false}
+                failed={false}
+                onAnswer={vi.fn()}
+                onRetry={vi.fn()}
+                notifying={null}
+                notifyFailed={false}
+                onNotify={vi.fn()}
+            />
+        );
+        // No vas: la llegada o el pago no te faltan, así que no hay huecos que avisar (ronda 5, Mateo).
+        expect(screen.queryByRole("button", { name: /^Avisar que falta/ })).toBeNull();
+        expect(screen.queryByText(/sin definir/)).toBeNull();
+        expect(screen.queryByText("Setlist sin cargar")).toBeNull();
     });
 
     it("does not offer a slot the manager already loaded", () => {

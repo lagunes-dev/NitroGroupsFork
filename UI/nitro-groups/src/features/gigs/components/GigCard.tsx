@@ -54,8 +54,11 @@ export function GigCard({ gig, saving, failed, onAnswer, onRetry, notifying, not
     const guard = (status: GigAnswer) => () => {
         if (!saving) onAnswer(status);
     };
+    // A un toque rechazado no se le pide logística: no vas, así que la llegada o el pago no te faltan.
+    const skipped = answered === "Declined";
     // The notice action only exists for a slot the manager has not loaded; it renders nothing otherwise.
     const noticeOf = (kind: GigNoticeKind) => {
+        if (skipped) return null;
         const slot = gig.notices.find((notice) => notice.kind === kind);
         return slot ? <NoticeAction kind={kind} sent={slot.sent} notifying={notifying === kind} onNotify={onNotify} /> : null;
     };
@@ -77,16 +80,22 @@ export function GigCard({ gig, saving, failed, onAnswer, onRetry, notifying, not
                     <p className="text-tinta-2">{gig.placeLabel}</p>
                     <p className="tabular text-tinta-2">
                         {scheduleLabel(gig)}
-                        {gig.callTimeLabel ? <span> · {gig.callTimeLabel}</span> : <span className="italic"> · {CALL_TIME_PENDING}</span>}
+                        {gig.callTimeLabel ? (
+                            <span> · {gig.callTimeLabel}</span>
+                        ) : (
+                            !skipped && <span className="italic"> · {CALL_TIME_PENDING}</span>
+                        )}
                         {noticeOf("CallTime")}
                     </p>
                     {gig.payLabel ? (
                         <p className="tabular text-tinta-2">{gig.payLabel}</p>
                     ) : (
-                        <p className="tabular text-tinta-2 italic">
-                            {PAY_PENDING}
-                            {noticeOf("Pay")}
-                        </p>
+                        !skipped && (
+                            <p className="tabular text-tinta-2 italic">
+                                {PAY_PENDING}
+                                {noticeOf("Pay")}
+                            </p>
+                        )
                     )}
                 </div>
 
@@ -129,10 +138,12 @@ export function GigCard({ gig, saving, failed, onAnswer, onRetry, notifying, not
                     <p className="whitespace-pre-line pb-2 text-tinta">{gig.setlist}</p>
                 </details>
             ) : (
-                <p className="text-sm text-tinta-2 italic">
-                    {SETLIST_PENDING}
-                    {noticeOf("Setlist")}
-                </p>
+                !skipped && (
+                    <p className="text-sm text-tinta-2 italic">
+                        {SETLIST_PENDING}
+                        {noticeOf("Setlist")}
+                    </p>
+                )
             )}
 
             {notifyFailed && (
