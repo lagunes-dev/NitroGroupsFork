@@ -57,6 +57,16 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 - [x] T25 (S13) "Cambiar mi disponibilidad" abre la pestaña donde vive el interruptor. `2a10503`; el enlace lleva `#mi-perfil` y el panel abre esa pestaña.
 - [ ] T26 (S11) Señales: el choque dice las horas del otro toque y el monto no se repite.
 - [x] T27 (S11) Jerarquía de los dos títulos de las señales. `97d5ac4` (el choque a peso de título) y `4149363` (renglones del equipo compactos en móvil).
+- [ ] T28 (S8) El detalle del pedido pone el saldo como bloque propio arriba, y la lista deja el precio original en gris para que el saldo sea el único número blanco.
+- [ ] T29 (S11) La fila de la lista de pedidos avisa del choque sin abrir el hilo.
+- [ ] T30 (S11) El choque cierra con la salida ("tu pedido es 21:00–00:00, la boda acaba 23:00").
+- [ ] T31 (S7) La pestaña Equipo del manager usa el renglón compacto (el arreglo anterior cayó en el perfil público, que no es donde se administra).
+- [ ] T32 (S6, S12) Un toque pasado no pide confirmación ni logística; un toque rechazado dice qué pasa después.
+- [ ] T33 (S6) Los avisos se leen como botones, con aire respecto del texto.
+- [ ] T34 (S1) A 390 px la barra de pestañas no esconde opciones sin avisar.
+- [ ] T35 (S8) La nota del buscador lleva al grupo y al pedido propio.
+- [ ] T36 (S13) "Cambiar mi disponibilidad" baja hasta el interruptor.
+- [ ] T37 (S7) El oficio del equipo no se parte en tres líneas en móvil.
 
 ## Log
 
@@ -87,6 +97,7 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 - L25 (avance de la ronda 5): `35c1e5b` (T21 + T22: oficio de todo el equipo y 200 con null para quien no tiene grupo), `f00e83f` (T24: un toque rechazado no pide logística y los avisos miden 44 px con etiqueta propia), `2a10503` (T25: el enlace de disponibilidad lleva a la pestaña del interruptor), `7c7d9c1` (T23: el saldo pesa como el precio, "h de música" y "Solicitud enviada el…"). Verificación: backend 267 endpoints + 376 integración con Postgres sin fallos; frontend 586 tests en 62 archivos, `tsc` limpio y eslint sin errores (dos warnings: el `<img>` previo y una dependencia de efecto). En el navegador: el perfil del grupo muestra "Miguel Miembro · Bajo, coros", el saldo de la clienta mide 18 px en blanco, "2 h de música", los avisos miden 44 px y el toque rechazado de Mateo no ofrece ninguno, y no queda ningún 404 en consola.
 - L26 (pendiente de la ronda 5): T26 (el choque de fecha debería decir las horas del otro toque: "Boda 20:00–23:00") y T27 (los dos títulos de las señales pesan igual y el monto se repite con la ficha del presupuesto).
 - L27 (cierre de T26 y T27, ronda 5 completa): el choque de fecha ahora viaja con hora y duración en formato de 24 horas —el primer intento usó `hh` y una boda de 20:00 llegaba como 08:00; el test de integración lo fija con un toque de 18:00— y el frontend calcula el cruce con las horas del propio pedido: "se pisan 2 h" o "no se pisan, pero hay traslado". El monto ofrecido salió de la señal (ya vive en la ficha del pedido) y el choque pasó a peso de título. Verificación: backend 267 endpoints + 376 integración con Postgres sin fallos; frontend 589 tests en 62 archivos, `tsc` limpio, eslint en 0 errores.
+- L28 (ronda 6 de críticos, cuadro): Camila 8 → 8,5, Mateo 8 → 8,5, Mónica 8 → 8,5, Miguel 7 → 8. Promedio 7,75 → 8,375. Primera corrida que hubo que relanzar: las cuatro críticas murieron con 0 turnos (`no first run event` ×3 y `capacity quarantined` ×1), el proveedor respondía bien en directo, y lanzarlas de a una y de a dos funcionó. Lo que las cuatro repiten: **arreglar una superficie y dejar la otra** (lista sí, detalle no; perfil público sí, pestaña del manager no) y **la jerarquía se juzga midiendo**: Camila midió el saldo a 18 px en la lista y como novena fila plana en el detalle, Mónica midió 940 px de equipo en una pantalla de 844, Mateo midió la pestaña "Mi perfil" arrancando en x=445. Hallazgos nuevos: la barra de pestañas esconde opciones a 390 px sin señal, los avisos se leen como párrafo, un toque pasado sigue pidiendo confirmación, y la ficha demo del grupo se contradice (Four-piece con 5 integrantes, bio en inglés, ciudad distinta a la del equipo).
 - L8 (D6, decidida por recomendación del usuario "después de que resolvamos D2"): el hilo del manager muestra dos señales calculables con datos que ya existen: **choque de fecha** (el grupo ya tiene un toque aceptado ese día) y **presupuesto contra tarifa base** (lo que ofrece el cliente frente al "desde $X" del grupo). La **distancia** contra el radio no entra en esta ola: el grupo solo guarda su ciudad como texto y no hay coordenadas, así que calcularla exige un catálogo de ciudades o geocodificación. Se anota como D8.
 
 ## Contrato de la logística del toque (fijado)
