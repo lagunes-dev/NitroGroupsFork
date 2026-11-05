@@ -36,6 +36,23 @@ describe("PublicGroupTeam", () => {
         expect(within(row).queryByText(/·/)).toBeNull();
     });
 
+    it("keeps a long craft on one line at 390 px, with the whole text in the title", () => {
+        const craft = "Guitarra eléctrica, acordeón y coros · San Pedro Tlaquepaque, Jalisco";
+        render(
+            <PublicGroupTeam
+                members={[
+                    { userId: 10, fullName: "Olga Ortiz", role: "Owner", instruments: "Guitarra eléctrica, acordeón y coros", city: "San Pedro Tlaquepaque, Jalisco" },
+                ]}
+            />
+        );
+
+        const line = screen.getByText(craft);
+        // Sin partirse en tres renglones: la fila mide lo mismo con oficio largo que con oficio corto.
+        expect(line).toHaveClass("truncate");
+        expect(line).toHaveAttribute("title", craft);
+        expect(line.closest("li")).toHaveClass("py-2.5", "sm:py-3", "gap-0.5");
+    });
+
     it("explains an empty team in one line instead of leaving a naked heading", () => {
         render(<PublicGroupTeam members={[]} />);
 

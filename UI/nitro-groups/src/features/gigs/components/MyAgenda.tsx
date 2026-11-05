@@ -134,13 +134,15 @@ export function MyAgenda() {
         const id = typeof gigId === "number" ? gigId : Number(gigId);
         return Number.isFinite(id) ? (byGig[id] ?? []).map((row) => row.kind).filter(isNoticeKind) : [];
     };
-    const card = (row: GigPayload) => {
+    // El toque pasado se dibuja sin botones ni avisos: la fecha ya quedó atrás (ronda 6, T32).
+    const card = (row: GigPayload, past: boolean) => {
         const gig: GigView = toGigView(row, sentKindsOf(row.id));
         const id = gig.id;
         return (
             <GigCard
                 key={id}
                 gig={gig}
+                past={past}
                 saving={answer.isPending && answer.variables?.id === id}
                 failed={failure?.id === id}
                 onAnswer={(status) => answer.mutate({ id, status })}
@@ -172,7 +174,7 @@ export function MyAgenda() {
                     Próximos <span className="text-base font-normal text-tinta-2">({upcoming.length})</span>
                 </h3>
                 {upcoming.length > 0 ? (
-                    <ul className="mt-4 flex flex-col gap-4">{upcoming.map(card)}</ul>
+                    <ul className="mt-4 flex flex-col gap-4">{upcoming.map((row) => card(row, false))}</ul>
                 ) : (
                     <p className="mt-2 text-tinta-2">No tienes toques próximos.</p>
                 )}
@@ -183,7 +185,7 @@ export function MyAgenda() {
                     <summary className="type-heading cursor-pointer text-2xl">
                         Pasados <span className="text-base font-normal text-tinta-2">({past.length})</span>
                     </summary>
-                    <ul className="mt-4 flex flex-col gap-4">{past.map(card)}</ul>
+                    <ul className="mt-4 flex flex-col gap-4">{past.map((row) => card(row, true))}</ul>
                 </details>
             )}
         </div>

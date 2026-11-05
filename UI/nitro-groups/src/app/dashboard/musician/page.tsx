@@ -21,6 +21,7 @@ import { MyInvitations } from "@/features/membership/components/MyInvitations";
 import { MyGroups } from "@/features/membership/components/MyGroups";
 import { MusicianProfileForm } from "@/features/musicians/components/MusicianProfileForm";
 import { UserTypeEnum } from "@/features/groups/types/User";
+import { AVAILABILITY_ANCHOR_ID, AvailabilityAnchor, tabFromHash } from "./AvailabilityAnchor";
 
 /**
  * El calendario del grupo con sus días de toque marcados. La consulta vive aquí y no en la página
@@ -54,6 +55,8 @@ export default function MusicianDashboardPage() {
   const myGroupsTab = showMyGroupsTab({ memberships: memberships.data, managedGroupId: groupId ?? null });
   const { invitations, joinRequests } = usePendingMembership();
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
+  // Solo la llegada por enlace mueve el foco al interruptor; abrir la pestaña a mano no lo roba.
+  const [arrivedAtAvailability, setArrivedAtAvailability] = useState(false);
   const tabsRef = useRef<HTMLDivElement>(null);
   const banner = groupId ? joinBannerText(joinRequests) : null;
 
@@ -61,13 +64,16 @@ export default function MusicianDashboardPage() {
   // botón promete el interruptor de disponibilidad es un callejón (ronda 5, Miguel).
   // El hash es un sistema externo y no existe en el servidor, así que se lee al montar.
   useEffect(() => {
-    const tab = window.location.hash.replace("#", "");
+    const tab = tabFromHash(window.location.hash);
+    if (!tab) return;
     // El hash no existe en el servidor: se aplica una vez al montar, no en cada render.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (tab) setActiveTab(tab);
+    if (tab === AVAILABILITY_ANCHOR_ID) setArrivedAtAvailability(true);
+    setActiveTab(tab);
   }, []);
 
   const showTab = (tabKey: string) => {
+    setArrivedAtAvailability(false);
     setActiveTab(tabKey);
     // The panel mounts after the state change: move focus there once it exists.
     setTimeout(() => tabsRef.current?.querySelector<HTMLElement>('[role="tabpanel"]')?.focus(), 0);
@@ -100,7 +106,7 @@ export default function MusicianDashboardPage() {
         <div ref={tabsRef}>
         <TabbedSection label="Gestión del grupo" className="mt-16 md:mt-20" activeKey={activeTab} onActiveKeyChange={setActiveTab}>
           {groupId ? (
-            <TabItem title="Pedidos de fecha" tabKey="pedidos">
+            <TabItem title="Pedidos de fecha" shortTitle="Pedidos" tabKey="pedidos">
               <GroupInbox groupId={groupId} />
             </TabItem>
           ) : null}
@@ -149,8 +155,11 @@ export default function MusicianDashboardPage() {
             la primera pestaña, no cambia la pestaña que abre el panel hoy.
           */}
           {userId && user?.userType === UserTypeEnum.Musician ? (
-            <TabItem title="Mi perfil" tabKey="mi-perfil">
-              <MusicianProfileForm userId={userId} />
+            <TabItem title="Mi perfil" shortTitle="Perfil" tabKey={AVAILABILITY_ANCHOR_ID}>
+              {/* El id del enlace vive en el interruptor: "Cambiar mi disponibilidad" baja hasta él. */}
+              <AvailabilityAnchor focusOnMount={arrivedAtAvailability}>
+                <MusicianProfileForm userId={userId} />
+              </AvailabilityAnchor>
             </TabItem>
           ) : null}
         </TabbedSection>

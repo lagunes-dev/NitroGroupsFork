@@ -40,6 +40,12 @@ export function isNoticeKind(value: unknown): value is GigNoticeKind {
 /** Visible label of the one-tap action: the same two quiet words in every slot. */
 export const NOTICE_ACTION_LABEL = "Avisar que falta";
 
+/**
+ * Accessible name of the block that holds the notices of one gig: the actions live in their own
+ * stack under the text, and that stack needs a name a screen reader can announce.
+ */
+export const NOTICE_LIST_LABEL = "Avisarle al grupo lo que falta";
+
 /** Visible and accessible name of that action, unique per slot: "Avisar que falta el pago". */
 export function noticeActionName(kind: GigNoticeKind): string {
     return `${NOTICE_ACTION_LABEL} ${MISSING[kind]}`;

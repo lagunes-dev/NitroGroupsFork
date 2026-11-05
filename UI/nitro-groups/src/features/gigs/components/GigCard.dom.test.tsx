@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GigCard } from "./GigCard";
 import { toGigView } from "../viewModel";
@@ -199,5 +199,84 @@ describe("GigCard notices", () => {
 
         expect(screen.getByRole("alert")).toHaveTextContent("No pudimos enviar el aviso. Intenta de nuevo.");
         expect(screen.getByRole("button", { name: "Avisar que falta el pago" })).toBeInTheDocument();
+    });
+
+    it("draws each notice as an action row, away from the text above", () => {
+        render(
+            <GigCard gig={toGigView(row)} saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} notifying={null} notifyFailed={false} onNotify={vi.fn()} />
+        );
+
+        // Los tres avisos viven en un bloque propio, no dentro de la frase que dice qué falta.
+        const block = screen.getByRole("list", { name: "Avisarle al grupo lo que falta" });
+        expect(block).toHaveClass("border-t");
+        const actions = within(block).getAllByRole("button");
+        expect(actions).toHaveLength(3);
+        for (const action of actions) {
+            // 44 px de alto, su propio renglón a 390 px y una superficie con borde: se lee como acción.
+            expect(action).toHaveClass("min-h-11", "w-full");
+            expect(action.closest("li")).not.toBeNull();
+            // Deja de ser un enlace subrayado con el gris de la frase.
+            expect(action).not.toHaveClass("underline");
+            expect(action.className).not.toContain("text-tinta-2");
+        }
+    });
+
+    it("says a sent notice in the same 44 px row instead of a loose line", () => {
+        render(
+            <GigCard gig={toGigView(row, ["Pay"])} saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} notifying={null} notifyFailed={false} onNotify={vi.fn()} />
+        );
+
+        const sent = screen.getByText("Avisaste hoy que falta el pago");
+        expect(sent).toHaveClass("min-h-11");
+        expect(sent.closest("li")).not.toBeNull();
+    });
+});
+
+describe("GigCard of a gig that already happened", () => {
+    it("stops asking for an answer and says the date is behind us", () => {
+        render(
+            <GigCard gig={toGigView(row)} past saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} notifying={null} notifyFailed={false} onNotify={vi.fn()} />
+        );
+
+        expect(screen.getByText("Este toque ya pasó")).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /^Confirmar/ })).toBeNull();
+        expect(screen.queryByRole("button", { name: /^Avisar que no puedo/ })).toBeNull();
+        // Tampoco pide logística de algo que ya ocurrió.
+        expect(screen.queryByRole("button", { name: /^Avisar que falta/ })).toBeNull();
+        expect(screen.queryByText(/sin definir/)).toBeNull();
+        expect(screen.queryByText("Setlist sin cargar")).toBeNull();
+    });
+
+    it("still lets the musician read what the gig had", () => {
+        render(
+            <GigCard
+                gig={toGigView({ ...row, callTime: "17:30:00", myPay: 2000, setlist: "Intro\nValses", attendance: "Confirmed" })}
+                past
+                saving={false}
+                failed={false}
+                onAnswer={vi.fn()}
+                onRetry={vi.fn()}
+                notifying={null}
+                notifyFailed={false}
+                onNotify={vi.fn()}
+            />
+        );
+
+        expect(screen.getByText(/Llegada 17:30/)).toBeInTheDocument();
+        expect(screen.getByText("Tu pago: $2,000")).toBeInTheDocument();
+        expect(screen.getByText("Ver setlist")).toBeInTheDocument();
+        expect(screen.getByText("Confirmado")).toBeInTheDocument();
+    });
+});
+
+describe("GigCard of a future gig the musician declined", () => {
+    it("says in one line what happens next", () => {
+        render(
+            <GigCard gig={toGigView({ ...row, attendance: "Declined" })} saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} notifying={null} notifyFailed={false} onNotify={vi.fn()} />
+        );
+
+        expect(screen.getByText("El grupo ya lo sabe · la fecha queda libre")).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /^Avisar que falta/ })).toBeNull();
+        expect(screen.queryByText("Este toque ya pasó")).toBeNull();
     });
 });

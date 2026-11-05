@@ -1,15 +1,17 @@
 "use client";
 
+import { BellRing, Check } from "lucide-react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import {
-    NOTICE_ACTION_LABEL,
+    NOTICE_LIST_LABEL,
     isNoticeKind,
     noticeActionName,
     noticeManagerLine,
     noticeSentLabel,
     type GigNoticeKind,
     type NoticePayload,
+    type NoticeSlot,
 } from "../notices";
 
 interface NoticeActionProps {
@@ -22,22 +24,27 @@ interface NoticeActionProps {
 }
 
 /**
- * The one-tap action of a slot the manager has not loaded yet (S12). It is small and quiet on
- * purpose: the musician is asking for information, not filing a complaint. Once the notice was
- * sent today the button goes away and the slot says so, so it can never be sent twice.
+ * The one-tap action of a slot the manager has not loaded yet (S12). It reads as an action, not as
+ * part of the sentence above (ronda 6, Mateo y Miguel): its own 44 px row, a surface with a border,
+ * an icon and the slot named in words. Once the notice was sent today the row says so and offers
+ * nothing, so it can never be sent twice.
  */
 export function NoticeAction({ kind, sent, notifying, onNotify }: NoticeActionProps) {
-    if (sent) return <span className="text-sm text-tinta-2">{noticeSentLabel(kind)}</span>;
+    const row = "flex min-h-11 w-full items-center justify-start gap-2 rounded-[8px] px-3 text-sm sm:w-fit";
 
-    // 44 px de alto y etiqueta propia por hueco: en el celular un enlace de 20 px es un blanco que
-    // se erra, y tres botones que dicen lo mismo no se distinguen (ronda 5, Mateo y Miguel).
+    if (sent) {
+        return (
+            <span className={cn(row, "border border-linea bg-fondo-2 font-normal text-tinta-2")}>
+                <Check aria-hidden className="size-4 shrink-0" />
+                {noticeSentLabel(kind)}
+            </span>
+        );
+    }
+
     return (
         <Button
-            variant="link"
-            className={cn(
-                "mt-1 flex min-h-11 w-fit items-center px-2 text-sm font-normal text-tinta-2 hover:text-acento sm:mt-0 sm:inline-flex sm:min-h-9",
-                notifying && "pointer-events-none opacity-45"
-            )}
+            variant="outline"
+            className={cn(row, "font-medium text-tinta", notifying && "pointer-events-none opacity-45")}
             aria-label={noticeActionName(kind)}
             aria-disabled={notifying}
             aria-busy={notifying}
@@ -45,8 +52,35 @@ export function NoticeAction({ kind, sent, notifying, onNotify }: NoticeActionPr
                 if (!notifying) onNotify(kind);
             }}
         >
+            <BellRing aria-hidden className="size-4 shrink-0" />
             {noticeActionName(kind)}
         </Button>
+    );
+}
+
+/**
+ * The notices of one gig, in their own block under the logistics text: one row per slot that is
+ * still missing. Each row names its slot, so three actions in a column never read the same.
+ */
+export function NoticeActions({
+    slots,
+    notifying,
+    onNotify,
+}: {
+    slots: readonly NoticeSlot[];
+    notifying: GigNoticeKind | null;
+    onNotify: (kind: GigNoticeKind) => void;
+}) {
+    if (slots.length === 0) return null;
+
+    return (
+        <ul aria-label={NOTICE_LIST_LABEL} className="mt-1 flex flex-col gap-2 border-t border-linea pt-3">
+            {slots.map((slot) => (
+                <li key={slot.kind}>
+                    <NoticeAction kind={slot.kind} sent={slot.sent} notifying={notifying === slot.kind} onNotify={onNotify} />
+                </li>
+            ))}
+        </ul>
     );
 }
 

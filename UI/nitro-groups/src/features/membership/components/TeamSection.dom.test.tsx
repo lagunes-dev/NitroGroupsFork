@@ -65,6 +65,45 @@ describe("TeamSection", () => {
         expect(await screen.findByRole("list", { name: "2 músicos en el equipo" })).toBeInTheDocument();
     });
 
+    it("uses the compact row so five members fit in a 390 px screen", async () => {
+        team.mockResolvedValue([
+            rows[0],
+            { ...rows[1], instruments: "Bajo", city: "Guadalajara, Jalisco" },
+            { ...rows[1], userId: 12, fullName: "María Vega", instruments: "Violín", city: "Puebla" },
+            { ...rows[1], userId: 13, fullName: "Luis Lara", instruments: "Teclados", city: "Monterrey" },
+            { ...rows[1], userId: 14, fullName: "Mateo Ruiz", instruments: "Guitarra", city: "Zapopan" },
+        ]);
+        renderSection();
+
+        const list = await screen.findByRole("list", { name: "5 músicos en el equipo" });
+        const members = within(list).getAllByRole("listitem");
+        expect(members).toHaveLength(5);
+        for (const member of members) {
+            // El renglón compacto del perfil público, ahora donde el manager administra: 10 px arriba
+            // y abajo (12 a partir de sm), y 2 px entre las líneas del bloque.
+            expect(member).toHaveClass("py-2.5", "sm:py-3");
+            expect(member).not.toHaveClass("p-4");
+            expect(member.querySelector("div")).toHaveClass("gap-0.5");
+            // Un avatar de 40 px, no de 48: el alto de la fila lo manda el texto, no la foto.
+            expect(member.querySelector("span[aria-hidden]")).toHaveClass("size-10");
+        }
+    });
+
+    it("keeps the craft on one line and the join date beside the role", async () => {
+        team.mockResolvedValue([
+            { ...rows[0], instruments: "Guitarra eléctrica, acordeón y coros", city: "San Pedro Tlaquepaque, Jalisco" },
+        ]);
+        renderSection();
+
+        const list = await screen.findByRole("list", { name: "1 músico en el equipo" });
+        const member = within(list).getByRole("listitem");
+        const craft = within(member).getByText("Guitarra eléctrica, acordeón y coros · San Pedro Tlaquepaque, Jalisco");
+        expect(craft).toHaveClass("truncate");
+        expect(craft).toHaveAttribute("title", "Guitarra eléctrica, acordeón y coros · San Pedro Tlaquepaque, Jalisco");
+        // La fecha y el rol comparten renglón: una línea menos por miembro.
+        expect(within(member).getByText(/Se unió el/).closest("p")).toBe(within(member).getByText("Rol: Dueño").closest("p"));
+    });
+
     it("marks the section busy while it loads", () => {
         team.mockReturnValue(new Promise(() => {}));
         renderSection();

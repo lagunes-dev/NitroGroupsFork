@@ -21,9 +21,9 @@ export function PublicGroupTeam({ members }: { members: PublicGroupTeamMember[] 
                     {rows.map((row) => (
                         <li
                             key={row.userId}
-                            className="flex flex-col gap-0.5 border-b border-linea py-2.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6 sm:py-3"
+                            className="flex min-w-0 flex-col gap-0.5 border-b border-linea py-2.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6 sm:py-3"
                         >
-                            <span className="type-heading text-xl">
+                            <span className="type-heading truncate text-xl">
                                 {row.profileHref ? (
                                     <Link href={row.profileHref} className="no-underline hover:text-acento transition-colors">
                                         {row.fullName}
@@ -32,9 +32,14 @@ export function PublicGroupTeam({ members }: { members: PublicGroupTeamMember[] 
                                     row.fullName
                                 )}
                             </span>
-                            <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-tinta-2">
-                                <span>{row.roleLabel}</span>
-                                {row.craftLabel && <span className="tabular">{row.craftLabel}</span>}
+                            <span className="flex min-w-0 items-baseline gap-x-3 text-tinta-2">
+                                <span className="shrink-0">{row.roleLabel}</span>
+                                {/* Un oficio largo no parte la fila en tres renglones: se corta y el texto completo vive en el `title`. */}
+                                {row.craftLabel && (
+                                    <span className="tabular min-w-0 truncate" title={row.craftLabel}>
+                                        {row.craftLabel}
+                                    </span>
+                                )}
                             </span>
                         </li>
                     ))}
