@@ -1,7 +1,8 @@
 import { apiClient } from "@/lib/api-client";
 import { normalizeDirection, normalizeStatus } from "./status";
 import { openMusiciansParams } from "./search";
-import type { MembershipFilters, MembershipRequest, OpenMusician, PagedResult } from "./types";
+import { normalizeRole } from "./roles";
+import type { MembershipFilters, MembershipRequest, MyMembership, OpenMusician, PagedResult } from "./types";
 
 type WireRequest = Omit<MembershipRequest, "direction" | "status"> & { direction: unknown; status: unknown };
 
@@ -25,6 +26,10 @@ export const membershipService = {
     /** The caller's own rows: invitations received and join requests sent. */
     mine: async (filters?: MembershipFilters) =>
         (await apiClient.get<WireRequest[]>("/membership-requests/mine", { params: filters })).data.map(toRequest),
+
+    /** Every active group the caller belongs to, with their role (Owner, Manager, Member first). */
+    myGroups: async (): Promise<MyMembership[]> =>
+        (await apiClient.get<(Omit<MyMembership, "role"> & { role: unknown })[]>("/users/me/memberships")).data.map((m) => ({ ...m, role: normalizeRole(m.role) })),
 
     requestToJoin: async (groupId: number, message?: string) =>
         toRequest((await apiClient.post<WireRequest>(`/groups/${groupId}/membership-requests`, { message: message?.trim() || undefined })).data),
