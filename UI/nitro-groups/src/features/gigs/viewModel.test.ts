@@ -22,7 +22,7 @@ describe("toGigView", () => {
         expect(view).toMatchObject({
             id: 7,
             eventDate: "2026-11-15",
-            dateLabel: "domingo 15 de noviembre",
+            dateLabel: "domingo 15 de noviembre de 2026",
             placeLabel: "Hacienda Los Arcos",
             timeLabel: "20:00",
             durationLabel: "3 h",
@@ -94,8 +94,8 @@ describe("toGigView", () => {
 describe("answer button names", () => {
     it("names the group and the date, so a screen reader user can tell two rows apart", () => {
         const view = toGigView(ROW);
-        expect(confirmButtonName(view)).toBe("Confirmar el domingo 15 de noviembre · Mariachi Sol de Jalisco");
-        expect(declineButtonName(view)).toBe("Avisar que no puedo el domingo 15 de noviembre · Mariachi Sol de Jalisco");
+        expect(confirmButtonName(view)).toBe("Confirmar el domingo 15 de noviembre de 2026 · Mariachi Sol de Jalisco");
+        expect(declineButtonName(view)).toBe("Avisar que no puedo el domingo 15 de noviembre de 2026 · Mariachi Sol de Jalisco");
     });
 
     it("reads naturally when the date is still unknown", () => {
