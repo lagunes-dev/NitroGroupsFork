@@ -5,6 +5,7 @@ import { DIRECTORY_HREF, directoryApiQuery, directoryHref, directorySummary, has
 import { DirectoryPagination } from "@/features/musicians/components/DirectoryPagination";
 import { MusicianCard } from "@/features/musicians/components/MusicianCard";
 import { MusicianDirectoryForm } from "@/features/musicians/components/MusicianDirectoryForm";
+import { InviteToMyGroup } from "@/features/membership/components/InviteToMyGroup";
 import type { MusicianDirectoryResponse } from "@/features/musicians/types";
 import { serverGetResult } from "@/lib/serverApi";
 
@@ -64,8 +65,13 @@ export default async function MusiciansDirectoryPage({ searchParams }: Props) {
                         </div>
                     ) : (
                         <ul className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            {result.data.items.map((row) => (
-                                <MusicianCard key={row.userId} card={toDirectoryCard(row)} />
+                            {result.data.items.map(toDirectoryCard).map((card) => (
+                                <MusicianCard
+                                    key={card.userId}
+                                    card={card}
+                                    // The directory only lists open musicians; the button still checks the viewer.
+                                    actions={<InviteToMyGroup musicianUserId={card.userId} musicianName={card.name} isOpenToJoin />}
+                                />
                             ))}
                         </ul>
                     )}

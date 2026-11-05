@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight, ExternalLink, Play } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
@@ -53,7 +54,7 @@ function GroupRow({ group }: { group: MusicianProfileGroup }) {
  * la misma jerarquía que el perfil de un grupo — foto, nombre, titular, datos en una tira, relato,
  * video, grupos y una acción clara.
  */
-export function PublicMusicianProfile({ profile }: { profile: MusicianProfileView }) {
+export function PublicMusicianProfile({ profile, inviteAction }: { profile: MusicianProfileView; inviteAction?: ReactNode }) {
     // Nombre vacío: nunca se inventa uno, pero la página necesita un título legible.
     const name = profile.fullName || "Músico";
 
@@ -140,17 +141,15 @@ export function PublicMusicianProfile({ profile }: { profile: MusicianProfileVie
                     {profile.isOpenToJoin ? (
                         <>
                             <p className="mt-3 max-w-[52ch] text-tinta-2">
-                                {name} está disponible para unirse a un grupo. Si ya tienes uno, búscalo en NitroGroups y envíale
-                                la invitación desde el equipo.
+                                {name} está abierto a unirse a un grupo. Si manejas uno, entra con tu cuenta y envía la invitación
+                                desde aquí; {name} la verá en su panel.
                             </p>
-                            <Link href={ROUTES.GROUPS.SEARCH} className={`${ctaClass} mt-6`}>
-                                Invitar a un grupo
-                            </Link>
+                            {inviteAction && <div className="mt-6 empty:hidden">{inviteAction}</div>}
                         </>
                     ) : (
                         <p className="mt-3 max-w-[52ch] text-tinta-2">
-                            Por ahora {name} no está buscando unirse a un grupo, así que no recibe invitaciones. Su perfil sigue
-                            visible para contratarlo para un evento.
+                            Por ahora {name} no está abierto a unirse a un grupo, así que no recibe invitaciones. Su perfil
+                            sigue siendo público.
                         </p>
                     )}
                 </div>

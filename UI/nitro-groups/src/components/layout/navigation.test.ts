@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dashboardEntries } from "./navigation";
+import { dashboardEntries, directoryEntry } from "./navigation";
 
 const none = { hasGroup: true as boolean | null, invitations: 0, joinRequests: 0, memberships: 0 };
 
@@ -36,5 +36,18 @@ describe("dashboardEntries", () => {
     });
     it("does not add Mi panel for a client", () => {
         expect(dashboardEntries(false, { ...none, hasGroup: false, memberships: 1 }).map((e) => e.label)).toEqual(["Mis pedidos"]);
+    });
+});
+
+describe("directoryEntry", () => {
+    it("offers Músicos to a manager of a group", () => {
+        expect(directoryEntry(true)).toEqual({ href: "/musicians", label: "Músicos" });
+    });
+    it("offers nothing without a group, while it loads, or to a client", () => {
+        expect(directoryEntry(false)).toBeNull();
+        expect(directoryEntry(null)).toBeNull();
+    });
+    it("does not change the dashboard entries", () => {
+        expect(dashboardEntries(true, none).map((e) => e.label)).toEqual(["Mi grupo"]);
     });
 });

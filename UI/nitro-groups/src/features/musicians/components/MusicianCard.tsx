@@ -37,7 +37,7 @@ export function MusicianCard({ card, actions }: { card: DirectoryCard; actions?:
 
             {facts.length > 0 && <p className="text-sm text-tinta-2">{facts.join(" · ")}</p>}
 
-            {actions && <div className="mt-auto">{actions}</div>}
+            {actions && <div className="mt-auto empty:hidden">{actions}</div>}
         </li>
     );
 }
