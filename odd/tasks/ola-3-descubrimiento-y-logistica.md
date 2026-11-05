@@ -9,6 +9,11 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 - **S3 (D1).** "tu recomendación". La app no cobra: el anticipo se registra como dato (monto, fecha, recibido). Sin pasarela ni comisión.
 - **S4 (D3).** "Tu recomendación". Una lista de texto (setlist) por evento, editable por el manager y visible para los miembros. Se agrega también la hora de llamado.
 - **S5 (D7).** "Tu recomendación". Solo escribe una reseña el cliente de un evento aceptado cuya fecha ya pasó, una por evento.
+- **S6 (ronda 3).** "Estado vacío honesto: cuando el manager todavía no cargó llegada, setlist o pago, decirlo." Hoy la tarjeta del músico omite el campo en silencio.
+- **S7 (ronda 3).** "El equipo con oficio: instrumento y ciudad por renglón, y que 'Integrantes 4' del perfil público salga del equipo real, que dice 5."
+- **S8 (ronda 3).** "Cerrar el trato del cliente: saldo ('falta pagar $14,000'), próximo paso, y el anticipo también en la lista de pedidos."
+- **S9 (ronda 3).** "Avisarle al músico: que sepa que un grupo lo miró."
+- **S10 (ronda 3).** El copy "No disponible por ahora" del perfil público se lee como rechazo; debe describir el estado real.
 - **Pendiente.** D2 (paga por músico): el usuario pidió "Explica con ejemplos"; se decide después. D6 (señales de decisión en el hilo): "tu recomendación después de que resolvamos D2".
 
 ## Contrato del directorio (fijado)
@@ -23,7 +28,12 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 - [ ] T2 (S1, S2) Frontend: página `/musicians` con filtros, "Invitar a mi grupo" en perfil y directorio para managers, campo ciudad en "Mi perfil", y corregir el texto que habla de contratar a un músico.
 - [ ] T3 (S3, S4) Backend Bookings: setlist, hora de llamado y anticipo en el evento aceptado.
 - [ ] T4 (S3, S4) Frontend: setlist y hora de llamado en la agenda, anticipo visible al manager y al cliente.
-- [ ] T5 (S5) Reseñas: según lo que ya exista en el modelo.
+- [x] T5 (S5) Reseñas: según lo que ya exista en el modelo. `3f2dfe9` (backend), `073b90b` (perfil público + agregado), `dev-seed-reviews.sql`.
+- [ ] T6 (S6) Front: estados vacíos honestos en la agenda del músico y del miembro (llegada, setlist y pago sin cargar).
+- [ ] T7 (S7) Equipo con oficio: instrumento y ciudad por renglón en "Equipo", e "Integrantes" del perfil público tomado del equipo real.
+- [ ] T8 (S8) Front: cerrar el trato del cliente — saldo, próximo paso y anticipo en la lista de pedidos.
+- [ ] T9 (S9) Avisarle al músico que un grupo miró su perfil.
+- [ ] T10 (S10) Copy del interruptor: dejar de decir "No disponible por ahora" y alinear el seed.
 
 ## Log
 
@@ -35,6 +45,10 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 - L6 (seed): los agregados escritos a mano se reemplazan por filas de reseña reales, y se agrega un evento aceptado y ya pasado para poder probar el flujo.
 - Orden: primero el worker de logística en Bookings (setlist, hora de llamado, anticipo) y después el de reseñas, porque ambos tocan el mismo módulo y la misma máquina no soporta dos compilaciones a la vez.
 - L7 (usuario, verbatim): "para el ejemplo que me diste si es mejor B, adelante". **D2 decidida: opción B**, un monto por músico y por toque, solo informativo. La app no suma, no valida el total ni mueve dinero.
+- L9 (usuario, verbatim): "Seguimos con NitroGroups en /home/adminr/repos/NitroGroupsFork, rama feat/membership-ux. Leé odd/tasks/ola-3-descubrimiento-y-logistica.md completo, y después los pendientes de la ronda 3. API en :5144, front en :3001, Postgres en el contenedor nitro_pg (puerto 5433). Los subagentes usan DeepSeek."
+- L10 (cierre de la ronda 3, verbatim del informe anterior): Camila 6 → 7, Mateo 5 → 6, Mónica 5 → 6, Miguel 5 → 6; promedio 2,25 → 5,25 → 6,25. El único bug (`b3c79fb`, el formulario de contratación que parpadeaba dentro del grupo propio) ya está corregido. Los pendientes que quedaron, verbatim: (1) "Estado vacío honesto: cuando el manager todavía no cargó llegada, setlist o pago, decirlo. Hoy Mateo y Miguel creen que la app los perdió." (2) "El equipo con oficio: instrumento y ciudad por renglón, y que 'Integrantes 4' del perfil público salga del equipo real, que dice 5." (3) "Cerrar el trato del cliente: saldo ('falta pagar $14,000'), próximo paso, y el anticipo también en la lista de pedidos." (4) "Avisarle al músico: que sepa que un grupo lo miró. Mateo lo resumió bien: 'el directorio es un cartel colgado en el desierto'." Más el quinto del tablero: "copy 'No disponible por ahora'".
+- L11 (mapa del código, explorado): (a) `GigCard.tsx:68/104/70` omite en silencio llegada, setlist y pago cuando vienen nulos; no hay estado vacío por campo. (b) `GroupTeamMemberResponse` tiene solo `UserId/FullName/Role/ProfilePictureUrl/JoinedAt`: instrumento y ciudad no viajan. `PublicGroupProfile.tsx:47` muestra `group.numMembers`, un número que el dueño escribe a mano en `GroupProfileEdit.tsx:157`, mientras que "El equipo (N)" cuenta filas reales de `GET api/groups/{id}/team`: dos fuentes distintas que pueden discrepar. (c) `deposit.ts:39` solo muestra el anticipo al cliente y solo si el evento está Aceptado; nadie calcula `budget - deposit.amount`. (d) no existe ningún concepto de visita al perfil: ni tabla, ni evento, ni campanita; el canal de aviso existente es el outbox de correo. (e) el copy vive en `PublicMusicianProfile.tsx:70` y `:151-153`.
+- L12 (decisión técnica, T9): el aviso al músico se resuelve dentro de la app, no por correo: una tabla de visitas en el módulo Groups registra al manager que abre el perfil desde el directorio, y el músico ve "N grupos miraron tu perfil" con los nombres de los grupos que ya son públicos. No se expone el correo de nadie y no se avisa por email mientras no haya SMTP.
 - L8 (D6, decidida por recomendación del usuario "después de que resolvamos D2"): el hilo del manager muestra dos señales calculables con datos que ya existen: **choque de fecha** (el grupo ya tiene un toque aceptado ese día) y **presupuesto contra tarifa base** (lo que ofrece el cliente frente al "desde $X" del grupo). La **distancia** contra el radio no entra en esta ola: el grupo solo guarda su ciudad como texto y no hay coordenadas, así que calcularla exige un catálogo de ciudades o geocodificación. Se anota como D8.
 
 ## Contrato de la logística del toque (fijado)
