@@ -28,7 +28,7 @@ namespace NitroGroups.Core.Groups.Infrastructure.Adapters
 
             return await context.Groups.AsNoTracking()
                 .Where(g => ids.Contains(g.Id))
-                .Select(g => new GroupSummary(g.Id, g.Slug, g.GroupName, g.Email, g.OwnerUserId, g.IsAcceptingBookings, g.ProfilePictureUrl, g.Active))
+                .Select(g => new GroupSummary(g.Id, g.Slug, g.GroupName, g.Email, g.OwnerUserId, g.IsAcceptingBookings, g.ProfilePictureUrl, g.Active, g.BasePrice))
                 .ToDictionaryAsync(g => g.Id, cancellationToken);
         }
 

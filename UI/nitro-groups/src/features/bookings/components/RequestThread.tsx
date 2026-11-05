@@ -11,6 +11,7 @@ import { clientDepositLabel } from "../deposit";
 import { availableActions, shortTime, statusLabel } from "../status";
 import { threadItems, type ThreadItem } from "../thread";
 import type { EventRequest, EventRequestParty } from "../types";
+import { RequestSignals } from "./RequestSignals";
 import { StatusBadge } from "./StatusBadge";
 
 const timeFmt = new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Mexico_City" });
@@ -90,6 +91,13 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                     <p className="mt-2 text-sm text-tinta-2">Cargada por el grupo: no cuenta en las reservas públicas.</p>
                 )}
             </header>
+
+            {/* D6: only the group sees the signals; the client's thread is untouched. */}
+            {viewer === "Group" && (
+                <div className="md:col-span-12">
+                    <RequestSignals groupId={r.groupId} requestId={r.id} viewer={viewer} currency={r.currency} />
+                </div>
+            )}
 
             <dl className="md:col-span-4 grid grid-cols-2 md:grid-cols-1 gap-6 content-start">
                 <Detail label="Evento" value={eventTypeLabel(r.eventType)} />

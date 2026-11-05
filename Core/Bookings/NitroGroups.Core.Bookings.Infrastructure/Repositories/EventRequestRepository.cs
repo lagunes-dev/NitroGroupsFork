@@ -50,4 +50,17 @@ internal sealed class EventRequestRepository(BookingsDbContext dbContext)
                     && r.EventDate >= fromEventDate)
                 .OrderBy(r => r.EventDate).ThenBy(r => r.StartTime).ThenBy(r => r.Id)
                 .ToListAsync(cancellationToken);
+
+    public Task<List<EventRequest>> ListAcceptedOnDateAsync(
+        long groupId,
+        DateOnly eventDate,
+        long excludeEventRequestId,
+        CancellationToken cancellationToken = default)
+        => dbContext.EventRequests.AsNoTracking()
+            .Where(r => r.GroupId == groupId
+                && r.Status == EventRequestStatus.Accepted
+                && r.EventDate == eventDate
+                && r.Id != excludeEventRequestId)
+            .OrderBy(r => r.Id)
+            .ToListAsync(cancellationToken);
 }

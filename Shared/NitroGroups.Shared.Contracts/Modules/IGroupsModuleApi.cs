@@ -3,6 +3,10 @@ using NitroGroups.Shared.Contracts.Groups.Responses;
 namespace NitroGroups.Shared.Contracts.Modules
 {
     /// <summary>Datos públicos de un grupo que otros módulos pueden consultar.</summary>
+    /// <param name="BasePrice">
+    /// El "desde $X" del grupo, tal como lo cargó el manager. Opcional: null cuando no lo cargó.
+    /// Bookings lo usa para comparar el presupuesto que ofrece el cliente (D6); nunca para cobrar.
+    /// </param>
     public sealed record GroupSummary(
         long Id,
         string Slug,
@@ -11,7 +15,8 @@ namespace NitroGroups.Shared.Contracts.Modules
         long OwnerUserId,
         bool IsAcceptingBookings,
         string? ProfilePictureUrl,
-        bool IsActive = true);
+        bool IsActive = true,
+        decimal? BasePrice = null);
 
     /// <summary>
     /// API pública del módulo Groups. Es la única forma en que otros módulos

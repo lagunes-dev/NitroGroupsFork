@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api-client";
+import type { EventRequestSignals } from "./signals";
 import type { CreateEventRequestBody, EventRequest, EventRequestStatus } from "./types";
 
 /** API de solicitudes de evento. El usuario siempre sale del token (apiClient lo adjunta). */
@@ -23,6 +24,10 @@ export const bookingsService = {
 
     postMessage: async (id: number, body: string) =>
         (await apiClient.post(`/event-requests/${id}/messages`, { body })).data,
+
+    /** D6: the day clash and the budget comparison of one request of that group. */
+    signals: async (groupId: number, id: number) =>
+        (await apiClient.get<EventRequestSignals>(`/groups/${groupId}/event-requests/${id}/signals`)).data,
 };
 
 /** Mensaje de error de la API (ProblemDetails) en lenguaje de la interfaz. */

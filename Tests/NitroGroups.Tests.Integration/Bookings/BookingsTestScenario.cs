@@ -38,7 +38,7 @@ internal sealed class BookingsTestScenario
     public ISchedulesModuleApi Schedules { get; } = Substitute.For<ISchedulesModuleApi>();
     public TimeProvider Time { get; set; } = new FixedTimeProvider(Now);
 
-    public static readonly GroupSummary Vargas = new(GroupId, "los-vargas", "Los Vargas", "grupo@vargas.mx", ManagerId, true, null);
+    public static readonly GroupSummary Vargas = new(GroupId, "los-vargas", "Los Vargas", "grupo@vargas.mx", ManagerId, true, null, BasePrice: 12_000m);
     public static readonly GroupSummary Otro = new(OtherGroupId, "otro", "Otro Grupo", "otro@grupo.mx", 999, true, null);
 
     public Dictionary<long, UserSummary> AllUsers { get; } = new()
