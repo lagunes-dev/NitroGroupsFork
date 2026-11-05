@@ -46,6 +46,11 @@ public class EventRequestConfiguration : IEntityTypeConfiguration<EventRequest>
             .HasForeignKey(m => m.EventRequestId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(e => e.Attendance)
+            .WithOne()
+            .HasForeignKey(a => a.EventRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.HasIndex(e => new { e.GroupId, e.Status, e.CreatedAt });
         builder.HasIndex(e => new { e.ClientUserId, e.CreatedAt });
     }

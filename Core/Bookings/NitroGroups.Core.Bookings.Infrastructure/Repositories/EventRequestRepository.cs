@@ -15,6 +15,11 @@ internal sealed class EventRequestRepository(BookingsDbContext dbContext)
             .Include(r => r.Messages)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
+    public Task<EventRequest?> GetWithAttendanceAsync(long id, CancellationToken cancellationToken = default)
+        => dbContext.EventRequests
+            .Include(r => r.Attendance)
+            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
+
     public Task<List<EventRequest>> ListByClientAsync(long clientUserId, CancellationToken cancellationToken = default)
         => dbContext.EventRequests.AsNoTracking()
             .Where(r => r.ClientUserId == clientUserId)
@@ -31,4 +36,18 @@ internal sealed class EventRequestRepository(BookingsDbContext dbContext)
             .OrderByDescending(r => r.CreatedAt).ThenByDescending(r => r.Id)
             .ToListAsync(cancellationToken);
     }
+
+    public Task<List<EventRequest>> ListAcceptedGigsAsync(
+        IReadOnlyCollection<long> groupIds,
+        DateOnly fromEventDate,
+        CancellationToken cancellationToken = default)
+        // Un toque es una solicitud aceptada (Pending, Declined y Cancelled nunca son agenda).
+        => groupIds.Count == 0
+            ? Task.FromResult(new List<EventRequest>())
+            : dbContext.EventRequests.AsNoTracking()
+                .Where(r => groupIds.Contains(r.GroupId)
+                    && r.Status == EventRequestStatus.Accepted
+                    && r.EventDate >= fromEventDate)
+                .OrderBy(r => r.EventDate).ThenBy(r => r.StartTime).ThenBy(r => r.Id)
+                .ToListAsync(cancellationToken);
 }

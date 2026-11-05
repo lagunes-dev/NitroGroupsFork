@@ -24,6 +24,7 @@ public static class DependencyInjection
     public static IServiceCollection AddBookingsRepositories(this IServiceCollection services)
     {
         services.AddScoped<IEventRequestRepository, EventRequestRepository>();
+        services.AddScoped<IGigAttendanceRepository, GigAttendanceRepository>();
         services.AddModuleUnitOfWork<IUnitOfWorkBookings, UnitOfWorkBookings, BookingsDbContext>();
         return services;
     }

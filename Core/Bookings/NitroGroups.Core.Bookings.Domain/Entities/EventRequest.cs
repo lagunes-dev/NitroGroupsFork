@@ -41,6 +41,9 @@ public class EventRequest : AuditableModel
 
     public List<EventRequestMessage> Messages { get; set; } = [];
 
+    /// <summary>Respuestas de asistencia de los miembros del grupo (una por usuario).</summary>
+    public List<GigAttendance> Attendance { get; set; } = [];
+
     /// <summary>Se llama después de guardar (cuando ya hay Id) para avisar al grupo.</summary>
     public void RaiseCreatedEvent()
     {
@@ -94,6 +97,23 @@ public class EventRequest : AuditableModel
                     : $"No se puede cancelar una solicitud que está {Describe(Status)}.");
 
         ChangeStatus(EventRequestStatus.Cancelled, by);
+    }
+
+    /// <summary>
+    /// Guarda o corrige la respuesta de un miembro al toque. Solo un toque aceptado tiene
+    /// asistencia y cada usuario tiene una sola fila: si ya respondió, se actualiza la misma.
+    /// </summary>
+    public GigAttendance RespondAttendance(long userId, GigAttendanceStatus status)
+    {
+        var attendance = Attendance.FirstOrDefault(a => a.UserId == userId);
+        if (attendance is null)
+        {
+            attendance = new GigAttendance { EventRequestId = Id, UserId = userId };
+            Attendance.Add(attendance);
+        }
+
+        attendance.Status = status;
+        return attendance;
     }
 
     /// <summary>Agrega un mensaje de una de las partes y avisa a la otra.</summary>
