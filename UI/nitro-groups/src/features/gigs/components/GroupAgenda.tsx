@@ -3,7 +3,7 @@
 import { Alert, AlertDescription, Button } from "@/components/ui";
 import { compareGigsByDate } from "../agenda";
 import { useGroupGigs } from "../gigs.queries";
-import { attendanceCountLabel, attendeeSummary } from "../groupAgenda";
+import { attendanceCountLabel, attendeeSummary, declinedLabel, unansweredLabel } from "../groupAgenda";
 import type { GroupGigPayload } from "../types";
 import { scheduleLabel, toGigView } from "../viewModel";
 
@@ -20,6 +20,8 @@ function GigRow({ row }: { row: GroupGigPayload }) {
             <div className="md:col-span-4">
                 <p className="font-semibold text-tinta">{attendanceCountLabel(summary)}</p>
                 {summary.names.length > 0 && <p className="text-sm text-tinta-2">{summary.names.join(", ")}</p>}
+                {declinedLabel(summary) && <p className="text-sm text-error">{declinedLabel(summary)}</p>}
+                {unansweredLabel(summary) && <p className="text-sm text-tinta-2">{unansweredLabel(summary)}</p>}
             </div>
         </li>
     );

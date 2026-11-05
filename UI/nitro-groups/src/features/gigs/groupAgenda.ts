@@ -4,9 +4,14 @@ import type { AttendeePayload } from "./types";
 /** Who answered a gig: everyone asked, how many confirmed, and the names behind that number. */
 export interface AttendeeSummary {
     confirmed: number;
+    declined: number;
     total: number;
+    /** Members who have not answered yet. */
+    unanswered: number;
     /** Names of the members who confirmed, in the order the API sent them. Never an email. */
     names: string[];
+    /** Names of the members who said they cannot make it: the manager needs them as much as the yeses. */
+    declinedNames: string[];
 }
 
 /**
@@ -16,17 +21,38 @@ export interface AttendeeSummary {
 export function attendeeSummary(attendees: readonly AttendeePayload[] | null | undefined): AttendeeSummary {
     const list = attendees ?? [];
     const names: string[] = [];
+    const declinedNames: string[] = [];
     let confirmed = 0;
+    let declined = 0;
 
     for (const attendee of list) {
         const status = typeof attendee.status === "string" ? attendee.status.trim() : "";
-        if (status !== "Confirmed") continue;
-        confirmed += 1;
         const name = (attendee.fullName ?? "").trim();
-        if (name) names.push(name);
+        if (status === "Confirmed") {
+            confirmed += 1;
+            if (name) names.push(name);
+        } else if (status === "Declined") {
+            declined += 1;
+            if (name) declinedNames.push(name);
+        }
     }
 
-    return { confirmed, total: list.length, names };
+    const answered = confirmed + declined;
+    return { confirmed, declined, total: list.length, unanswered: Math.max(0, list.length - answered), names, declinedNames };
+}
+
+/** "No pueden: Ana, Luis", or null when everyone is coming or nobody answered yet. */
+export function declinedLabel(summary: AttendeeSummary): string | null {
+    if (summary.declined === 0) return null;
+    return summary.declinedNames.length > 0
+        ? `No pueden: ${summary.declinedNames.join(", ")}`
+        : `${summary.declined} no pueden ir`;
+}
+
+/** "Faltan 2 por responder", or null when everyone has answered. */
+export function unansweredLabel(summary: AttendeeSummary): string | null {
+    if (summary.unanswered <= 0) return null;
+    return summary.unanswered === 1 ? "Falta 1 por responder" : `Faltan ${summary.unanswered} por responder`;
 }
 
 /** "3 de 5 confirmaron", or the plain truth when nobody has answered yet. */
