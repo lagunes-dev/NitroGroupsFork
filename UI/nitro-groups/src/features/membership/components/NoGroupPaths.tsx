@@ -31,14 +31,14 @@ function Path({ icon: Icon, title, text, href, action, hint }: PathProps) {
 }
 
 /**
- * Panel of a musician without a group: two equal paths, create one or join an existing one.
+ * Panel of a musician who manages no group (they may still be a Member of one): two equal paths, create one or join an existing one.
  * The invitations tab stays right below it (rendered by the dashboard page).
  */
 export function NoGroupPaths() {
     return (
         <section aria-labelledby="sin-grupo" className="pt-14">
-            <h1 id="sin-grupo" className="titulo">Todavía no tienes grupo</h1>
-            <p className="mt-3 max-w-[56ch] text-tinta-2">Elige cómo empezar. Si un grupo te invita, verás la invitación abajo, en Invitaciones.</p>
+            <h1 id="sin-grupo" className="titulo">Aún no gestionas un grupo</h1>
+            <p className="mt-3 max-w-[56ch] text-tinta-2">Crea el tuyo o pide unirte a uno existente. Las invitaciones que recibas aparecen abajo, en Invitaciones.</p>
             <ul className="mt-8 grid gap-4 md:grid-cols-2">
                 <Path
                     icon={Sparkles}

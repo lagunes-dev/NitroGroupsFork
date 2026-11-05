@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Button, TabItem, TabbedSection } from "@/components/ui";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { usePendingMembership } from "@/hooks/usePendingMembership";
+import { useMyMemberships } from "@/hooks/useMyMemberships";
+import { showMyGroupsTab } from "@/features/membership/roles";
 import { joinBannerText } from "@/features/membership/counts";
 import { groupsService } from "@/features/groups/services/groups.service";
 import GroupProfile from "@/features/groups/components/GroupProfile";
@@ -13,6 +15,7 @@ import GroupGallery from "@/features/groupMedia/components/GroupGallery";
 import { GroupInbox } from "@/features/bookings/components/GroupInbox";
 import { TeamTab } from "@/features/membership/components/TeamTab";
 import { MyInvitations } from "@/features/membership/components/MyInvitations";
+import { MyGroups } from "@/features/membership/components/MyGroups";
 
 /**
  * Panel del grupo. Arriba, quién es y en qué estado está; abajo, el trabajo diario:
@@ -33,13 +36,15 @@ export default function MusicianDashboardPage() {
   });
 
   const groupId = group?.id;
+  const memberships = useMyMemberships();
+  const myGroupsTab = showMyGroupsTab({ memberships: memberships.data, managedGroupId: groupId ?? null });
   const { invitations, joinRequests } = usePendingMembership();
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
   const tabsRef = useRef<HTMLDivElement>(null);
   const banner = groupId ? joinBannerText(joinRequests) : null;
 
-  const showTeam = () => {
-    setActiveTab("equipo");
+  const showTab = (tabKey: string) => {
+    setActiveTab(tabKey);
     // The panel mounts after the state change: move focus there once it exists.
     setTimeout(() => tabsRef.current?.querySelector<HTMLElement>('[role="tabpanel"]')?.focus(), 0);
   };
@@ -49,7 +54,7 @@ export default function MusicianDashboardPage() {
       {banner && (
         <div className="superficie mt-6 flex flex-col gap-3 rounded-[12px] p-4 sm:flex-row sm:items-center sm:justify-between">
           <p role="status" aria-live="polite" className="font-semibold text-tinta">{banner}</p>
-          <Button variant="outline" onClick={showTeam}>Ver solicitudes</Button>
+          <Button variant="outline" onClick={() => showTab("equipo")}>Ver solicitudes</Button>
         </div>
       )}
 
@@ -81,6 +86,11 @@ export default function MusicianDashboardPage() {
           {groupId ? (
             <TabItem title="Calendario" tabKey="calendario">
               <GroupCalendar groupId={groupId} mode="private" />
+            </TabItem>
+          ) : null}
+          {myGroupsTab ? (
+            <TabItem title="Mis grupos" tabKey="mis-grupos">
+              <MyGroups managedGroupId={groupId ?? null} />
             </TabItem>
           ) : null}
           <TabItem title="Invitaciones" count={invitations} tabKey="invitaciones">
