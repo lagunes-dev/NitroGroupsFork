@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useMyMemberships } from "@/hooks/useMyMemberships";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { UserTypeEnum } from "@/features/groups/types/User";
 import { groupsService } from "@/features/groups/services/groups.service";
@@ -19,6 +20,8 @@ export interface PendingMembership {
     invitations: number;
     /** Join requests waiting for the manager of the user's group. */
     joinRequests: number;
+    /** Active memberships (any role); zero while loading or on error. */
+    memberships: number;
 }
 
 /**
@@ -58,10 +61,13 @@ export function usePendingMembership(): PendingMembership {
         retry: false,
     });
 
+    const memberships = useMyMemberships();
+
     return {
         groupId,
         hasGroup: group.isPending ? null : groupId !== null,
         invitations: mine.isSuccess ? pendingCount(mine.data, "Invitation") : 0,
         joinRequests: forGroup.isSuccess ? pendingCount(forGroup.data, "Request") : 0,
+        memberships: memberships.isSuccess ? memberships.data.length : 0,
     };
 }

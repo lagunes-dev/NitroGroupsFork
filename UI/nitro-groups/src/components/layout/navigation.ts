@@ -1,4 +1,5 @@
 import { ROUTES } from "@/config/routes";
+import { showMyGroupsEntry } from "@/features/membership/roles";
 
 /** Enlaces públicos de la barra. Pocos y planos (DESIGN.md → Navigation). */
 export const PUBLIC_LINKS = [
@@ -18,17 +19,23 @@ interface PendingState {
     hasGroup: boolean | null;
     invitations: number;
     joinRequests: number;
+    /** Active memberships of the user, whatever the role. */
+    memberships: number;
 }
 
 /**
  * Menu entries that lead to the user's panel. A client has one (date orders). A musician with a
  * group has "Mi grupo" (join requests badge) and, only with invitations waiting, "Invitaciones";
- * without a group, "Invitaciones" replaces "Mi grupo" so the way in is not hidden.
+ * without a group, "Invitaciones" replaces "Mi grupo" so the way in is not hidden, and "Mis grupos"
+ * comes first when they still belong to a group (with "Mi grupo" present it would be a duplicate).
  */
 export function dashboardEntries(isMusician: boolean, pending: PendingState): DashboardEntry[] {
     if (!isMusician) return [{ href: ROUTES.DASHBOARD.CLIENT, label: "Mis pedidos", count: 0 }];
     const href = ROUTES.DASHBOARD.MUSICIAN;
-    if (pending.hasGroup === false) return [{ href, label: "Invitaciones", count: pending.invitations }];
+    if (pending.hasGroup === false) {
+        const invitations: DashboardEntry = { href, label: "Invitaciones", count: pending.invitations };
+        return showMyGroupsEntry(pending) ? [{ href, label: "Mis grupos", count: 0 }, invitations] : [invitations];
+    }
     const entries: DashboardEntry[] = [{ href, label: "Mi grupo", count: pending.joinRequests }];
     if (pending.hasGroup && pending.invitations > 0) entries.push({ href, label: "Invitaciones", count: pending.invitations });
     return entries;
