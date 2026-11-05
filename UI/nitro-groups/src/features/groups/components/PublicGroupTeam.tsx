@@ -21,7 +21,7 @@ export function PublicGroupTeam({ members }: { members: PublicGroupTeamMember[] 
                     {rows.map((row) => (
                         <li
                             key={row.userId}
-                            className="flex flex-col gap-1 border-b border-linea py-4 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
+                            className="flex flex-col gap-0.5 border-b border-linea py-2.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6 sm:py-3"
                         >
                             <span className="type-heading text-xl">
                                 {row.profileHref ? (
