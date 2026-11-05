@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button, TabItem, TabbedSection } from "@/components/ui";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -56,6 +56,16 @@ export default function MusicianDashboardPage() {
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
   const tabsRef = useRef<HTMLDivElement>(null);
   const banner = groupId ? joinBannerText(joinRequests) : null;
+
+  // Un enlace puede pedir una pestaña concreta ("#mi-perfil"): aterrizar en la agenda cuando el
+  // botón promete el interruptor de disponibilidad es un callejón (ronda 5, Miguel).
+  // El hash es un sistema externo y no existe en el servidor, así que se lee al montar.
+  useEffect(() => {
+    const tab = window.location.hash.replace("#", "");
+    // El hash no existe en el servidor: se aplica una vez al montar, no en cada render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (tab) setActiveTab(tab);
+  }, []);
 
   const showTab = (tabKey: string) => {
     setActiveTab(tabKey);

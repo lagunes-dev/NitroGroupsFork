@@ -20,6 +20,6 @@ describe("MusicianClosedNotice", () => {
         render(<MusicianClosedNotice name="María Hernández" musicianUserId={6} />);
 
         expect(screen.getByText(/No estás recibiendo invitaciones de grupos/)).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: /Cambiar mi disponibilidad/ })).toHaveAttribute("href", "/dashboard/musician");
+        expect(screen.getByRole("link", { name: /Cambiar mi disponibilidad/ })).toHaveAttribute("href", "/dashboard/musician#mi-perfil");
     });
 });

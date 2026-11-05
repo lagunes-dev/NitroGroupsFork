@@ -17,7 +17,7 @@ export function MusicianClosedNotice({ name, musicianUserId }: { name: string; m
         return (
             <p className="mt-3 max-w-[52ch] text-tinta-2">
                 No estás recibiendo invitaciones de grupos. Tu perfil sigue siendo público.{" "}
-                <Link href={ROUTES.DASHBOARD.MUSICIAN} className="text-acento underline-offset-4 hover:underline">
+                <Link href={`${ROUTES.DASHBOARD.MUSICIAN}#mi-perfil`} className="text-acento underline-offset-4 hover:underline">
                     Cambiar mi disponibilidad
                 </Link>
             </p>
