@@ -20,11 +20,13 @@ namespace NitroGroups.Shared.Contracts.Groups.Responses
         public string Role { get; set; } = string.Empty;
 
         /// <summary>
-        /// Instrumentos que toca; null si no los cargó o si cerró su perfil (<c>IsOpenToJoin</c>).
+        /// Instrumentos que toca; null solo si no los cargó. Se publica para todo el equipo: el
+        /// interruptor del músico (<c>IsOpenToJoin</c>) gobierna el directorio y las invitaciones,
+        /// no la plantilla del grupo.
         /// </summary>
         public string? Instruments { get; set; }
 
-        /// <summary>Ciudad del músico; null si no la cargó o si cerró su perfil.</summary>
+        /// <summary>Ciudad del músico; null solo si no la cargó.</summary>
         public string? City { get; set; }
     }
 }

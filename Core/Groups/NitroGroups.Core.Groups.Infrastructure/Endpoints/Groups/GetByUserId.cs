@@ -18,10 +18,15 @@ namespace NitroGroups.Core.Groups.Infrastructure.Endpoints.Groups
             {
                 var result = await mediator.SendQueryAsync<GetGroupByUserIdQuery, Result<GroupResponse?>>(new GetGroupByUserIdQuery(userId));
 
-                if (result.IsSuccess && result.Value is not null)
-                    return Ok(result.Value);
-                else
+                if (result.IsFailure)
                     return NotFound();
+
+                // "Este usuario todavía no tiene grupo" es una respuesta, no un error: viaja como 200
+                // con cuerpo null y el front lo lee como "sin grupo" (T22). Cualquier otro 404 queda
+                // para lo que no existe.
+                return result.Value is null
+                    ? Text("null", "application/json", statusCode: StatusCodes.Status200OK)
+                    : Ok(result.Value);
             })
             .WithTags("Groups");
         }

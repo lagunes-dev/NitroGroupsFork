@@ -72,9 +72,10 @@ public class PublicGroupTeamEndpointsTests : IClassFixture<NitroGroupsWebAppFact
     }
 
     [Fact]
-    public async Task MiembroCerrado_ViajaSinInstrumentoNiCiudad()
+    public async Task MiembroSinDatos_ViajaVacio_SinInventarNada()
     {
-        // El perfil cerrado se decide en el camino de lectura; el endpoint solo no debe inventar nada.
+        // El oficio se publica para todo el equipo; lo que nunca se hace es inventarlo: sin datos
+        // cargados el renglón viaja con null y el front decide cómo leerlo.
         _mediator
             .SendQueryAsync<GetPublicGroupTeamQuery, GroupsResult<List<PublicGroupTeamMemberResponse>>>(Arg.Any<GetPublicGroupTeamQuery>())
             .Returns(GroupsResult<List<PublicGroupTeamMemberResponse>>.Success(

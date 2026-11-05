@@ -7,9 +7,11 @@ using NitroGroups.Shared.Contracts.Modules;
 namespace NitroGroups.Core.Groups.Application.UseCases.Groups.GetPublicTeam;
 
 /// <summary>
-/// El equipo con caras del perfil público (S14): los miembros activos del grupo con nombre, rol e
-/// instrumento · ciudad, sin correos. Es la versión anónima de <c>GetGroupTeamQuery</c>: mismo
-/// orden, pero el oficio de quien cerró su perfil no se publica.
+/// El equipo con caras del perfil público (S14, revisada en L24): los miembros activos del grupo
+/// con nombre, rol e instrumento · ciudad, sin correos. Es la versión anónima de
+/// <c>GetGroupTeamQuery</c>: mismo orden. El oficio se publica para todo el equipo: el interruptor
+/// "Aparecer en el directorio y aceptar invitaciones" gobierna el directorio y las invitaciones,
+/// nunca la plantilla del grupo.
 /// </summary>
 public sealed record GetPublicGroupTeamQuery(long GroupId) : IQuery<GroupsResult<List<PublicGroupTeamMemberResponse>>>;
 
@@ -37,7 +39,8 @@ public sealed class GetPublicGroupTeamQueryHandler(IUnitOfWorkGroups unitOfWork,
         var userMap = await users.GetUsersAsync(memberIds, cancellationToken);
 
         // Instrumento y ciudad viven en el perfil del músico. El resumen no filtra por IsOpenToJoin,
-        // así que la decisión de publicar el oficio se toma acá, en el camino de lectura.
+        // y así debe ser: el oficio de la plantilla se publica para todos, sin preguntar por el
+        // interruptor de cada uno (que solo gobierna el directorio y las invitaciones).
         var musicianMap = await users.GetMusicianSummariesAsync(memberIds, cancellationToken);
 
         var team = new List<PublicGroupTeamMemberResponse>(rows.Count);
@@ -46,10 +49,6 @@ public sealed class GetPublicGroupTeamQueryHandler(IUnitOfWorkGroups unitOfWork,
             var user = userMap.GetValueOrDefault(row.UserId);
             var musician = musicianMap.GetValueOrDefault(row.UserId);
 
-            // S14: el perfil cerrado se lee con nombre y rol, pero sin instrumento ni ciudad.
-            var publishesCraft = musician is not null
-                && await users.IsMusicianOpenToJoinAsync(row.UserId, cancellationToken);
-
             team.Add(new PublicGroupTeamMemberResponse
             {
                 UserId = row.UserId,
@@ -57,8 +56,8 @@ public sealed class GetPublicGroupTeamQueryHandler(IUnitOfWorkGroups unitOfWork,
                 // del correo. Quien no cargó nada aparece vacío, no con un dato inventado.
                 FullName = user?.FullName ?? string.Empty,
                 Role = row.Role.ToString(),
-                Instruments = publishesCraft ? musician!.Instruments : null,
-                City = publishesCraft ? musician!.City : null
+                Instruments = musician?.Instruments,
+                City = musician?.City
             });
         }
 

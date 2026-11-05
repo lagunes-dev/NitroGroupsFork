@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Cortex.Mediator;
 using NitroGroups.Core.Groups.Application.UseCases.Groups.CheckSlugAvailability;
 using NitroGroups.Core.Groups.Application.UseCases.Groups.Create;
@@ -149,11 +150,28 @@ public class GroupsEndpointsTests(NitroGroupsWebAppFactory factory) : IClassFixt
     }
 
     [Fact]
-    public async Task GetGroupByUserId_NoTieneGrupo_Returns404()
+    public async Task GetGroupByUserId_SinGrupoPropio_Returns200ConBodyNulo()
     {
+        // Un usuario que existe y todavía no tiene grupo es una respuesta, no un error: el front lo
+        // lee como "sin grupo" y así la consola deja de llenarse de 404 en cada carga (T22).
         _mediator
             .SendQueryAsync<GetGroupByUserIdQuery, Result<GroupResponse?>>(Arg.Any<GetGroupByUserIdQuery>())
             .Returns(Result<GroupResponse?>.Success(null));
+
+        var response = await _client.GetAsync("api/users/99/groups");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(JsonValueKind.Null, json.RootElement.ValueKind);
+    }
+
+    [Fact]
+    public async Task GetGroupByUserId_UsuarioInexistente_Returns404()
+    {
+        // El 404 sigue existiendo para lo que de verdad no existe: un usuario sin fila.
+        _mediator
+            .SendQueryAsync<GetGroupByUserIdQuery, Result<GroupResponse?>>(Arg.Any<GetGroupByUserIdQuery>())
+            .Returns(Result<GroupResponse?>.Failure("No se encontro ningun usuario con ese id"));
 
         var response = await _client.GetAsync("api/users/99/groups");
 

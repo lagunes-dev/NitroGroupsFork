@@ -9,17 +9,20 @@ using NitroGroups.Core.Users.Infrastructure.Persistence;
 using NitroGroups.Core.Users.Infrastructure.Repositories;
 using NitroGroups.Shared.Contracts.Groups.Responses;
 using NitroGroups.Shared.Contracts.Modules;
+using NitroGroups.Shared.Contracts.Users.Responses;
 using NitroGroups.Shared.Domain.DomainEvents.Groups.Enums;
 using NitroGroups.Shared.Domain.DomainEvents.Users.Enums;
 using NitroGroups.Tests.Integration.Infrastructure;
+using NSubstitute;
 
 namespace NitroGroups.Tests.Integration.Groups;
 
 /// <summary>
-/// El equipo público del grupo (S14): solo membresías activas, en el orden de siempre (Owner,
-/// Manager, Member y la más antigua primero), con nombre, rol e instrumento · ciudad, sin correos.
-/// Quien cerró su perfil aparece con nombre y rol pero sin instrumento ni ciudad, y quien no cargó
-/// nada aparece vacío: el renglón nunca se rellena con un dato inventado.
+/// El equipo público del grupo (S14, revisada): solo membresías activas, en el orden de siempre
+/// (Owner, Manager, Member y la más antigua primero), con nombre, rol e instrumento · ciudad, sin
+/// correos. El oficio se publica para todo el equipo, aunque el músico haya cerrado su perfil: el
+/// interruptor gobierna el directorio y las invitaciones, nunca la plantilla del grupo (L24). Quien
+/// no cargó nada aparece vacío: el renglón nunca se rellena con un dato inventado.
 /// </summary>
 public class PublicGroupTeamQueryHandlerIntegrationTests : IClassFixture<IntegrationTestFixture>, IAsyncDisposable
 {
@@ -83,11 +86,12 @@ public class PublicGroupTeamQueryHandlerIntegrationTests : IClassFixture<Integra
     }
 
     [Fact]
-    public async Task PerfilCerrado_ApareceConNombreYRol_SinInstrumentoNiCiudad()
+    public async Task PerfilCerrado_ConservaSuOficioEnElEquipoPublico()
     {
         var groupId = await AddGroupAsync();
         var openId = await AddUserAsync("Beto", "Bravo", "beto@example.com", "Bajo", "Guadalajara, Jalisco");
-        // Cerró su perfil: no recibe invitaciones, así que su oficio tampoco se publica.
+        // Cerró su perfil: no sale en el directorio ni recibe invitaciones, pero sigue en la
+        // plantilla del grupo, y su oficio se publica igual (el interruptor no esconde al equipo).
         var closedId = await AddUserAsync("Nadia", "Nava", "nadia@example.com", "Teclados", "Zapopan, Jalisco", openToJoin: false);
         await AddMemberAsync(groupId, openId, GroupMemberRole.Member, Now.AddDays(-2));
         await AddMemberAsync(groupId, closedId, GroupMemberRole.Member, Now.AddDays(-1));
@@ -95,16 +99,51 @@ public class PublicGroupTeamQueryHandlerIntegrationTests : IClassFixture<Integra
         var result = await TeamAsync(groupId);
 
         Assert.True(result.IsSuccess, result.Error);
-        var open = result.Value!.Single(row => row.UserId == openId);
-        Assert.Equal("Bajo", open.Instruments);
-        Assert.Equal("Guadalajara, Jalisco", open.City);
+        Assert.Equal(
+            [("Bajo", "Guadalajara, Jalisco"), ("Teclados", "Zapopan, Jalisco")],
+            result.Value!.Select(row => (row.Instruments, row.City)));
 
-        // El perfil cerrado sigue siendo parte del equipo: nombre y rol, y el oficio se calla.
+        // El perfil cerrado conserva nombre y rol, y ya no pierde el oficio.
         var closed = result.Value!.Single(row => row.UserId == closedId);
         Assert.Equal("Nadia Nava", closed.FullName);
         Assert.Equal("Member", closed.Role);
-        Assert.Null(closed.Instruments);
-        Assert.Null(closed.City);
+    }
+
+    [Fact]
+    public async Task ElInterruptorDelPerfil_NoSeConsultaParaArmarElEquipo()
+    {
+        var groupId = await AddGroupAsync();
+        const long memberId = 777;
+        await AddMemberAsync(groupId, memberId, GroupMemberRole.Member, Now);
+
+        // El oficio sale del resumen de músicos y se publica para todos: armar el equipo no gasta
+        // una consulta por miembro preguntando por el interruptor.
+        var users = Substitute.For<IUsersModuleApi>();
+        users.GetUsersAsync(Arg.Any<IEnumerable<long>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<long, UserSummary>
+            {
+                [memberId] = new(memberId, "nadia@example.com", "Nadia", "Nava", UserType.Musician, null)
+            });
+        users.GetMusicianSummariesAsync(Arg.Any<IEnumerable<long>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<long, OpenMusicianSummary>
+            {
+                [memberId] = new()
+                {
+                    UserId = memberId,
+                    FullName = "Nadia Nava",
+                    Instruments = "Teclados",
+                    City = "Zapopan, Jalisco"
+                }
+            });
+
+        var result = await new GetPublicGroupTeamQueryHandler(_unitOfWork, users)
+            .Handle(new GetPublicGroupTeamQuery(groupId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error);
+        var row = Assert.Single(result.Value!);
+        Assert.Equal("Teclados", row.Instruments);
+        Assert.Equal("Zapopan, Jalisco", row.City);
+        await users.DidNotReceive().IsMusicianOpenToJoinAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
