@@ -9,7 +9,8 @@ type Props = { params: Promise<{ userId: string }> };
 
 /** null solo si no es músico (404); una caída de la API lanza (página de error, no 404). */
 async function loadMusician(userId: number): Promise<MusicianProfileResponse | null> {
-    const result = await serverGetResult<MusicianProfileResponse>(`/musicians/${userId}`, 60);
+    // No cache window: a profile the musician just saved must be visible on the next load.
+    const result = await serverGetResult<MusicianProfileResponse>(`/musicians/${userId}`, 0);
     if (result.ok) return result.data;
     if (result.status === 404) return null;
     throw new Error(`No se pudo cargar el perfil (estado ${result.status}).`);
