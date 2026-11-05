@@ -7,6 +7,7 @@ import { buildApiQuery, pageHref, parseFilters, toUrlFilters, type ParsedFilters
 import { noFiltersNote } from "@/features/search/filters";
 import { SearchForm } from "@/features/search/components/SearchForm";
 import { GroupResult } from "@/features/search/components/GroupResult";
+import { AlreadyBookedNote } from "@/features/search/components/AlreadyBookedNote";
 import type { GenreOption, GroupSearchItem, PagedResult, SearchFilters } from "@/features/search/types";
 
 const PAGE_SIZE = 12;
@@ -60,6 +61,8 @@ export default async function SearchPage({ searchParams }: Props) {
             ) : (
                 <>
                     <p className="mt-12 text-tinta-2" aria-live="polite">{summary}</p>
+                    {/* Si el filtro escondió un grupo porque ya toca para ti ese día, se dice. */}
+                    <AlreadyBookedNote fecha={filters.fecha} />
 
                     {items.length === 0 ? (
                         <div className="mt-10 max-w-[60ch]">
