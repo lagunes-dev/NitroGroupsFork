@@ -16,7 +16,9 @@ namespace NitroGroups.Shared.Contracts.Modules
         bool IsAcceptingBookings,
         string? ProfilePictureUrl,
         bool IsActive = true,
-        decimal? BasePrice = null);
+        decimal? BasePrice = null,
+        /// <summary>Moneda del grupo: la tarifa base se cuenta en la suya, no en la del cliente (S15).</summary>
+        string? Currency = null);
 
     /// <summary>
     /// API pública del módulo Groups. Es la única forma en que otros módulos

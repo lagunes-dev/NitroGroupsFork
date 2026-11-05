@@ -118,3 +118,13 @@ describe("toSignalsView", () => {
         });
     });
 });
+
+describe("budgetLabel currency", () => {
+    it("counts the group's base rate in the group's money, not the client's", () => {
+        const signal = { offered: 12000, baseRate: 12000, currency: "USD", status: "Equal" };
+        // La oferta sigue en pesos del cliente; la tarifa base, en dólares del grupo.
+        expect(budgetLabel(signal, "MXN")).toContain("Ofrece $12,000");
+        // Intl usa espacio duro entre la moneda y el número: se normaliza para comparar.
+        expect(budgetLabel(signal, "MXN").replace(/\s/g, " ")).toContain("USD 12,000");
+    });
+});

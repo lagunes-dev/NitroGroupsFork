@@ -22,6 +22,8 @@ export type BudgetSignalStatus = "Above" | "Below" | "Equal" | "Unknown";
 export interface BudgetSignal {
     offered?: number | string | null;
     baseRate?: number | string | null;
+    /** Moneda del grupo, para no contar su tarifa con la moneda del cliente. */
+    currency?: string | null;
     status?: string | null;
 }
 
@@ -87,10 +89,13 @@ export function budgetLabel(budget: unknown, currency = "MXN"): string {
 
     const offered = readAmount(signal.offered);
     const baseRate = readAmount(signal.baseRate);
-    const price = (amount: number) => formatPrice(amount, currency) ?? `$${amount}`;
+    // La tarifa base es del grupo: se cuenta en su moneda, no en la del cliente (S15).
+    const baseCurrency = typeof signal.currency === "string" && signal.currency.trim() ? signal.currency.trim() : currency;
+    const price = (amount: number, forBaseRate = false) =>
+        formatPrice(amount, forBaseRate ? baseCurrency : currency) ?? `$${amount}`;
 
     const offeredText = offered === null ? "El cliente no indicó presupuesto" : `Ofrece ${price(offered)}`;
-    const baseText = baseRate === null ? "tu tarifa base no está cargada" : `tu tarifa base es ${price(baseRate)}`;
+    const baseText = baseRate === null ? "tu tarifa base no está cargada" : `tu tarifa base es ${price(baseRate, true)}`;
     return `${offeredText} · ${baseText}`;
 }
 
