@@ -132,3 +132,13 @@ describe("RequestThread deal", () => {
         expect(screen.queryByText("$0")).toBeNull();
     });
 });
+
+describe("RequestThread search context", () => {
+    it("takes the date of a closed request to the search, so nobody retypes it", async () => {
+        mocks.get.mockResolvedValue({ ...request, status: "Declined", respondedAt: "2026-10-02T18:00:00Z" });
+        renderThread("Client");
+
+        const link = await screen.findByRole("link", { name: /Ver otros grupos libres el/ });
+        expect(link).toHaveAttribute("href", "/groups?fecha=2026-12-05");
+    });
+});

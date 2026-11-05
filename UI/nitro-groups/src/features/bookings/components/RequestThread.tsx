@@ -145,9 +145,20 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                 {actions.requestAgain && (
                     <div className="bg-fondo-2 rounded-xl p-5">
                         <p className="text-tinta">Esta solicitud está cerrada. Si quieres otra fecha con {r.groupName}, envíale una solicitud nueva.</p>
-                        <Link href={`${ROUTES.GROUPS.PUBLIC_PROFILE(r.groupSlug)}#solicitar`} className="mt-4 inline-flex h-12 items-center px-6 bg-acento text-acento-ink rounded-lg font-semibold no-underline hover:bg-acento-press">
-                            Pedir otra fecha
-                        </Link>
+                        <div className="mt-4 flex flex-wrap items-center gap-4">
+                            <Link href={`${ROUTES.GROUPS.PUBLIC_PROFILE(r.groupSlug)}#solicitar`} className="inline-flex h-12 items-center px-6 bg-acento text-acento-ink rounded-lg font-semibold no-underline hover:bg-acento-press">
+                                Pedir otra fecha
+                            </Link>
+                            {/* La fecha viaja con el enlace: buscar reemplazo no debería obligar a reescribirla. */}
+                            {formatEventDate(r.eventDate) && (
+                                <Link
+                                    href={`${ROUTES.GROUPS.SEARCH}?fecha=${r.eventDate}`}
+                                    className="inline-flex min-h-11 items-center text-acento underline-offset-4 hover:underline"
+                                >
+                                    Ver otros grupos libres el {formatEventDate(r.eventDate)}
+                                </Link>
+                            )}
+                        </div>
                     </div>
                 )}
 
