@@ -45,12 +45,12 @@ describe("attendeeSummary", () => {
 
 describe("attendanceCountLabel", () => {
     it("says how many of how many confirmed", () => {
-        expect(attendanceCountLabel({ confirmed: 3, total: 5, names: [] })).toBe("3 de 5 confirmaron");
+        expect(attendanceCountLabel({ confirmed: 3, declined: 0, total: 5, unanswered: 2, names: [], declinedNames: [] })).toBe("3 de 5 confirmaron");
     });
 
     it("says nobody has confirmed yet, even before anyone was asked", () => {
-        expect(attendanceCountLabel({ confirmed: 0, total: 5, names: [] })).toBe("Nadie ha confirmado todavía");
-        expect(attendanceCountLabel({ confirmed: 0, total: 0, names: [] })).toBe("Nadie ha confirmado todavía");
+        expect(attendanceCountLabel({ confirmed: 0, declined: 0, total: 5, unanswered: 5, names: [], declinedNames: [] })).toBe("Nadie ha confirmado todavía");
+        expect(attendanceCountLabel({ confirmed: 0, declined: 0, total: 0, unanswered: 0, names: [], declinedNames: [] })).toBe("Nadie ha confirmado todavía");
     });
 });
 
