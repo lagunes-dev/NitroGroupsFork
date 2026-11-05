@@ -9,6 +9,10 @@ const DATE_PENDING = "fecha por definir";
 const PLACE_FALLBACK = "Lugar por definir";
 const SCHEDULE_FALLBACK = "Horario por definir";
 const GROUP_FALLBACK = "Grupo sin nombre";
+/** What the card says when the manager has not loaded a slot yet: it names the state, never a fact. */
+export const CALL_TIME_PENDING = "Llegada sin definir";
+export const SETLIST_PENDING = "Setlist sin cargar";
+export const PAY_PENDING = "Tu pago sin definir";
 
 /** The group of a gig, ready to link. `href` is null when there is no slug to link to. */
 export interface GigGroupView {

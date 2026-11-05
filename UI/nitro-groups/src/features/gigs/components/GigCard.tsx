@@ -5,7 +5,7 @@ import { Badge, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { AttendanceTone } from "../attendance";
 import type { GigAnswer } from "../types";
-import { confirmButtonName, declineButtonName, scheduleLabel, type GigView } from "../viewModel";
+import { confirmButtonName, declineButtonName, scheduleLabel, CALL_TIME_PENDING, PAY_PENDING, SETLIST_PENDING, type GigView } from "../viewModel";
 
 const CHIP_VARIANT: Record<AttendanceTone, "ok" | "destructive" | "secondary"> = {
     ok: "ok",
@@ -65,9 +65,13 @@ export function GigCard({ gig, saving, failed, onAnswer, onRetry }: GigCardProps
                     <p className="text-tinta-2">{gig.placeLabel}</p>
                     <p className="tabular text-tinta-2">
                         {scheduleLabel(gig)}
-                        {gig.callTimeLabel && <span> · {gig.callTimeLabel}</span>}
+                        {gig.callTimeLabel ? <span> · {gig.callTimeLabel}</span> : <span className="italic"> · {CALL_TIME_PENDING}</span>}
                     </p>
-                    {gig.payLabel && <p className="tabular text-tinta-2">{gig.payLabel}</p>}
+                    {gig.payLabel ? (
+                        <p className="tabular text-tinta-2">{gig.payLabel}</p>
+                    ) : (
+                        <p className="tabular text-tinta-2 italic">{PAY_PENDING}</p>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
@@ -101,13 +105,15 @@ export function GigCard({ gig, saving, failed, onAnswer, onRetry }: GigCardProps
                 </div>
             </div>
 
-            {gig.setlist && (
+            {gig.setlist ? (
                 <details>
                     <summary className="flex min-h-11 w-fit cursor-pointer items-center text-sm font-medium text-acento">
                         Ver setlist
                     </summary>
                     <p className="whitespace-pre-line pb-2 text-tinta">{gig.setlist}</p>
                 </details>
+            ) : (
+                <p className="text-sm text-tinta-2 italic">{SETLIST_PENDING}</p>
             )}
 
             {failed && (

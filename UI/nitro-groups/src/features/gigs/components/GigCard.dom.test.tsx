@@ -71,10 +71,26 @@ describe("GigCard", () => {
         expect(disclosure).toHaveTextContent(/Intro\s*Valses/);
     });
 
-    it("shows none of them for a gig without logistics", () => {
+    it("says which logistics the manager has not loaded yet, instead of hiding them", () => {
         render(<GigCard gig={toGigView(row)} saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} />);
-        expect(screen.queryByText(/Llegada/)).toBeNull();
-        expect(screen.queryByText(/Tu pago/)).toBeNull();
-        expect(screen.queryByText("Ver setlist")).toBeNull();
+        expect(screen.getByText(/Llegada sin definir/)).toBeInTheDocument();
+        expect(screen.getByText("Setlist sin cargar")).toBeInTheDocument();
+        expect(screen.getByText("Tu pago sin definir")).toBeInTheDocument();
+    });
+
+    it("keeps asking only for the slot that is missing", () => {
+        render(
+            <GigCard
+                gig={toGigView({ ...row, callTime: "17:30:00" })}
+                saving={false}
+                failed={false}
+                onAnswer={vi.fn()}
+                onRetry={vi.fn()}
+            />
+        );
+        expect(screen.getByText(/Llegada 17:30/)).toBeInTheDocument();
+        expect(screen.queryByText(/Llegada sin definir/)).toBeNull();
+        expect(screen.getByText("Setlist sin cargar")).toBeInTheDocument();
+        expect(screen.getByText("Tu pago sin definir")).toBeInTheDocument();
     });
 });
