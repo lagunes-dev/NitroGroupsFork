@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IEventRequestRepository, EventRequestRepository>();
         services.AddScoped<IGigAttendanceRepository, GigAttendanceRepository>();
         services.AddScoped<IGigPayRepository, GigPayRepository>();
+        services.AddScoped<IEventReviewRepository, EventReviewRepository>();
         services.AddModuleUnitOfWork<IUnitOfWorkBookings, UnitOfWorkBookings, BookingsDbContext>();
         return services;
     }

@@ -126,7 +126,7 @@ public class EventRequestConcurrencyPostgresTests(IntegrationTestFixture fixture
             {
                 await using var ctx = Context(db.ConnectionString);
                 var uow = fixture.CreateBookingsUnitOfWork(ctx, fixture.CreateBookingsOutbox(ctx));
-                var result = await new CancelEventRequestCommandHandler(uow, groups, users)
+                var result = await new CancelEventRequestCommandHandler(uow, groups, users, TimeProvider.System)
                     .Handle(new CancelEventRequestCommand(id, 3), default); // 3 = el cliente de la semilla
                 Assert.True(result.IsSuccess || result.ErrorKind == BookingErrorKind.Conflict, result.Error);
                 return result.IsSuccess;

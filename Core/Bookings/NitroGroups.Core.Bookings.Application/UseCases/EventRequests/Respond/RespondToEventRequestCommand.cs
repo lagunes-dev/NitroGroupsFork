@@ -63,7 +63,8 @@ public sealed class RespondToEventRequestCommandHandler(
             return BookingResult<EventRequestResponse>.Failure(BookingErrorKind.Conflict, "La solicitud cambió mientras la respondías. Recarga para ver su estado actual.");
         }
 
-        var response = await EventRequestResponses.BuildAsync(request, groups, users, includeMessages: true, cancellationToken);
+        var response = await EventRequestResponses.BuildAsync(
+            request, groups, users, unitOfWork.EventReviews, time, command.UserId, includeMessages: true, cancellationToken);
         return BookingResult<EventRequestResponse>.Success(response);
     }
 }

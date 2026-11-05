@@ -32,6 +32,15 @@ namespace NitroGroups.Shared.Contracts.Bookings.Responses
         /// <summary>Anticipo registrado por el grupo. El cliente no ve el setlist ni los pagos a los músicos.</summary>
         public GigDepositResponse Deposit { get; set; } = new();
 
+        /// <summary>
+        /// true solo para el cliente del evento cuando ya puede reseñarlo (aceptado, fecha pasada
+        /// en hora de México, sin autorreserva y sin reseña previa).
+        /// </summary>
+        public bool CanReview { get; set; }
+
+        /// <summary>La reseña del evento, o null si todavía no tiene.</summary>
+        public EventReviewResponse? Review { get; set; }
+
         /// <summary>Solo en el detalle (<c>GET api/event-requests/{id}</c>); null en los listados.</summary>
         public List<EventRequestMessageResponse>? Messages { get; set; }
     }

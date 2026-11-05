@@ -25,7 +25,7 @@ public class EventRequestQueryHandlersIntegrationTests : IClassFixture<Integrati
         var nueva = await SeedAsync(context, groupId: OtherGroupId, createdAt: new DateTime(2026, 10, 5, 0, 0, 0, DateTimeKind.Utc));
         await SeedAsync(context, clientId: OutsiderId);
 
-        var handler = new GetMyEventRequestsQueryHandler(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users);
+        var handler = new GetMyEventRequestsQueryHandler(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users, _scenario.Time);
         var result = await handler.Handle(new GetMyEventRequestsQuery(ClientId), CancellationToken.None);
 
         Assert.Equal([nueva.Id, vieja.Id], result.Select(r => r.Id));
@@ -42,7 +42,7 @@ public class EventRequestQueryHandlersIntegrationTests : IClassFixture<Integrati
         var aceptada = await SeedAsync(context, configure: r => r.Accept(null, DateTime.UtcNow), createdAt: new DateTime(2026, 10, 2, 0, 0, 0, DateTimeKind.Utc));
         await SeedAsync(context, groupId: OtherGroupId);
 
-        var handler = new GetGroupEventRequestsQueryHandler(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users);
+        var handler = new GetGroupEventRequestsQueryHandler(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users, _scenario.Time);
 
         var todas = await handler.Handle(new GetGroupEventRequestsQuery(GroupId, null), CancellationToken.None);
         Assert.Equal([aceptada.Id, pendiente.Id], todas.Select(r => r.Id));
@@ -65,7 +65,7 @@ public class EventRequestQueryHandlersIntegrationTests : IClassFixture<Integrati
             r.PostMessage(ManagerId, EventRequestParty.Group, "Segundo", new DateTime(2026, 10, 2, 0, 0, 0, DateTimeKind.Utc));
         });
 
-        var handler = new GetEventRequestByIdQueryHandler(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users);
+        var handler = new GetEventRequestByIdQueryHandler(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users, _scenario.Time);
         var result = await handler.Handle(new GetEventRequestByIdQuery(request.Id, userId, isAdmin), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error);
@@ -80,7 +80,7 @@ public class EventRequestQueryHandlersIntegrationTests : IClassFixture<Integrati
     {
         await using var context = _fixture.CreateBookingsContext();
         var request = await SeedAsync(context);
-        var handler = new GetEventRequestByIdQueryHandler(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users);
+        var handler = new GetEventRequestByIdQueryHandler(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users, _scenario.Time);
 
         var ajena = await handler.Handle(new GetEventRequestByIdQuery(request.Id, userId, false), CancellationToken.None);
         var inexistente = await handler.Handle(new GetEventRequestByIdQuery(request.Id + 1000, userId, false), CancellationToken.None);

@@ -10,9 +10,11 @@ public class UnitOfWorkBookings(
     IOutboxService outboxService,
     IEventRequestRepository eventRequests,
     IGigAttendanceRepository gigAttendances,
-    IGigPayRepository gigPays) : UnitOfWork(context, outboxService), IUnitOfWorkBookings
+    IGigPayRepository gigPays,
+    IEventReviewRepository eventReviews) : UnitOfWork(context, outboxService), IUnitOfWorkBookings
 {
     public IEventRequestRepository EventRequests { get; } = eventRequests;
     public IGigAttendanceRepository GigAttendances { get; } = gigAttendances;
     public IGigPayRepository GigPays { get; } = gigPays;
+    public IEventReviewRepository EventReviews { get; } = eventReviews;
 }

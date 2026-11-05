@@ -203,6 +203,75 @@ namespace NitroGroups.Core.Bookings.Infrastructure.Persistence.Migrations
                     b.ToTable("event_request_messages", "bookings");
                 });
 
+            modelBuilder.Entity("NitroGroups.Core.Bookings.Domain.Entities.EventReview", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ClientUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("client_user_id");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("comment");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<long?>("DeletedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<long>("EventRequestId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("event_request_id");
+
+                    b.Property<long>("GroupId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("group_id");
+
+                    b.Property<short>("Rating")
+                        .HasColumnType("smallint")
+                        .HasColumnName("rating");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventRequestId")
+                        .IsUnique();
+
+                    b.HasIndex("GroupId");
+
+                    b.ToTable("event_reviews", "bookings", t =>
+                        {
+                            t.HasCheckConstraint("ck_event_reviews_rating_range", "rating between 1 and 5");
+                        });
+                });
+
             modelBuilder.Entity("NitroGroups.Core.Bookings.Domain.Entities.GigAttendance", b =>
                 {
                     b.Property<long>("Id")
@@ -394,6 +463,15 @@ namespace NitroGroups.Core.Bookings.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("EventRequest");
+                });
+
+            modelBuilder.Entity("NitroGroups.Core.Bookings.Domain.Entities.EventReview", b =>
+                {
+                    b.HasOne("NitroGroups.Core.Bookings.Domain.Entities.EventRequest", null)
+                        .WithMany()
+                        .HasForeignKey("EventRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("NitroGroups.Core.Bookings.Domain.Entities.GigAttendance", b =>

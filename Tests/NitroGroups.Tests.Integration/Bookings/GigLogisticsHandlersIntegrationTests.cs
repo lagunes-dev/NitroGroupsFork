@@ -346,7 +346,7 @@ public class GigLogisticsHandlersIntegrationTests : IClassFixture<IntegrationTes
         await PayAsync(context, gig.Id, (MemberId, 1200m));
 
         var result = await new GetEventRequestByIdQueryHandler(
-                _fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users)
+                _fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users, _scenario.Time)
             .Handle(new GetEventRequestByIdQuery(gig.Id, ClientId, false), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error);

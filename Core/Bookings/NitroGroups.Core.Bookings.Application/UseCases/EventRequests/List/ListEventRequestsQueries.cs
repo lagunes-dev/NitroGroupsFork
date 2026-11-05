@@ -15,22 +15,33 @@ public sealed record GetMyEventRequestsQuery(long ClientUserId) : IQuery<List<Ev
 /// </summary>
 public sealed record GetGroupEventRequestsQuery(long GroupId, EventRequestStatus? Status) : IQuery<List<EventRequestResponse>>;
 
-public sealed class GetMyEventRequestsQueryHandler(IUnitOfWorkBookings unitOfWork, IGroupsModuleApi groups, IUsersModuleApi users)
+public sealed class GetMyEventRequestsQueryHandler(
+    IUnitOfWorkBookings unitOfWork,
+    IGroupsModuleApi groups,
+    IUsersModuleApi users,
+    TimeProvider time)
     : IQueryHandler<GetMyEventRequestsQuery, List<EventRequestResponse>>
 {
     public async Task<List<EventRequestResponse>> Handle(GetMyEventRequestsQuery query, CancellationToken cancellationToken)
     {
         var requests = await unitOfWork.EventRequests.ListByClientAsync(query.ClientUserId, cancellationToken);
-        return await EventRequestResponses.BuildAsync(requests, groups, users, includeMessages: false, cancellationToken);
+        return await EventRequestResponses.BuildAsync(
+            requests, groups, users, unitOfWork.EventReviews, time, query.ClientUserId, includeMessages: false, cancellationToken);
     }
 }
 
-public sealed class GetGroupEventRequestsQueryHandler(IUnitOfWorkBookings unitOfWork, IGroupsModuleApi groups, IUsersModuleApi users)
+public sealed class GetGroupEventRequestsQueryHandler(
+    IUnitOfWorkBookings unitOfWork,
+    IGroupsModuleApi groups,
+    IUsersModuleApi users,
+    TimeProvider time)
     : IQueryHandler<GetGroupEventRequestsQuery, List<EventRequestResponse>>
 {
     public async Task<List<EventRequestResponse>> Handle(GetGroupEventRequestsQuery query, CancellationToken cancellationToken)
     {
         var requests = await unitOfWork.EventRequests.ListByGroupAsync(query.GroupId, query.Status, cancellationToken);
-        return await EventRequestResponses.BuildAsync(requests, groups, users, includeMessages: false, cancellationToken);
+        // La bandeja es del grupo: quien la mira administra el evento, no puede reseñarlo.
+        return await EventRequestResponses.BuildAsync(
+            requests, groups, users, unitOfWork.EventReviews, time, callerUserId: null, includeMessages: false, cancellationToken);
     }
 }
