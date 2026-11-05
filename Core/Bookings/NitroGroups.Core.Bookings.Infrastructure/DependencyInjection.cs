@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NitroGroups.Core.Bookings.Application.Abstractions;
 using NitroGroups.Core.Bookings.Infrastructure.Persistence;
 using NitroGroups.Core.Bookings.Infrastructure.Repositories;
+using NitroGroups.Shared.Contracts.Modules;
 using NitroGroups.Shared.EndpointMapping;
 using NitroGroups.Shared.Infrastructure.Persistence;
 
@@ -14,6 +15,8 @@ public static class DependencyInjection
     {
         services.AddModuleDbContext<BookingsDbContext>(configuration, BookingsDbContext.SchemaName);
         services.AddBookingsRepositories();
+
+        services.AddScoped<IBookingsModuleApi, Adapters.BookingsModuleApi>();
 
         services.AddEndpoints(typeof(DependencyInjection).Assembly);
 
