@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using NitroGroups.Core.Groups.Infrastructure.Persistence;
+using NitroGroups.Shared.Contracts.Groups.Responses;
 using NitroGroups.Shared.Contracts.Modules;
 using NitroGroups.Shared.Domain.DomainEvents.Groups.Enums;
 
@@ -57,5 +58,40 @@ namespace NitroGroups.Core.Groups.Infrastructure.Adapters
 
             return managers.Distinct().ToList();
         }
+
+        public async Task<IReadOnlyList<GroupMembershipSummary>> GetUserGroupMembershipsAsync(
+            long userId,
+            CancellationToken cancellationToken = default)
+        {
+            // Same projection as GetMyGroupMembershipsQueryHandler: active rows joined with their
+            // group, so a row whose group no longer exists is never listed.
+            var memberships = await (
+                    from member in context.GroupMembers.AsNoTracking()
+                    where member.UserId == userId && member.IsActive
+                    join grp in context.Groups.AsNoTracking() on member.GroupId equals grp.Id
+                    select new GroupMembershipSummary
+                    {
+                        GroupId = member.GroupId,
+                        GroupName = grp.GroupName,
+                        Slug = grp.Slug,
+                        ProfilePictureUrl = grp.ProfilePictureUrl,
+                        Role = member.Role,
+                        JoinedAt = member.JoinedAt
+                    })
+                .ToListAsync(cancellationToken);
+
+            // Owner, Manager, Member (by privilege), then the oldest membership first.
+            return memberships
+                .OrderBy(membership => RolePriority(membership.Role))
+                .ThenBy(membership => membership.JoinedAt)
+                .ToList();
+        }
+
+        private static int RolePriority(GroupMemberRole role) => role switch
+        {
+            GroupMemberRole.Owner => 0,
+            GroupMemberRole.Manager => 1,
+            _ => 2
+        };
     }
 }
