@@ -36,28 +36,15 @@ public sealed class GetEventRequestSignalsQueryHandler(
 
         var sameDayGigs = await unitOfWork.EventRequests.ListAcceptedOnDateAsync(
             query.GroupId, request.EventDate, request.Id, cancellationToken);
-        var otherGig = sameDayGigs.FirstOrDefault();
+        var otherGig = DateClashSelection.Pick(request, sameDayGigs);
 
         var group = await groups.GetGroupAsync(query.GroupId, cancellationToken);
 
         return BookingResult<EventRequestSignalsResponse>.Success(new EventRequestSignalsResponse
         {
-            DateClash = new DateClashSignalResponse
-            {
-                Clashes = otherGig is not null,
-                WithGig = otherGig is null
-                    ? null
-                    : new ClashingGigResponse
-                    {
-                        Id = otherGig.Id,
-                        EventType = otherGig.EventType,
-                        LocationText = otherGig.LocationText,
-                        // Las horas viajan para que el manager no tenga que ir a la agenda a calcular
-                        // si los dos toques se pisan (ronda 5, Mónica).
-                        StartTime = otherGig.StartTime?.ToString(@"HH\:mm"),
-                        DurationHours = otherGig.DurationHours
-                    }
-            },
+            // La misma regla que la fila de la lista: se pisa el que de verdad se pisa, si no el
+            // más temprano del día.
+            DateClash = DateClashSelection.Signal(otherGig),
             Budget = new BudgetSignalResponse
             {
                 Offered = request.Budget,

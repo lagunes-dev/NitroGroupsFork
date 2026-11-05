@@ -145,6 +145,120 @@ public class EventRequestsEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
         Assert.Contains("El grupo no está disponible en esa fecha.", await response.Content.ReadAsStringAsync());
     }
 
+    /// <summary>Un renglón con todos los campos del contrato, como lo arma el handler.</summary>
+    private static EventRequestResponse Row(long id = 3) => new()
+    {
+        Id = id,
+        GroupId = 1,
+        GroupName = "Los Vargas",
+        GroupSlug = "los-vargas",
+        ClientName = "Ana L.",
+        EventDate = new DateOnly(2026, 12, 12),
+        StartTime = new TimeOnly(21, 0),
+        DurationHours = 3,
+        EventType = "Boda",
+        LocationText = "Salón Los Arcos, CDMX",
+        GuestCount = 150,
+        Budget = 25000m,
+        Currency = "MXN",
+        Message = "Buscamos mariachi para la entrada y el vals.",
+        Status = EventRequestStatus.Pending,
+        IsSelfBooked = false,
+        CreatedAt = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc),
+        RespondedAt = null,
+        ResponseMessage = null,
+        Deposit = new GigDepositResponse(),
+        CanReview = false,
+        Review = null,
+        Messages = null
+    };
+
+    private static DateClashSignalResponse Clash() => new()
+    {
+        Clashes = true,
+        WithGig = new ClashingGigResponse
+        {
+            Id = 77,
+            EventType = "Boda",
+            LocationText = "Hacienda San Gabriel",
+            StartTime = "20:00",
+            DurationHours = 2
+        }
+    };
+
+    /// <summary>Los campos de siempre, en su orden.</summary>
+    private static readonly string[] LegacyKeys =
+    [
+        "id", "groupId", "groupName", "groupSlug", "clientName", "eventDate", "startTime",
+        "durationHours", "eventType", "locationText", "guestCount", "budget", "currency",
+        "message", "status", "isSelfBooked", "createdAt", "respondedAt", "responseMessage",
+        "deposit", "canReview", "review", "messages"
+    ];
+
+    // T29: la bandeja del grupo avisa del choque sin abrir el hilo (S11).
+    [Fact]
+    public async Task BandejaDelGrupo_LaFilaAvisaDelChoqueYConservaLosCamposDeSiempreEnSuOrden()
+    {
+        var row = Row();
+        row.DateClash = Clash();
+        _mediator.SendQueryAsync<GetGroupEventRequestsQuery, List<EventRequestResponse>>(Arg.Any<GetGroupEventRequestsQuery>())
+            .Returns([row]);
+
+        var response = await _client.GetAsync("api/groups/1/event-requests");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var item = json.RootElement[0];
+
+        // El campo nuevo entra al final: los de siempre no se movieron ni se perdieron.
+        Assert.Equal([.. LegacyKeys, "dateClash"], item.EnumerateObject().Select(property => property.Name));
+
+        var clash = item.GetProperty("dateClash");
+        Assert.True(clash.GetProperty("clashes").GetBoolean());
+        var withGig = clash.GetProperty("withGig");
+        Assert.Equal(77, withGig.GetProperty("id").GetInt64());
+        Assert.Equal("Boda", withGig.GetProperty("eventType").GetString());
+        Assert.Equal("Hacienda San Gabriel", withGig.GetProperty("locationText").GetString());
+        // Con horas, la fila puede decir "se pisa 2 h con Boda 20:00".
+        Assert.Equal("20:00", withGig.GetProperty("startTime").GetString());
+        Assert.Equal(2, withGig.GetProperty("durationHours").GetInt32());
+    }
+
+    [Fact]
+    public async Task BandejaDelGrupo_FilaSinChoque_NoLlevaElObjetoDelChoque()
+    {
+        _mediator.SendQueryAsync<GetGroupEventRequestsQuery, List<EventRequestResponse>>(Arg.Any<GetGroupEventRequestsQuery>())
+            .Returns([Row()]);
+
+        var response = await _client.GetAsync("api/groups/1/event-requests");
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var item = json.RootElement[0];
+
+        // Sin choque el hecho es null, y un null no viaja: la fila queda como siempre.
+        Assert.False(item.TryGetProperty("dateClash", out _));
+        Assert.Equal(LegacyKeys, item.EnumerateObject().Select(property => property.Name));
+    }
+
+    // T29: el cliente nunca ve si el grupo está ocupado.
+    [Fact]
+    public async Task Mias_LaFilaDelClienteNoLlevaElCampoDelChoque()
+    {
+        _mediator.SendQueryAsync<GetMyEventRequestsQuery, List<EventRequestResponse>>(Arg.Any<GetMyEventRequestsQuery>())
+            .Returns([Row()]);
+
+        var response = await _client.GetAsync("api/event-requests/mine");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var item = json.RootElement[0];
+
+        // El contrato del cliente no cambia en absoluto: ni el campo ni el objeto.
+        Assert.False(item.TryGetProperty("dateClash", out _));
+        Assert.DoesNotContain("dateClash", await response.Content.ReadAsStringAsync());
+        Assert.Equal(LegacyKeys, item.EnumerateObject().Select(property => property.Name));
+    }
+
     [Fact]
     public async Task Mias_UsaElUsuarioDelToken()
     {

@@ -33,4 +33,13 @@ public interface IEventRequestRepository : IGenericRepository<EventRequest, long
         DateOnly eventDate,
         long excludeEventRequestId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Los toques <b>aceptados</b> de esos grupos en esos días, en una sola lectura. Es la base del
+    /// choque de fecha de una lista (T29): una página de N filas no dispara N consultas.
+    /// </summary>
+    Task<List<EventRequest>> ListAcceptedOnDatesAsync(
+        IReadOnlyCollection<long> groupIds,
+        IReadOnlyCollection<DateOnly> eventDates,
+        CancellationToken cancellationToken = default);
 }

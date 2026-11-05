@@ -63,4 +63,23 @@ internal sealed class EventRequestRepository(BookingsDbContext dbContext)
                 && r.Id != excludeEventRequestId)
             .OrderBy(r => r.Id)
             .ToListAsync(cancellationToken);
+
+    public Task<List<EventRequest>> ListAcceptedOnDatesAsync(
+        IReadOnlyCollection<long> groupIds,
+        IReadOnlyCollection<DateOnly> eventDates,
+        CancellationToken cancellationToken = default)
+    {
+        // Una sola lectura para toda la página: los días y los grupos viajan como arreglos.
+        var groups = groupIds.ToList();
+        var dates = eventDates.ToList();
+
+        return groups.Count == 0 || dates.Count == 0
+            ? Task.FromResult(new List<EventRequest>())
+            : dbContext.EventRequests.AsNoTracking()
+                .Where(r => groups.Contains(r.GroupId)
+                    && dates.Contains(r.EventDate)
+                    && r.Status == EventRequestStatus.Accepted)
+                .OrderBy(r => r.EventDate).ThenBy(r => r.StartTime).ThenBy(r => r.Id)
+                .ToListAsync(cancellationToken);
+    }
 }

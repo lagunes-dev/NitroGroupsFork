@@ -1,6 +1,7 @@
 using NitroGroups.Core.Bookings.Application;
 using NitroGroups.Core.Bookings.Application.UseCases.EventRequests.Get;
 using NitroGroups.Core.Bookings.Application.UseCases.EventRequests.List;
+using NitroGroups.Core.Bookings.Infrastructure.Persistence;
 using NitroGroups.Shared.Domain.DomainEvents.Bookings.Enums;
 using NitroGroups.Tests.Integration.Infrastructure;
 using static NitroGroups.Tests.Integration.Bookings.BookingsTestScenario;
@@ -50,6 +51,77 @@ public class EventRequestQueryHandlersIntegrationTests : IClassFixture<Integrati
 
         var pendientes = await handler.Handle(new GetGroupEventRequestsQuery(GroupId, EventRequestStatus.Pending), CancellationToken.None);
         Assert.Equal([pendiente.Id], pendientes.Select(r => r.Id));
+    }
+
+    // ---------- T29: el choque de fecha en la fila de la lista ----------
+
+    private static readonly DateOnly ClashDay = new(2026, 12, 12);
+
+    private GetGroupEventRequestsQueryHandler GroupListHandler(BookingsDbContext context)
+        => new(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users, _scenario.Time);
+
+    private GetMyEventRequestsQueryHandler MyListHandler(BookingsDbContext context)
+        => new(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users, _scenario.Time);
+
+    [Fact]
+    public async Task BandejaDelGrupo_LaFilaAvisaDelChoqueConElToqueQueDeVerdadSePisa()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        // El pedido es de 21:00 a 01:00; el toque de las 12:00 no se pisa y el de las 20:00 sí.
+        var pedido = await SeedAsync(context, eventDate: ClashDay, startTime: new TimeOnly(21, 0));
+        await SeedGigAsync(context, eventDate: ClashDay, startTime: new TimeOnly(12, 0));
+        var boda = await SeedGigAsync(context, eventDate: ClashDay, startTime: new TimeOnly(20, 0));
+
+        var rows = await GroupListHandler(context).Handle(new GetGroupEventRequestsQuery(GroupId, null), CancellationToken.None);
+
+        var row = rows.Single(r => r.Id == pedido.Id);
+        Assert.NotNull(row.DateClash);
+        Assert.True(row.DateClash!.Clashes);
+        Assert.Equal(boda.Id, row.DateClash.WithGig!.Id);
+        Assert.Equal("20:00", row.DateClash.WithGig.StartTime);
+        Assert.Equal(4, row.DateClash.WithGig.DurationHours);
+        Assert.Equal("XV años", row.DateClash.WithGig.EventType);
+    }
+
+    [Fact]
+    public async Task BandejaDelGrupo_SinHorasParaComparar_EligeElToqueMasTemprano()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var pedido = await SeedAsync(context, eventDate: ClashDay, startTime: null);
+        await SeedGigAsync(context, eventDate: ClashDay, startTime: new TimeOnly(22, 0));
+        var temprano = await SeedGigAsync(context, eventDate: ClashDay, startTime: new TimeOnly(9, 0));
+
+        var rows = await GroupListHandler(context).Handle(new GetGroupEventRequestsQuery(GroupId, null), CancellationToken.None);
+
+        var row = rows.Single(r => r.Id == pedido.Id);
+        Assert.Equal(temprano.Id, row.DateClash!.WithGig!.Id);
+    }
+
+    [Fact]
+    public async Task BandejaDelGrupo_SinToqueAceptadoEseDia_LaFilaNoAvisaChoque()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var pedido = await SeedAsync(context, eventDate: ClashDay, startTime: new TimeOnly(21, 0));
+        await SeedGigAsync(context, eventDate: ClashDay.AddDays(7));                     // otro día
+        await SeedGigAsync(context, groupId: OtherGroupId, eventDate: ClashDay);          // otro grupo
+        await SeedAsync(context, eventDate: ClashDay, startTime: new TimeOnly(20, 0));    // sin aceptar
+
+        var rows = await GroupListHandler(context).Handle(new GetGroupEventRequestsQuery(GroupId, null), CancellationToken.None);
+
+        Assert.Null(rows.Single(r => r.Id == pedido.Id).DateClash);
+    }
+
+    [Fact]
+    public async Task Mias_ElClienteNoVeSiElGrupoEstaOcupado()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        await SeedAsync(context, eventDate: ClashDay, startTime: new TimeOnly(21, 0));
+        await SeedGigAsync(context, eventDate: ClashDay, startTime: new TimeOnly(20, 0));
+
+        var rows = await MyListHandler(context).Handle(new GetMyEventRequestsQuery(ClientId), CancellationToken.None);
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, row => Assert.Null(row.DateClash));
     }
 
     [Theory]
