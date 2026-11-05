@@ -4,12 +4,28 @@ import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ROUTES } from "@/config/routes";
+import { eventTypeLabel } from "@/lib/eventTypeLabel";
 import { formatEventDate, formatPrice } from "@/lib/format";
 import { apiErrorMessage, bookingsService } from "../bookings.service";
 import { availableActions, shortTime, statusLabel } from "../status";
+import { threadItems, type ThreadItem } from "../thread";
 import type { EventRequest, EventRequestParty } from "../types";
+import { StatusBadge } from "./StatusBadge";
 
 const timeFmt = new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Mexico_City" });
+
+/** Hora del mensaje; null cuando la API no trae una fecha legible. */
+function sentAt(value: string | null): string | null {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : timeFmt.format(date);
+}
+
+/** Cada parte de la conversación conserva el lado que ya tenía: el grupo a la derecha, el cliente a la izquierda. */
+function itemClass(item: ThreadItem): string {
+    if (item.kind === "request") return "rounded-xl bg-fondo-2 p-5";
+    return item.senderParty === "Group" ? "bg-fondo-3 p-5 md:ml-12" : "rounded-xl bg-fondo-2 p-5 md:mr-12";
+}
 
 function Detail({ label, value }: { label: string; value: string | null | undefined }) {
     if (!value) return null;
@@ -61,7 +77,8 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
     return (
         <article className="grid md:grid-cols-12 gap-x-8 gap-y-12">
             <header className="md:col-span-12">
-                <p className={`text-sm ${actions.accept ? "text-acento font-semibold" : "text-tinta-2"}`}>{statusLabel(r.status, viewer)}</p>
+                <StatusBadge status={r.status} />
+                {viewer === "Client" && r.status === "Pending" && <p className="mt-2 text-tinta-2">{statusLabel(r.status, viewer)}</p>}
                 <h1 className="mt-2 titulo">
                     {viewer === "Client" ? (
                         <Link href={ROUTES.GROUPS.PUBLIC_PROFILE(r.groupSlug)} className="no-underline hover:text-acento">{title}</Link>
@@ -74,7 +91,7 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
             </header>
 
             <dl className="md:col-span-4 grid grid-cols-2 md:grid-cols-1 gap-6 content-start">
-                <Detail label="Evento" value={r.eventType} />
+                <Detail label="Evento" value={eventTypeLabel(r.eventType)} />
                 <Detail label="Lugar" value={r.locationText} />
                 <Detail label="Hora de inicio" value={shortTime(r.startTime)} />
                 <Detail label="Duración" value={`${r.durationHours} ${r.durationHours === 1 ? "hora" : "horas"}`} />
@@ -84,22 +101,18 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
 
             <section className="md:col-span-8 flex flex-col gap-8" aria-label="Conversación">
                 <ol className="flex flex-col gap-6">
-                    <li className="bg-fondo-2 rounded-xl p-5">
-                        <p className="text-sm text-tinta-2 flex flex-wrap gap-x-3"><span>{r.clientName}</span><span className="tabular">{timeFmt.format(new Date(r.createdAt))}</span></p>
-                        <p className="mt-2 whitespace-pre-line leading-relaxed">{r.message}</p>
-                    </li>
-                    {r.responseMessage && (
-                        <li className="bg-fondo-3 p-5 md:ml-12">
-                            <p className="text-sm text-tinta-2">{r.groupName}</p>
-                            <p className="mt-2 whitespace-pre-line leading-relaxed">{r.responseMessage}</p>
-                        </li>
-                    )}
-                    {(r.messages ?? []).map((m) => (
-                        <li key={m.id} className={`p-5 ${m.senderParty === "Group" ? "bg-fondo-3 md:ml-12" : "bg-fondo-2 rounded-xl md:mr-12"}`}>
-                            <p className="text-sm text-tinta-2 flex flex-wrap gap-x-3"><span>{m.senderName}</span><span className="tabular">{timeFmt.format(new Date(m.createdAt))}</span></p>
-                            <p className="mt-2 whitespace-pre-line leading-relaxed">{m.body}</p>
-                        </li>
-                    ))}
+                    {threadItems(r).map((item) => {
+                        const sent = sentAt(item.createdAt);
+                        return (
+                            <li key={item.key} className={itemClass(item)}>
+                                <p className="text-sm text-tinta-2 flex flex-wrap gap-x-3">
+                                    <span>{item.senderName}</span>
+                                    {sent && <span className="tabular">{sent}</span>}
+                                </p>
+                                <p className="mt-2 whitespace-pre-line leading-relaxed">{item.body}</p>
+                            </li>
+                        );
+                    })}
                 </ol>
 
                 {actions.message && (
