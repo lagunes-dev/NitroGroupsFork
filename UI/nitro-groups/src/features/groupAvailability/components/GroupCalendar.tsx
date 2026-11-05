@@ -10,6 +10,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 /** La API antepone "busy_" al id de los horarios ocupados (el resto son bloques de disponibilidad). */
 const BUSY_ID_PREFIX = "busy_";
+/** Marcador de un día con toque confirmado: no es un bloque del calendario y no se puede mover. */
+const GIG_ID_PREFIX = "gig_";
 import { groupAvailabilityService as schedulesService, type CreateBusyScheduleRequest, type UpdateAvailabilityRequest, type UpdateBusyScheduleRequest } from "../services/groupAvailability.service";
 
 import esLocale from "@fullcalendar/core/locales/es";
@@ -22,11 +24,17 @@ export type GroupCalendarMode = "public" | "private";
 interface GroupCalendarProps {
   groupId: number;
   mode?: GroupCalendarMode;
+  /**
+   * Días (`YYYY-MM-DD`) que ya tienen un toque confirmado. Se muestran como una ficha de día completo,
+   * con su texto accesible, en vez de un punto: este calendario no tiene hoja de estilos propia, así que
+   * una clase sobre la celda del día no se vería.
+   */
+  confirmedGigDays?: string[];
 }
 
 type PendingDelete = { id: string; title: string; kind: "avail" | "busy" };
 
-export default function GroupCalendar({ groupId, mode = "public" }: GroupCalendarProps) {
+export default function GroupCalendar({ groupId, mode = "public", confirmedGigDays }: GroupCalendarProps) {
   const isPrivate = mode === "private";
   const queryClient = useQueryClient();
   const calendarRef = useRef<FullCalendar>(null);
@@ -82,6 +90,26 @@ export default function GroupCalendar({ groupId, mode = "public" }: GroupCalenda
       })),
     [serverEvents],
   );
+
+  // Toques confirmados: fichas de día completo, no editables, para no confundirlas con la disponibilidad.
+  const gigEvents = useMemo<EventInput[]>(
+    () =>
+      (confirmedGigDays ?? []).map((day) => ({
+        id: `${GIG_ID_PREFIX}${day}`,
+        title: "Toque confirmado",
+        start: day,
+        allDay: true,
+        editable: false,
+        startEditable: false,
+        durationEditable: false,
+        backgroundColor: "var(--ok)",
+        borderColor: "var(--ok)",
+        textColor: "var(--fondo)",
+      })),
+    [confirmedGigDays],
+  );
+
+  const calendarEvents = useMemo<EventInput[]>(() => [...events, ...gigEvents], [events, gigEvents]);
 
   // El aviso refleja solo el último cambio enviado: si el siguiente sale bien, desaparece.
   const lastMutation = [createBusy, updateAvailability, updateBusy, deleteAvailability, deleteBusy]
@@ -198,6 +226,12 @@ export default function GroupCalendar({ groupId, mode = "public" }: GroupCalenda
             <span aria-hidden className="size-3 bg-fondo-2" />
             Sin marcar: disponible
           </li>
+          {(confirmedGigDays?.length ?? 0) > 0 && (
+            <li className="inline-flex items-center gap-2">
+              <span aria-hidden className="size-3 bg-ok" />
+              Toque confirmado
+            </li>
+          )}
         </ul>
       </div>
 
@@ -234,7 +268,7 @@ export default function GroupCalendar({ groupId, mode = "public" }: GroupCalenda
             selectable={isPrivate}
             selectMirror={isPrivate}
             select={handleSelect}
-            events={events}
+            events={calendarEvents}
             eventClick={handleEventClick}
             eventChange={handleEventChange}
             datesSet={handleDatesSet}

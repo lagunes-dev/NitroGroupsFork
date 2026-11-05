@@ -13,12 +13,22 @@ import GroupProfile from "@/features/groups/components/GroupProfile";
 import GroupCalendar from "@/features/groupAvailability/components/GroupCalendar";
 import GroupGallery from "@/features/groupMedia/components/GroupGallery";
 import { GroupInbox } from "@/features/bookings/components/GroupInbox";
-import { MyAgenda } from "@/features/gigs/components";
+import { GroupAgenda, MyAgenda } from "@/features/gigs/components";
+import { useConfirmedGigDates } from "@/features/gigs/gigs.queries";
 import { TeamTab } from "@/features/membership/components/TeamTab";
 import { MyInvitations } from "@/features/membership/components/MyInvitations";
 import { MyGroups } from "@/features/membership/components/MyGroups";
 import { MusicianProfileForm } from "@/features/musicians/components/MusicianProfileForm";
 import { UserTypeEnum } from "@/features/groups/types/User";
+
+/**
+ * El calendario del grupo con sus días de toque marcados. La consulta vive aquí y no en la página
+ * para que solo corra cuando el manager abre la pestaña: los paneles se montan al activarse.
+ */
+function CalendarWithConfirmedGigs({ groupId }: { groupId: number }) {
+  const confirmedGigDays = useConfirmedGigDates(groupId);
+  return <GroupCalendar groupId={groupId} mode="private" confirmedGigDays={confirmedGigDays} />;
+}
 
 /**
  * Panel del grupo. Arriba, quién es y en qué estado está; abajo, el trabajo diario:
@@ -76,6 +86,16 @@ export default function MusicianDashboardPage() {
               <GroupInbox groupId={groupId} />
             </TabItem>
           ) : null}
+          {/*
+            La agenda del grupo va en su propia pestaña y no dentro de "Calendario": ahí el calendario es
+            una rejilla editable para bloquear horarios, y una lista de asistencia con nombres al lado
+            obliga a bajar por ella cada vez que se quiere ver la semana.
+          */}
+          {groupId ? (
+            <TabItem title="Agenda" tabKey="agenda">
+              <GroupAgenda groupId={groupId} />
+            </TabItem>
+          ) : null}
           {groupId ? (
             <TabItem title="Equipo" count={joinRequests} tabKey="equipo">
               <TeamTab groupId={groupId} />
@@ -88,7 +108,7 @@ export default function MusicianDashboardPage() {
           ) : null}
           {groupId ? (
             <TabItem title="Calendario" tabKey="calendario">
-              <GroupCalendar groupId={groupId} mode="private" />
+              <CalendarWithConfirmedGigs groupId={groupId} />
             </TabItem>
           ) : null}
           {/*
