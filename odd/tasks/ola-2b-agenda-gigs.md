@@ -26,3 +26,15 @@ Documento ODD. Rama `feat/membership-ux`. Contrato de API fijado abajo para que 
 
 - L1 (usuario, verbatim): "prosigue, me parece que se detuvo en worker porque s eme cerró la sesion".
 - L2: la API local se había caído con el cierre de sesión; se reinicia antes de verificar.
+
+## Autorización de trabajo autónomo (2026-11-05, 03:05)
+
+- L3 (usuario, verbatim): "voy a dormir, mientras sigue con lo que falta, si hay que tomar decisiones las vas anotando y skipeas lo que tenga que ver con esa decisión y continúas con lo demás, yo espero que no se necesiten decisiones, lo que sea ligero tómalo tú, te doy el permiso para tomar decisiones profesionales. Después de terminar todo lo pendiente vuelve a lanzar los agentes para que usen la app y vuelvan a dar retroalimentación siendo muy críticos, hasta tenerlos feliz".
+- Regla adoptada: las decisiones técnicas livianas (nombres, estructura de carpetas, estados de UI, textos, orden) se toman acá y quedan registradas en este Log. Las decisiones de producto o de dinero (precios, contratos, pagos, política de cancelación) NO se implementan: se anotan en `## Decisiones pendientes` y se continúa con el resto.
+- Al cerrar la agenda se repite la ronda de los cuatro críticos (Camila, Mateo, Mónica, Miguel) con el mismo método (navegan la app real, sin editar el repo) y se corrigen los hallazgos de causa propia con impacto alto, hasta dos rondas más.
+
+## Decisiones pendientes (producto; no implementadas)
+
+- D1 Pagos y anticipos: quién cobra, con qué comisión y con qué política de cancelación. Requiere definición del negocio.
+- D2 Paga por miembro: hoy el modelo no guarda cuánto gana cada músico por toque; implementarlo exige una decisión de producto.
+- D3 Setlist y rider técnico: contenido y permisos a definir.
