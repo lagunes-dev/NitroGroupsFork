@@ -327,6 +327,70 @@ namespace NitroGroups.Core.Bookings.Infrastructure.Persistence.Migrations
                     b.ToTable("gig_attendance", "bookings");
                 });
 
+            modelBuilder.Entity("NitroGroups.Core.Bookings.Domain.Entities.GigNotice", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<long?>("DeletedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<long>("EventRequestId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("event_request_id");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<DateOnly>("SentOn")
+                        .HasColumnType("date")
+                        .HasColumnName("sent_on");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "SentOn");
+
+                    b.HasIndex("EventRequestId", "UserId", "Kind", "SentOn")
+                        .IsUnique();
+
+                    b.ToTable("gig_notices", "bookings", t =>
+                        {
+                            t.HasCheckConstraint("ck_gig_notices_kind_range", "kind between 1 and 3");
+                        });
+                });
+
             modelBuilder.Entity("NitroGroups.Core.Bookings.Domain.Entities.GigPay", b =>
                 {
                     b.Property<long>("Id")
@@ -478,6 +542,15 @@ namespace NitroGroups.Core.Bookings.Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("NitroGroups.Core.Bookings.Domain.Entities.EventRequest", null)
                         .WithMany("Attendance")
+                        .HasForeignKey("EventRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NitroGroups.Core.Bookings.Domain.Entities.GigNotice", b =>
+                {
+                    b.HasOne("NitroGroups.Core.Bookings.Domain.Entities.EventRequest", null)
+                        .WithMany()
                         .HasForeignKey("EventRequestId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

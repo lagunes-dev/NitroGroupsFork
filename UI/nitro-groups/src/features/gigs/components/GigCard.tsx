@@ -4,8 +4,10 @@ import Link from "next/link";
 import { Badge, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { AttendanceTone } from "../attendance";
+import type { GigNoticeKind } from "../notices";
 import type { GigAnswer } from "../types";
 import { confirmButtonName, declineButtonName, scheduleLabel, CALL_TIME_PENDING, PAY_PENDING, SETLIST_PENDING, type GigView } from "../viewModel";
+import { NoticeAction } from "./GigNotices";
 
 const CHIP_VARIANT: Record<AttendanceTone, "ok" | "destructive" | "secondary"> = {
     ok: "ok",
@@ -32,6 +34,11 @@ interface GigCardProps {
     failed: boolean;
     onAnswer: (status: GigAnswer) => void;
     onRetry: () => void;
+    /** The notice of this row that is on its way to the group, if any. */
+    notifying: GigNoticeKind | null;
+    /** True when the last notice of this row did not land. */
+    notifyFailed: boolean;
+    onNotify: (kind: GigNoticeKind) => void;
 }
 
 /**
@@ -39,13 +46,18 @@ interface GigCardProps {
  * the schedule, then the answer. The buttons are named with the group and the date so two rows never
  * sound alike, and they stay mounted after answering, so focus is never lost.
  */
-export function GigCard({ gig, saving, failed, onAnswer, onRetry }: GigCardProps) {
+export function GigCard({ gig, saving, failed, onAnswer, onRetry, notifying, notifyFailed, onNotify }: GigCardProps) {
     const answered = gig.attendance.status;
     // While saving, both buttons are inert for the pointer and for the keyboard, but they are NOT
     // `disabled`: disabling the element that has focus throws focus back to the page in some browsers.
     const answerButton = "h-11 flex-1 px-4 sm:h-9 sm:flex-initial";
     const guard = (status: GigAnswer) => () => {
         if (!saving) onAnswer(status);
+    };
+    // The notice action only exists for a slot the manager has not loaded; it renders nothing otherwise.
+    const noticeOf = (kind: GigNoticeKind) => {
+        const slot = gig.notices.find((notice) => notice.kind === kind);
+        return slot ? <NoticeAction kind={kind} sent={slot.sent} notifying={notifying === kind} onNotify={onNotify} /> : null;
     };
     return (
         <li className="superficie flex flex-col gap-4 rounded-[12px] p-4 sm:p-5">
@@ -66,11 +78,15 @@ export function GigCard({ gig, saving, failed, onAnswer, onRetry }: GigCardProps
                     <p className="tabular text-tinta-2">
                         {scheduleLabel(gig)}
                         {gig.callTimeLabel ? <span> · {gig.callTimeLabel}</span> : <span className="italic"> · {CALL_TIME_PENDING}</span>}
+                        {noticeOf("CallTime")}
                     </p>
                     {gig.payLabel ? (
                         <p className="tabular text-tinta-2">{gig.payLabel}</p>
                     ) : (
-                        <p className="tabular text-tinta-2 italic">{PAY_PENDING}</p>
+                        <p className="tabular text-tinta-2 italic">
+                            {PAY_PENDING}
+                            {noticeOf("Pay")}
+                        </p>
                     )}
                 </div>
 
@@ -113,7 +129,16 @@ export function GigCard({ gig, saving, failed, onAnswer, onRetry }: GigCardProps
                     <p className="whitespace-pre-line pb-2 text-tinta">{gig.setlist}</p>
                 </details>
             ) : (
-                <p className="text-sm text-tinta-2 italic">{SETLIST_PENDING}</p>
+                <p className="text-sm text-tinta-2 italic">
+                    {SETLIST_PENDING}
+                    {noticeOf("Setlist")}
+                </p>
+            )}
+
+            {notifyFailed && (
+                <p role="alert" className="text-sm text-error">
+                    No pudimos enviar el aviso. Intenta de nuevo.
+                </p>
             )}
 
             {failed && (

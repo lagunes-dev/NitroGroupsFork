@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<IGigAttendanceRepository, GigAttendanceRepository>();
         services.AddScoped<IGigPayRepository, GigPayRepository>();
         services.AddScoped<IEventReviewRepository, EventReviewRepository>();
+        services.AddScoped<IGigNoticeRepository, GigNoticeRepository>();
         services.AddModuleUnitOfWork<IUnitOfWorkBookings, UnitOfWorkBookings, BookingsDbContext>();
         return services;
     }

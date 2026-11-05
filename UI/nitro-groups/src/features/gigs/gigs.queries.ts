@@ -7,6 +7,8 @@ import { confirmedGigDates } from "./groupAgenda";
 
 export const MY_GIGS_KEY = ["my-gigs"] as const;
 export const groupGigsKey = (groupId: number) => ["group-gigs", groupId] as const;
+export const groupNoticesKey = (groupId: number) => ["group-gig-notices", groupId] as const;
+export const MY_NOTICES_TODAY_KEY = ["my-gig-notices-today"] as const;
 
 // Answers are saved on the server: a fresh read within half a minute is enough to trust the list.
 const STALE_MS = 30_000;
@@ -42,4 +44,31 @@ export function useGroupGigs(groupId: number | null | undefined) {
 export function useConfirmedGigDates(groupId: number | null | undefined): string[] {
     const { data } = useGroupGigs(groupId);
     return useMemo(() => confirmedGigDates(data ?? []), [data]);
+}
+
+/**
+ * The notices the group received, newest first: the manager's agenda shows them on each gig row.
+ * Manager only on the server; a failure leaves the agenda exactly as it was.
+ */
+export function useGroupGigNotices(groupId: number | null | undefined) {
+    return useQuery({
+        queryKey: groupNoticesKey(groupId ?? 0),
+        queryFn: () => gigsService.groupNotices(groupId as number),
+        enabled: Boolean(groupId),
+        staleTime: STALE_MS,
+        retry: false,
+    });
+}
+
+/**
+ * What the caller already told the group today. The agenda reads it so a slot that was reported
+ * is not offered again after a reload.
+ */
+export function useMyGigNoticesToday() {
+    return useQuery({
+        queryKey: MY_NOTICES_TODAY_KEY,
+        queryFn: () => gigsService.myNoticesToday(),
+        staleTime: STALE_MS,
+        retry: false,
+    });
 }

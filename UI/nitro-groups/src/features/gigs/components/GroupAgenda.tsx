@@ -4,14 +4,16 @@ import { useRef, useState } from "react";
 import { Alert, AlertDescription, Badge, Button } from "@/components/ui";
 import { depositLabel } from "@/features/bookings/deposit";
 import { compareGigsByDate } from "../agenda";
-import { useGroupGigs } from "../gigs.queries";
+import { useGroupGigNotices, useGroupGigs } from "../gigs.queries";
 import { attendeePayLines } from "../gigLogistics";
 import { attendanceCountLabel, attendeeSummary, declinedLabel, unansweredLabel } from "../groupAgenda";
+import { noticesByGig, type NoticePayload } from "../notices";
 import type { GroupGigPayload } from "../types";
 import { callTimeLabel, scheduleLabel, toGigView } from "../viewModel";
 import { GigEditor } from "./GigEditor";
+import { NoticeLines } from "./GigNotices";
 
-function GigRow({ row, groupId }: { row: GroupGigPayload; groupId: number }) {
+function GigRow({ row, groupId, notices }: { row: GroupGigPayload; groupId: number; notices: readonly NoticePayload[] }) {
     const view = toGigView(row);
     const summary = attendeeSummary(row.attendees);
     const deposit = depositLabel(row.deposit);
@@ -42,6 +44,8 @@ function GigRow({ row, groupId }: { row: GroupGigPayload; groupId: number }) {
                 {declinedLabel(summary) && <p className="text-sm text-error">{declinedLabel(summary)}</p>}
                 {unansweredLabel(summary) && <p className="text-sm text-tinta-2">{unansweredLabel(summary)}</p>}
                 {pays.length > 0 && <p className="text-sm text-tinta-2">Pagos: {pays.join(" · ")}</p>}
+                {/* S12: lo que el músico avisó. Sin avisos no se dibuja nada. */}
+                <NoticeLines notices={notices} />
             </div>
 
             <div className="md:col-span-12">
@@ -109,6 +113,9 @@ function GroupGigSkeleton() {
  */
 export function GroupAgenda({ groupId }: { groupId: number }) {
     const gigs = useGroupGigs(groupId);
+    // Los avisos van aparte: si la consulta falla, la agenda queda exactamente como estaba.
+    const notices = useGroupGigNotices(groupId);
+    const byGig = noticesByGig(notices.data);
 
     return (
         <section aria-labelledby="agenda-grupo-titulo" className="py-10">
@@ -145,7 +152,7 @@ export function GroupAgenda({ groupId }: { groupId: number }) {
             ) : (
                 <ul className="mt-6 flex flex-col">
                     {[...gigs.data].sort(compareGigsByDate).map((row) => (
-                        <GigRow key={row.id} row={row} groupId={groupId} />
+                        <GigRow key={row.id} row={row} groupId={groupId} notices={byGig[Number(row.id)] ?? []} />
                     ))}
                 </ul>
             )}

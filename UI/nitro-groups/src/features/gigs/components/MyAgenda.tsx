@@ -8,7 +8,8 @@ import { ROUTES } from "@/config/routes";
 import { todayInMexico } from "@/lib/format";
 import { splitAgenda } from "../agenda";
 import { gigsService } from "../gigs.service";
-import { MY_GIGS_KEY, useMyGigs } from "../gigs.queries";
+import { MY_GIGS_KEY, MY_NOTICES_TODAY_KEY, useMyGigNoticesToday, useMyGigs } from "../gigs.queries";
+import { isNoticeKind, noticesByGig, type GigNoticeKind, type NoticePayload } from "../notices";
 import type { GigAnswer, GigPayload } from "../types";
 import { answerNotice, toGigView, type GigView } from "../viewModel";
 import { GigCard, GigCardSkeleton } from "./GigCard";
@@ -18,6 +19,12 @@ interface Answer {
     status: GigAnswer;
 }
 
+interface NoticeRequest {
+    id: number;
+    groupId: number;
+    kind: GigNoticeKind;
+}
+
 /**
  * "Mi agenda": the caller's gigs, upcoming first and the history folded away. Answering is optimistic
  * — the row changes at once — and the save is announced in a live region while focus stays on the
@@ -25,9 +32,11 @@ interface Answer {
  */
 export function MyAgenda() {
     const gigs = useMyGigs();
+    const noticesToday = useMyGigNoticesToday();
     const queryClient = useQueryClient();
     const [notice, setNotice] = useState("");
     const [failure, setFailure] = useState<Answer | null>(null);
+    const [notifyFailure, setNotifyFailure] = useState<NoticeRequest | null>(null);
 
     const answer = useMutation({
         mutationFn: (input: Answer) => gigsService.answer(input.id, input.status),
@@ -53,6 +62,27 @@ export function MyAgenda() {
         },
         // Also after a failure: a 404 here almost always means the agenda was stale.
         onSettled: () => queryClient.invalidateQueries({ queryKey: MY_GIGS_KEY }),
+    });
+
+    // The notice is one tap and no text: the slot changes as if it had already landed, and the
+    // server's answer (or its failure) puts the row back in line.
+    const notify = useMutation({
+        mutationFn: (input: NoticeRequest) => gigsService.notify(input.groupId, input.id, input.kind),
+        onMutate: async (input) => {
+            await queryClient.cancelQueries({ queryKey: MY_NOTICES_TODAY_KEY });
+            const previous = queryClient.getQueryData<NoticePayload[]>(MY_NOTICES_TODAY_KEY) ?? [];
+            queryClient.setQueryData<NoticePayload[]>(MY_NOTICES_TODAY_KEY, [
+                ...previous.filter((row) => !(row.gigId === input.id && row.kind === input.kind)),
+                { gigId: input.id, kind: input.kind },
+            ]);
+            return { previous };
+        },
+        onSuccess: () => setNotifyFailure(null),
+        onError: (_error, input, context) => {
+            if (context?.previous) queryClient.setQueryData(MY_NOTICES_TODAY_KEY, context.previous);
+            setNotifyFailure(input);
+        },
+        onSettled: () => queryClient.invalidateQueries({ queryKey: MY_NOTICES_TODAY_KEY }),
     });
 
     if (gigs.isPending) {
@@ -99,8 +129,13 @@ export function MyAgenda() {
     }
 
     const { upcoming, past } = splitAgenda(gigs.data, todayInMexico());
+    const byGig = noticesByGig(noticesToday.data);
+    const sentKindsOf = (gigId: unknown): string[] => {
+        const id = typeof gigId === "number" ? gigId : Number(gigId);
+        return Number.isFinite(id) ? (byGig[id] ?? []).map((row) => row.kind).filter(isNoticeKind) : [];
+    };
     const card = (row: GigPayload) => {
-        const gig: GigView = toGigView(row);
+        const gig: GigView = toGigView(row, sentKindsOf(row.id));
         const id = gig.id;
         return (
             <GigCard
@@ -110,6 +145,12 @@ export function MyAgenda() {
                 failed={failure?.id === id}
                 onAnswer={(status) => answer.mutate({ id, status })}
                 onRetry={() => failure && answer.mutate(failure)}
+                notifying={notify.isPending && notify.variables?.id === id ? notify.variables.kind : null}
+                notifyFailed={notifyFailure?.id === id}
+                onNotify={(kind) => {
+                    setNotice("");
+                    notify.mutate({ id, groupId: gig.group.id ?? 0, kind });
+                }}
             />
         );
     };

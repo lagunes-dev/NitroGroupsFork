@@ -41,6 +41,9 @@ namespace NitroGroups.Shared.Contracts.Bookings.Responses
 
         public decimal? Offered { get; set; }
         public decimal? BaseRate { get; set; }
+
+        /// <summary>Moneda del grupo: la tarifa base nunca se cuenta con la del cliente.</summary>
+        public string? Currency { get; set; }
         public string Status { get; set; } = StatusUnknown;
     }
 }

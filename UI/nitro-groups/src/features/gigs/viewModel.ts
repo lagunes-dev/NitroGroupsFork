@@ -1,6 +1,7 @@
 import { formatEventDate, formatPrice, isIsoDate } from "@/lib/format";
 import { ROUTES } from "@/config/routes";
 import { attendanceAppearance, type AttendanceAppearance } from "./attendance";
+import { noticeSlots, type NoticeSlot } from "./notices";
 import type { GigAnswer, GigPayload } from "./types";
 
 const DATE_FALLBACK = "Fecha por definir";
@@ -44,6 +45,11 @@ export interface GigView {
     setlist: string | null;
     /** "Tu pago: $2,000", or null when no amount was set for the caller. */
     payLabel: string | null;
+    /**
+     * The slots the musician can report as missing, with the ones already reported today marked.
+     * Empty when the manager loaded all three.
+     */
+    notices: NoticeSlot[];
 }
 
 const HOURS = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 });
@@ -106,10 +112,17 @@ export function myPayLabel(value: unknown): string | null {
     return `Tu pago: ${formatPrice(amount)}`;
 }
 
-/** One row of the contract turned into view data. Missing or wrong values fall back, never throw. */
-export function toGigView(row: GigPayload): GigView {
+/**
+ * One row of the contract turned into view data. Missing or wrong values fall back, never throw.
+ * `sentNotices` are the kinds the caller already reported today (`GET api/me/gig-notices/today`):
+ * they stop the card from offering the same notice twice.
+ */
+export function toGigView(row: GigPayload, sentNotices: readonly unknown[] = []): GigView {
     const slug = asText(row.groupSlug);
     const rawDate = asText(row.eventDate);
+    const callTime = callTimeLabel(row.callTime);
+    const payLabel = myPayLabel(row.myPay);
+    const setlist = asText(row.setlist) || null;
     return {
         id: asNumber(row.id) ?? 0,
         group: {
@@ -125,9 +138,10 @@ export function toGigView(row: GigPayload): GigView {
         durationLabel: gigDurationLabel(row.durationHours),
         roleLabel: gigRoleLabel(row.role),
         attendance: attendanceAppearance(row.attendance),
-        callTimeLabel: callTimeLabel(row.callTime),
-        setlist: asText(row.setlist) || null,
-        payLabel: myPayLabel(row.myPay),
+        callTimeLabel: callTime,
+        setlist,
+        payLabel,
+        notices: noticeSlots({ callTimeLabel: callTime, payLabel, setlist }, sentNotices),
     };
 }
 

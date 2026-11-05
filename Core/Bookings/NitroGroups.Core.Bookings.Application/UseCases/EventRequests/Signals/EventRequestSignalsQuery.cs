@@ -58,6 +58,7 @@ public sealed class GetEventRequestSignalsQueryHandler(
             {
                 Offered = request.Budget,
                 BaseRate = group?.BasePrice,
+                Currency = group?.Currency,
                 Status = Compare(request.Budget, group?.BasePrice)
             }
         });

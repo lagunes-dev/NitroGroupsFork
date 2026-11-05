@@ -128,7 +128,8 @@ public class EventRequestSignalsEndpointsTests : IClassFixture<NitroGroupsWebApp
         Assert.Equal("Hacienda San Gabriel", withGig.GetProperty("locationText").GetString());
 
         var budget = root.GetProperty("budget");
-        Assert.Equal(["offered", "baseRate", "status"], budget.EnumerateObject().Select(property => property.Name));
+        // `currency` viaja con la tarifa base: la del grupo, no la del cliente (S15).
+        Assert.Equal(["offered", "baseRate", "currency", "status"], budget.EnumerateObject().Select(property => property.Name));
         Assert.Equal(18000m, budget.GetProperty("offered").GetDecimal());
         Assert.Equal(12000m, budget.GetProperty("baseRate").GetDecimal());
         Assert.Equal("Above", budget.GetProperty("status").GetString());
