@@ -42,12 +42,12 @@ export default function GroupProfileView({ group, isPublic, toggleEdit }: GroupP
             {group.isAcceptingBookings ? (
               <span className="inline-flex items-center gap-2 text-ok">
                 <span aria-hidden className="size-2 rounded-full bg-current" />
-                Recibiendo solicitudes
+                Recibiendo pedidos de fecha
               </span>
             ) : (
               <span className="inline-flex items-center gap-2 text-tinta-2">
                 <span aria-hidden className="size-2 rounded-full border-2 border-current" />
-                Solicitudes en pausa
+                Pedidos de fecha en pausa
               </span>
             )}
             {group.isVerified && (

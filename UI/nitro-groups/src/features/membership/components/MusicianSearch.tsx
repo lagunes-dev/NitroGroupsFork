@@ -12,6 +12,9 @@ import { pendingByMusician, pendingLabel } from "../pending";
 import { debounced, normalizeQuery } from "../search";
 import type { OpenMusician } from "../types";
 
+/** Id of the search field, so the empty states of the team tab can point at it. */
+export const SEARCH_INPUT_ID = "equipo-buscar";
+
 const PAGE_SIZE = 10;
 const DEBOUNCE_MS = 350;
 
@@ -67,6 +70,7 @@ export function MusicianSearch({ groupId }: { groupId: number }) {
     return (
         <div className="flex flex-col gap-4">
             <Input
+                id={SEARCH_INPUT_ID}
                 type="search"
                 label="Buscar músicos por nombre"
                 icon={<Search aria-hidden />}

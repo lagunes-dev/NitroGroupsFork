@@ -76,18 +76,24 @@ export function MyInvitations() {
             )}
 
             {requests.data.length === 0 ? (
-                <div className="superficie rounded-[12px] px-6 py-10 text-center">
-                    <p className="mx-auto max-w-[48ch] text-tinta-2">
+                <div className="superficie flex flex-col items-center gap-4 rounded-[12px] px-6 py-10 text-center">
+                    <p className="max-w-[48ch] text-tinta-2">
                         Aún no tienes invitaciones ni solicitudes. Cuando un grupo te invite, la verás aquí; también puedes pedir unirte desde el perfil de un grupo.
                     </p>
+                    <Button asChild><Link href={ROUTES.GROUPS.SEARCH}>Buscar grupos para unirme</Link></Button>
                 </div>
             ) : (
                 <>
-                    <RequestGroup id="inv-recibidas" title="Invitaciones recibidas" count={received.length} as="h3">
+                    <RequestGroup id="inv-recibidas" title="Te invitaron" count={received.length} as="h3">
                         {received.length === 0 ? <p className="text-tinta-2">No tienes invitaciones pendientes.</p> : <Rows rows={received} busy={respond.isPending} onAction={onAction} />}
                     </RequestGroup>
-                    <RequestGroup id="inv-enviadas" title="Solicitudes enviadas" count={sent.length} as="h3">
-                        {sent.length === 0 ? <p className="text-tinta-2">No tienes solicitudes pendientes.</p> : <Rows rows={sent} busy={respond.isPending} onAction={onAction} />}
+                    <RequestGroup id="inv-enviadas" title="Tus solicitudes para unirte" count={sent.length} as="h3">
+                        {sent.length === 0 ? (
+                            <div className="flex flex-col items-start gap-4">
+                                <p className="text-tinta-2">No tienes solicitudes pendientes.</p>
+                                <Button asChild variant="outline"><Link href={ROUTES.GROUPS.SEARCH}>Buscar grupos para unirme</Link></Button>
+                            </div>
+                        ) : <Rows rows={sent} busy={respond.isPending} onAction={onAction} />}
                     </RequestGroup>
                     {history.length > 0 && (
                         <RequestGroup id="inv-historial" title="Historial" count={history.length} collapsible as="h3">
