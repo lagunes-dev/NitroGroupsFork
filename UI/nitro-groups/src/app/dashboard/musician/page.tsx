@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { TabItem, TabbedSection } from "@/components/ui";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { usePendingMembership } from "@/hooks/usePendingMembership";
+import { tabTitle } from "@/features/membership/counts";
 import { groupsService } from "@/features/groups/services/groups.service";
 import GroupProfile from "@/features/groups/components/GroupProfile";
 import GroupCalendar from "@/features/groupAvailability/components/GroupCalendar";
@@ -13,7 +15,7 @@ import { MyInvitations } from "@/features/membership/components/MyInvitations";
 
 /**
  * Panel del grupo. Arriba, quién es y en qué estado está; abajo, el trabajo diario:
- * responder solicitudes primero, después la galería y el calendario.
+ * responder los pedidos de fecha primero, después la galería y el calendario.
  */
 export default function MusicianDashboardPage() {
   const { user } = useCurrentUser();
@@ -30,6 +32,7 @@ export default function MusicianDashboardPage() {
   });
 
   const groupId = group?.id;
+  const { invitations, joinRequests } = usePendingMembership();
 
   return (
     <div className="page-frame pb-24">
@@ -43,12 +46,12 @@ export default function MusicianDashboardPage() {
       {!groupPending || groupId ? (
         <TabbedSection label="Gestión del grupo" className="mt-16 md:mt-20">
           {groupId ? (
-            <TabItem title="Solicitudes" tabKey="solicitudes">
+            <TabItem title="Pedidos de fecha" tabKey="pedidos">
               <GroupInbox groupId={groupId} />
             </TabItem>
           ) : null}
           {groupId ? (
-            <TabItem title="Equipo" tabKey="equipo">
+            <TabItem title={tabTitle("Equipo", joinRequests)} tabKey="equipo">
               <TeamTab groupId={groupId} />
             </TabItem>
           ) : null}
@@ -62,7 +65,7 @@ export default function MusicianDashboardPage() {
               <GroupCalendar groupId={groupId} mode="private" />
             </TabItem>
           ) : null}
-          <TabItem title="Invitaciones" tabKey="invitaciones">
+          <TabItem title={tabTitle("Invitaciones", invitations)} tabKey="invitaciones">
             <MyInvitations />
           </TabItem>
         </TabbedSection>
