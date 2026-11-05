@@ -4,8 +4,8 @@ import { RequestList } from "./RequestList";
 import { StatusBadge } from "./StatusBadge";
 
 /**
- * "Mis pedidos" agrupado por estado, con su conteo: el cliente ve qué está pendiente y qué ya se
- * respondió sin leer cada fila. Dentro de cada grupo manda la fecha del evento más próxima.
+ * "Mis pedidos" grouped by status with a count per group: the client sees what is pending and what
+ * has been answered without reading every row. Inside a group the closest event comes first.
  */
 export function ClientRequestGroups({ requests, today }: { requests: EventRequest[]; today: string }) {
     const groups = groupClientRequests(requests, today);

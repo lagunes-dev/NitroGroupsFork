@@ -7,6 +7,7 @@ import type { MusicGroup } from "../types/MusicGroup";
 import type { GroupMediaResponse } from "@/features/groupMedia/types/GroupMedia";
 import { RequestForm } from "@/features/bookings/components/RequestForm";
 import { JoinShortcut } from "@/features/membership/components/JoinShortcut";
+import { useJoinOffer } from "@/features/membership/useJoinOffer";
 import { RequestToJoin } from "@/features/membership/components/RequestToJoin";
 
 const kind = (m: GroupMediaResponse) => m.type.toLowerCase();
@@ -39,6 +40,8 @@ export function PublicGroupProfile({ group, requestedDate, signedIn = false }: {
     const price = priceLabel({ basePrice: group.basePrice ?? null, hourlyRate: group.hourlyRate ?? null, currency: group.currency || "MXN" });
     const dateText = requestedDate ? formatEventDate(requestedDate) : null;
     const requestHref = `#solicitar`;
+    // A member of this group is not a client here: contracting your own band makes no sense.
+    const { isMember } = useJoinOffer({ groupId: group.id, slug: group.slug, active: group.active, ownerUserId: group.ownerUserId, signedIn });
 
     const facts = [
         group.numMembers > 0 && { label: "Integrantes", value: String(group.numMembers) },
@@ -86,7 +89,7 @@ export function PublicGroupProfile({ group, requestedDate, signedIn = false }: {
                         <p className="text-tinta-2 max-w-[28ch] md:text-right">Este grupo no está tomando nuevas fechas por ahora.</p>
                     )}
                     <div className="flex flex-wrap gap-3 md:justify-end">
-                        {group.isAcceptingBookings && (
+                        {group.isAcceptingBookings && !isMember && (
                             <Link href={requestHref} className="inline-flex h-14 items-center justify-center px-7 bg-acento text-acento-ink rounded-lg font-semibold no-underline hover:bg-acento-press transition-colors">
                                 {dateText ? `Pedir el ${dateText}` : "Pedir una fecha"}
                             </Link>

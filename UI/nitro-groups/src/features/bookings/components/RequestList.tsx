@@ -5,8 +5,8 @@ import type { EventRequest, EventRequestParty } from "../types";
 import { StatusBadge } from "./StatusBadge";
 
 /**
- * Lista de solicitudes. El cliente ve el grupo; el grupo ve al cliente. Cada fila lleva la misma
- * fecha, el mismo grupo y lugar, el mismo campo de precio y el estado como chip con icono.
+ * Request list. The client sees the group and the group sees the client. Every row carries the same
+ * date, the same group and place, the same price field and the status as a chip with an icon.
  */
 export function RequestList({ requests, viewer }: { requests: EventRequest[]; viewer: EventRequestParty }) {
     return (

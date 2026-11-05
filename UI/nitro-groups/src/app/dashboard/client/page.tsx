@@ -23,7 +23,7 @@ export default function ClientDashboardPage() {
             </div>
 
             <div className="mt-12">
-                {/* Los conteos aparecen al cargar la lista: se leen en voz alta cuando llegan. */}
+                {/* The counts appear once the list loads: they are read aloud at that point. */}
                 <p role="status" aria-live="polite" className="sr-only">
                     {requests.data ? pendingRequestsLine(pending, total) : ""}
                 </p>

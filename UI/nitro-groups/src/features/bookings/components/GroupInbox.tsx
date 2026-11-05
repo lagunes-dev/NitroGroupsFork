@@ -1,5 +1,3 @@
-"use client";
-
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { bookingsService } from "../bookings.service";
@@ -8,8 +6,8 @@ import { pendingRequestsLine } from "../summary";
 import { RequestList } from "./RequestList";
 
 /**
- * Bandeja del grupo: arriba lo que espera respuesta —el pedido que lleva más tiempo esperando
- * primero— y abajo el historial plegado, cada parte con su conteo.
+ * Group inbox: on top what waits for an answer — the request that has waited longest first —
+ * and below the history, collapsed, each part with its own count.
  */
 export function GroupInbox({ groupId }: { groupId: number }) {
     const requests = useQuery({ queryKey: ["event-requests", "group", groupId], queryFn: () => bookingsService.forGroup(groupId) });
@@ -20,7 +18,7 @@ export function GroupInbox({ groupId }: { groupId: number }) {
 
     return (
         <div className="flex flex-col gap-12 py-6">
-            {/* El conteo aparece al cargar la bandeja: se lee en voz alta cuando llega. */}
+            {/* The count shows up when the inbox arrives: it is read aloud at that point. */}
             <p role="status" aria-live="polite" className="sr-only">
                 {requests.isSuccess ? pendingRequestsLine(pending.length, all.length) : ""}
             </p>

@@ -5,11 +5,11 @@ import type { EventRequest, EventRequestParty, EventRequestStatus } from "./type
 
 type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>;
 
-/** Cómo se ve un estado: la palabra, el tono del chip y su icono (el color nunca va solo). */
+/** How a status looks: the word, the chip tone and its icon (colour never travels alone). */
 export interface StatusAppearance {
     text: string;
     variant: BadgeVariant;
-    /** Clases extra para los tonos que el Badge no trae de fábrica. */
+    /** Extra classes for the tones the Badge does not ship. */
     className?: string;
     icon: LucideIcon;
 }
@@ -22,8 +22,8 @@ const STATUS_APPEARANCE: Record<EventRequestStatus, StatusAppearance> = {
 };
 
 /**
- * Presentación de un estado. La API manda el estado como texto: uno que no conocemos se muestra
- * tal cual, en tono neutro, para que una transición nueva no se disface de "aceptada".
+ * Presentation of one status. The API sends the status as text: a value we do not know prints as it
+ * arrived, in a neutral tone, so a new transition never disguises itself as "accepted".
  */
 export function statusAppearance(status: string): StatusAppearance {
     return STATUS_APPEARANCE[status as EventRequestStatus] ?? { text: status.trim() || "Sin estado", variant: "secondary", icon: CircleHelp };

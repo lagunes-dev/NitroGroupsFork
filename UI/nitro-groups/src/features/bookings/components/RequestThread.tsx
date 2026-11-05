@@ -14,14 +14,14 @@ import { StatusBadge } from "./StatusBadge";
 
 const timeFmt = new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Mexico_City" });
 
-/** Hora del mensaje; null cuando la API no trae una fecha legible. */
+/** Time of one message; null when the API brings no readable timestamp. */
 function sentAt(value: string | null): string | null {
     if (!value) return null;
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? null : timeFmt.format(date);
 }
 
-/** Cada parte de la conversación conserva el lado que ya tenía: el grupo a la derecha, el cliente a la izquierda. */
+/** Every part of the conversation keeps its side: the group on the right, the client on the left. */
 function itemClass(item: ThreadItem): string {
     if (item.kind === "request") return "rounded-xl bg-fondo-2 p-5";
     return item.senderParty === "Group" ? "bg-fondo-3 p-5 md:ml-12" : "rounded-xl bg-fondo-2 p-5 md:mr-12";

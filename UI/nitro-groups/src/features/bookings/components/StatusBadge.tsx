@@ -2,10 +2,7 @@ import { Badge } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { statusAppearance } from "../status";
 
-/**
- * Chip de estado: color + icono + palabra, nunca solo color. Un estado que no conocemos se
- * muestra tal cual llegó, en tono neutro.
- */
+/** Status chip: colour + icon + word, never colour alone. A status we do not know prints as it arrived, in a neutral tone. */
 export function StatusBadge({ status, className }: { status: string; className?: string }) {
     const { text, variant, className: tone, icon: Icon } = statusAppearance(status);
     return (
