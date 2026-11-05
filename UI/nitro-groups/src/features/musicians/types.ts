@@ -37,3 +37,26 @@ export interface MusicianProfileUpdateRequest {
     isOpenToJoin: boolean;
     yearsExperience?: number;
 }
+
+/** One row of `GET api/musicians` (public, open-to-join musicians only, never an email). */
+export interface MusicianDirectoryItemResponse {
+    userId: number;
+    fullName: string;
+    headline?: string | null;
+    /** Comma separated, like the profile; a list is accepted in case the serialization changes. */
+    instruments?: string | string[] | null;
+    city?: string | null;
+    yearsExperience?: number | null;
+    profilePictureUrl?: string | null;
+}
+
+/** Paged envelope of `GET api/musicians`. */
+export interface MusicianDirectoryResponse {
+    items: MusicianDirectoryItemResponse[];
+    pageNumber: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    hasPreviousPage?: boolean;
+    hasNextPage?: boolean;
+}
