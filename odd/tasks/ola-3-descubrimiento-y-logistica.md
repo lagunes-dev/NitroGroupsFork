@@ -52,3 +52,14 @@ Endpoints, todos privados:
 - `GET api/groups/{groupId}/gigs` suma `setlist`, `callTime`, `deposit: { amount, receivedAt }` y, en cada asistente, `pay`.
 - Las solicitudes del cliente suman `deposit: { amount, receivedAt }` (el cliente no ve el setlist ni los pagos a los músicos).
 - Señales del hilo (D6): `GET api/groups/{groupId}/event-requests/{id}/signals` con `RequireGroupManager` devuelve `{ dateClash: { clashes: bool, withGig: { id, eventType, locationText } | null }, budget: { offered, baseRate, status: "Above" | "Below" | "Equal" | "Unknown" } }`.
+
+## Contrato de reseñas (fijado, D7)
+
+Regla del usuario: solo escribe una reseña el cliente de un evento aceptado cuya fecha ya pasó, una por evento.
+
+- Tabla `bookings.event_reviews`: `id`, `event_request_id` (FK con cascada, ÚNICO), `client_user_id`, `group_id`, `rating smallint` con CHECK entre 1 y 5, `comment varchar(1000)` opcional y columnas de auditoría como `gig_attendance`.
+- `POST api/event-requests/{id}/review`, autenticado: cuerpo `{ rating, comment? }`. Solo el cliente del evento, con el evento Aceptado, fecha anterior a hoy (zona de México), sin ser autorreserva y sin reseña previa. 201 con la reseña; 404 si el evento no es del llamante; 409 con mensaje en español si todavía no se puede reseñar (no aceptado, fecha futura o autorreserva) o si ya existe; 400 si la calificación no está entre 1 y 5 o el comentario pasa de 1000.
+- `GET api/groups/{groupId}/reviews?page=1&size=10`, público (AllowAnonymous, entra en la lista de `SecurityEndpointsTests`): `{ summary: { average, count }, items: [{ rating, comment, createdAt, eventType, authorName }], totalCount, pageNumber, pageSize, hasNextPage, hasPreviousPage }`, de la más reciente a la más antigua. `authorName` es "Nombre A." (nombre y inicial del apellido, sin correo).
+- Las solicitudes del cliente (`GET api/event-requests/mine` y el detalle) suman `canReview: bool` y `review: { rating, comment, createdAt } | null`.
+- Agregado del grupo: al crearse una reseña, Bookings publica por su outbox `GroupReviewPostedEvent(groupId, rating)` y un handler de Groups actualiza `average_rating` y `total_reviews` de forma incremental. Si la entrega entre módulos no funciona como con los eventos de Usuarios, se detiene y se reporta.
+- Datos de demostración: archivo nuevo `scripts/db/dev-seed-reviews.sql`, idempotente, que agrega eventos aceptados y ya pasados con reseñas reales para los seis grupos y recalcula `average_rating` y `total_reviews` desde `event_reviews`, para que los números del perfil tengan filas detrás.
