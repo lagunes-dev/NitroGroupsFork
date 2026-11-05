@@ -34,3 +34,21 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 - L5 (decisión técnica): el agregado del grupo se actualiza por el outbox de Bookings con un evento `GroupReviewPostedEvent(groupId, rating)` que consume un handler de Groups (ya hay precedente de Groups consumiendo eventos de otro módulo). Como solo se crean reseñas, la actualización es incremental. El listado público `GET api/groups/{id}/reviews` devuelve calificación, comentario, fecha, tipo de evento y el autor como "Nombre A." (sin apellido completo ni email).
 - L6 (seed): los agregados escritos a mano se reemplazan por filas de reseña reales, y se agrega un evento aceptado y ya pasado para poder probar el flujo.
 - Orden: primero el worker de logística en Bookings (setlist, hora de llamado, anticipo) y después el de reseñas, porque ambos tocan el mismo módulo y la misma máquina no soporta dos compilaciones a la vez.
+- L7 (usuario, verbatim): "para el ejemplo que me diste si es mejor B, adelante". **D2 decidida: opción B**, un monto por músico y por toque, solo informativo. La app no suma, no valida el total ni mueve dinero.
+- L8 (D6, decidida por recomendación del usuario "después de que resolvamos D2"): el hilo del manager muestra dos señales calculables con datos que ya existen: **choque de fecha** (el grupo ya tiene un toque aceptado ese día) y **presupuesto contra tarifa base** (lo que ofrece el cliente frente al "desde $X" del grupo). La **distancia** contra el radio no entra en esta ola: el grupo solo guarda su ciudad como texto y no hay coordenadas, así que calcularla exige un catálogo de ciudades o geocodificación. Se anota como D8.
+
+## Contrato de la logística del toque (fijado)
+
+Se agregan columnas al evento aceptado y una tabla de pagos por músico, en el esquema `bookings`:
+
+- `bookings.event_requests`: `setlist varchar(4000)`, `call_time time`, `deposit_amount numeric(12,2)`, `deposit_received_at timestamptz`, todas opcionales.
+- `bookings.gig_pay`: `event_request_id`, `user_id`, `amount numeric(12,2)` con `amount >= 0`, único por `(event_request_id, user_id)`.
+
+Endpoints, todos privados:
+
+- `PUT api/groups/{groupId}/gigs/{id}/details` con `RequireGroupManager`: `{ setlist?, callTime?, depositAmount?, depositReceived? }`; actualiza solo lo enviado. `depositReceived: true` fija la fecha en este momento y `false` la limpia. 404 si el toque no es del grupo o no está aceptado.
+- `PUT api/groups/{groupId}/gigs/{id}/pay` con `RequireGroupManager`: `{ payments: [{ userId, amount }] }`; reemplaza el conjunto. Solo miembros activos del grupo, monto mayor o igual a cero.
+- `GET api/me/gigs` suma por fila `callTime`, `setlist` y `myPay` (solo el pago del propio llamante, o null).
+- `GET api/groups/{groupId}/gigs` suma `setlist`, `callTime`, `deposit: { amount, receivedAt }` y, en cada asistente, `pay`.
+- Las solicitudes del cliente suman `deposit: { amount, receivedAt }` (el cliente no ve el setlist ni los pagos a los músicos).
+- Señales del hilo (D6): `GET api/groups/{groupId}/event-requests/{id}/signals` con `RequireGroupManager` devuelve `{ dateClash: { clashes: bool, withGig: { id, eventType, locationText } | null }, budget: { offered, baseRate, status: "Above" | "Below" | "Equal" | "Unknown" } }`.
