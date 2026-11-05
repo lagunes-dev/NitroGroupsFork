@@ -9,6 +9,11 @@ import { parseDirectoryFilters } from "../directory";
 const card = { userId: 7, name: "Mateo Músico", headline: "Guitarrista", instruments: ["Guitarra", "Bajo"], city: "Guadalajara", years: "5 años", photoUrl: null };
 
 describe("MusicianCard", () => {
+    it("says out loud when the profile has neither instrument nor city", () => {
+        render(<MusicianCard card={{ ...card, instruments: [], city: null, years: null }} />);
+        expect(screen.getByText("Sin instrumento ni ciudad cargados")).toBeInTheDocument();
+    });
+
     it("links the name to the profile and lists instruments, city and years", () => {
         render(<ul><MusicianCard card={card} actions={<button>Invitar</button>} /></ul>);
         expect(screen.getByRole("link", { name: "Mateo Músico" })).toHaveAttribute("href", "/musicians/7");

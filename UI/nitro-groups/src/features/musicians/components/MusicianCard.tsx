@@ -37,6 +37,11 @@ export function MusicianCard({ card, actions }: { card: DirectoryCard; actions?:
 
             {facts.length > 0 && <p className="text-sm text-tinta-2">{facts.join(" · ")}</p>}
 
+            {/* Un perfil vacío no se disimula: se dice, para que quien invita sepa qué le falta. */}
+            {card.instruments.length === 0 && facts.length === 0 && (
+                <p className="text-sm text-tinta-2 italic">Sin instrumento ni ciudad cargados</p>
+            )}
+
             {actions && <div className="mt-auto empty:hidden">{actions}</div>}
         </li>
     );
