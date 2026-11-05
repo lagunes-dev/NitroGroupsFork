@@ -67,7 +67,7 @@ export function PublicMusicianProfile({ profile, inviteAction }: { profile: Musi
             label: "Experiencia",
             value: yearsText(profile.yearsExperience),
         },
-        { label: "Disponibilidad", value: profile.isOpenToJoin ? "Disponible para unirse" : "No disponible por ahora" },
+        { label: "Disponibilidad", value: profile.isOpenToJoin ? "Disponible para unirse" : "Sin invitaciones por ahora" },
     ].filter(Boolean) as { label: string; value: string }[];
 
     return (
@@ -149,8 +149,8 @@ export function PublicMusicianProfile({ profile, inviteAction }: { profile: Musi
                         </>
                     ) : (
                         <p className="mt-3 max-w-[52ch] text-tinta-2">
-                            Por ahora {name} no está abierto a unirse a un grupo, así que no recibe invitaciones. Su perfil
-                            sigue siendo público.
+                            Por ahora {name} no está recibiendo invitaciones de grupos. Su perfil sigue siendo público, así que
+                            puedes conocer su trabajo y ver en qué grupos toca.
                         </p>
                     )}
                 </div>
