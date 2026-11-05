@@ -2,7 +2,6 @@ using Cortex.Mediator.Queries;
 using NitroGroups.Core.Groups.Application.Abstractions;
 using NitroGroups.Shared.Contracts.Groups.Responses;
 using NitroGroups.Shared.Contracts.Modules;
-using NitroGroups.Shared.Domain.DomainEvents.Groups.Enums;
 
 namespace NitroGroups.Core.Groups.Application.UseCases.Groups.GetTeam;
 
@@ -40,8 +39,7 @@ public sealed class GetGroupTeamQueryHandler(IUnitOfWorkGroups unitOfWork, IUser
 
         // Owner, Manager, Member (by privilege), then the oldest membership first.
         var team = rows
-            .OrderBy(row => RolePriority(row.Role))
-            .ThenBy(row => row.JoinedAt)
+            .ByTeamOrder()
             .Select(row =>
             {
                 var user = userMap.GetValueOrDefault(row.UserId);
@@ -77,11 +75,4 @@ public sealed class GetGroupTeamQueryHandler(IUnitOfWorkGroups unitOfWork, IUser
         var separator = user.Email.IndexOf('@');
         return separator < 0 ? user.Email : user.Email[..separator];
     }
-
-    private static int RolePriority(GroupMemberRole role) => role switch
-    {
-        GroupMemberRole.Owner => 0,
-        GroupMemberRole.Manager => 1,
-        _ => 2
-    };
 }
