@@ -39,12 +39,12 @@ FROM (VALUES
 ) AS v(auth0_id, email, first_name, last_name, phone, user_type, location_text)
 WHERE NOT EXISTS (SELECT 1 FROM users.users u WHERE u.auth0_id = v.auth0_id);
 
-INSERT INTO users.musicians (user_id, years_experience, short_bio, is_open_to_join)
-SELECT u.id, v.years, v.bio, v.open_to_join
+INSERT INTO users.musicians (user_id, years_experience, short_bio, is_open_to_join, instruments, city)
+SELECT u.id, v.years, v.bio, v.open_to_join, v.instruments, v.city
 FROM (VALUES
-    ('auth0|seed-maria', 12, 'Violinist and bandleader, 12 years playing weddings and festivals.', false),
-    ('auth0|seed-luis',  8,  'Keyboardist and arranger, loves cumbia and rock en español.',       true)
-) AS v(auth0_id, years, bio, open_to_join)
+    ('auth0|seed-maria', 12, 'Violinist and bandleader, 12 years playing weddings and festivals.', false, 'Violín', 'Puebla, Puebla'),
+    ('auth0|seed-luis',  8,  'Keyboardist and arranger, loves cumbia and rock en español.',       true,  'Teclados, acordeón', 'Guadalajara, Jalisco')
+) AS v(auth0_id, years, bio, open_to_join, instruments, city)
 JOIN users.users u ON u.auth0_id = v.auth0_id
 ON CONFLICT (user_id) DO NOTHING;
 

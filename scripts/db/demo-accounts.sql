@@ -9,16 +9,17 @@ UPDATE users.users SET user_type = 1, first_name = 'Mateo',  last_name = 'Músic
 UPDATE users.users SET user_type = 1, first_name = 'Mónica', last_name = 'Manager' WHERE email = 'manager.demo@example.com';
 UPDATE users.users SET user_type = 1, first_name = 'Miguel', last_name = 'Miembro' WHERE email = 'miembro.demo@example.com';
 
-INSERT INTO users.musicians (user_id, years_experience, short_bio, is_open_to_join)
-SELECT u.id, v.years, v.bio, v.open_to_join
+INSERT INTO users.musicians (user_id, years_experience, short_bio, is_open_to_join, instruments, city)
+SELECT u.id, v.years, v.bio, v.open_to_join, v.instruments, v.city
 FROM (VALUES
-    ('musico.demo@example.com',  4, 'Guitarrista y vocalista, busco un grupo estable para bodas y eventos.', TRUE),
-    ('manager.demo@example.com', 8, 'Represento a Versátil Rock y Pop.', FALSE),
-    ('miembro.demo@example.com', 6, 'Bajista con experiencia en bodas y eventos corporativos.', FALSE)
-) AS v(email, years, bio, open_to_join)
+    ('musico.demo@example.com',  4, 'Guitarrista y vocalista, busco un grupo estable para bodas y eventos.', TRUE,  'Guitarra, requinto, voz, coros', 'Guadalajara, Jalisco'),
+    ('manager.demo@example.com', 8, 'Represento a Versátil Rock y Pop.', FALSE, 'Voz, dirección musical', 'Guadalajara, Jalisco'),
+    ('miembro.demo@example.com', 6, 'Bajista con experiencia en bodas y eventos corporativos.', FALSE, 'Bajo, coros', 'Zapopan, Jalisco')
+) AS v(email, years, bio, open_to_join, instruments, city)
 JOIN users.users u ON u.email = v.email
 ON CONFLICT (user_id) DO UPDATE
-    SET years_experience = EXCLUDED.years_experience, short_bio = EXCLUDED.short_bio, is_open_to_join = EXCLUDED.is_open_to_join;
+    SET years_experience = EXCLUDED.years_experience, short_bio = EXCLUDED.short_bio, is_open_to_join = EXCLUDED.is_open_to_join,
+        instruments = EXCLUDED.instruments, city = EXCLUDED.city;
 
 -- Manager: owner of "Versátil Rock y Pop" (group 1). The previous owner stays as Manager.
 UPDATE groups.music_groups SET owner_user_id = (SELECT id FROM users.users WHERE email = 'manager.demo@example.com') WHERE id = 1;
