@@ -2,10 +2,15 @@
 
 import { ReactNode, useId, useRef, useState, Children, isValidElement, type KeyboardEvent } from "react";
 import { cn } from "@/lib/utils";
+import { tabCountLabel } from "@/lib/tabCount";
 
 interface TabItemProps {
   title: string;
   tabKey: string;
+  /** Pending items: a small pill after the title, hidden at 0 or when omitted. */
+  count?: number;
+  /** Accessible name of the tab; by default the title plus the count ("Equipo, 2 pendientes"). */
+  countLabel?: string;
   children: ReactNode;
 }
 
@@ -18,6 +23,10 @@ interface TabbedSectionProps {
   /** Nombre accesible de la lista de pestañas. */
   label?: string;
   className?: string;
+  /** Controlled mode: the key of the active tab. Without it the component manages the tab itself. */
+  activeKey?: string;
+  /** Called with the key of the tab the user picked (controlled or not). */
+  onActiveKeyChange?: (tabKey: string) => void;
 }
 
 /**
@@ -25,19 +34,21 @@ interface TabbedSectionProps {
  * izquierda/derecha, Inicio y Fin mueven el foco y activan; solo la pestaña activa entra en el
  * orden de tabulación.
  */
-export default function TabbedSection({ children, label, className }: TabbedSectionProps) {
-  const tabs: { title: string; tabKey: string; content: ReactNode }[] = [];
+export default function TabbedSection({ children, label, className, activeKey, onActiveKeyChange }: TabbedSectionProps) {
+  const tabs: { title: string; tabKey: string; count?: number; countLabel?: string; content: ReactNode }[] = [];
 
   Children.forEach(children, (child) => {
     if (!isValidElement(child)) return;
 
-    const { title, tabKey, children: tabContent } = child.props as Partial<TabItemProps>;
+    const { title, tabKey, count, countLabel, children: tabContent } = child.props as Partial<TabItemProps>;
 
     if (typeof title !== "string" || typeof tabKey !== "string") return;
 
     tabs.push({
       title,
       tabKey,
+      count,
+      countLabel,
       content: tabContent,
     });
   });
@@ -47,7 +58,12 @@ export default function TabbedSection({ children, label, className }: TabbedSect
   const [chosenKey, setSelectedKey] = useState("");
 
   // La pestaña activa se deriva: la elegida si sigue existiendo, si no la primera.
-  const selectedKey = tabs.some((tab) => tab.tabKey === chosenKey) ? chosenKey : (tabs[0]?.tabKey ?? "");
+  const currentKey = activeKey ?? chosenKey;
+  const selectedKey = tabs.some((tab) => tab.tabKey === currentKey) ? currentKey : (tabs[0]?.tabKey ?? "");
+  const select = (key: string) => {
+    if (activeKey === undefined) setSelectedKey(key);
+    onActiveKeyChange?.(key);
+  };
   const activeTab = tabs.find((t) => t.tabKey === selectedKey);
 
   const tabId = (key: string) => `${baseId}-tab-${key}`;
@@ -63,7 +79,7 @@ export default function TabbedSection({ children, label, className }: TabbedSect
     else if (event.key === "End") next = tabs.length - 1;
     if (next === null) return;
     event.preventDefault();
-    setSelectedKey(tabs[next].tabKey);
+    select(tabs[next].tabKey);
     tabRefs.current[next]?.focus();
   };
 
@@ -88,8 +104,9 @@ export default function TabbedSection({ children, label, className }: TabbedSect
               id={tabId(tab.tabKey)}
               aria-selected={isSelected}
               aria-controls={panelId(tab.tabKey)}
+              aria-label={tab.count && tab.count > 0 ? (tab.countLabel ?? tabCountLabel(tab.title, tab.count)) : undefined}
               tabIndex={isSelected ? 0 : -1}
-              onClick={() => setSelectedKey(tab.tabKey)}
+              onClick={() => select(tab.tabKey)}
               className={cn(
                 "shrink-0 whitespace-nowrap border-b-2 pb-3 pt-1 font-semibold transition-colors duration-150 focus-visible:-outline-offset-2",
                 isSelected
@@ -98,6 +115,11 @@ export default function TabbedSection({ children, label, className }: TabbedSect
               )}
             >
               {tab.title}
+              {tab.count !== undefined && tab.count > 0 && (
+                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-acento px-1.5 text-xs font-semibold tabular text-acento-ink">
+                  {tab.count}
+                </span>
+              )}
             </button>
           );
         })}

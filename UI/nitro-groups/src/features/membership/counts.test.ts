@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { joinBannerText, pendingCount, pendingTabLabel, tabTitle } from "./counts";
+import { joinBannerText, pendingCount, pendingTabLabel } from "./counts";
 import type { MembershipRequest } from "./types";
 
 const row = (direction: MembershipRequest["direction"], status: MembershipRequest["status"]) =>
@@ -46,14 +46,5 @@ describe("joinBannerText", () => {
     });
     it("nothing at zero", () => {
         expect(joinBannerText(0)).toBeNull();
-    });
-});
-
-describe("tabTitle", () => {
-    it("appends the count in parentheses", () => {
-        expect(tabTitle("Equipo", 2)).toBe("Equipo (2)");
-    });
-    it("is the bare title at zero", () => {
-        expect(tabTitle("Equipo", 0)).toBe("Equipo");
     });
 });
