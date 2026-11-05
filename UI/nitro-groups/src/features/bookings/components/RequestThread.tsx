@@ -7,6 +7,7 @@ import { ROUTES } from "@/config/routes";
 import { eventTypeLabel } from "@/lib/eventTypeLabel";
 import { formatEventDate, formatPrice } from "@/lib/format";
 import { apiErrorMessage, bookingsService } from "../bookings.service";
+import { clientDepositLabel } from "../deposit";
 import { availableActions, shortTime, statusLabel } from "../status";
 import { threadItems, type ThreadItem } from "../thread";
 import type { EventRequest, EventRequestParty } from "../types";
@@ -97,6 +98,7 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                 <Detail label="Duración" value={`${r.durationHours} ${r.durationHours === 1 ? "hora" : "horas"}`} />
                 <Detail label="Invitados" value={r.guestCount ? String(r.guestCount) : null} />
                 <Detail label="Presupuesto" value={formatPrice(r.budget, r.currency)} />
+                <Detail label="Anticipo" value={clientDepositLabel(r, viewer)?.replace(/^Anticipo /, "") ?? null} />
             </dl>
 
             <section className="md:col-span-8 flex flex-col gap-8" aria-label="Conversación">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { depositLabel } from "./deposit";
+import { clientDepositLabel, depositLabel } from "./deposit";
 
 describe("depositLabel", () => {
     it("says when the deposit was received, with the full date in Spanish", () => {
@@ -26,5 +26,21 @@ describe("depositLabel", () => {
         expect(depositLabel({ amount: -1 })).toBeNull();
         expect(depositLabel({ amount: "abc" })).toBeNull();
         expect(depositLabel("3000")).toBeNull();
+    });
+});
+
+describe("clientDepositLabel", () => {
+    const deposit = { amount: 3000, receivedAt: null };
+
+    it("shows the deposit of an accepted request to the client", () => {
+        expect(clientDepositLabel({ status: "Accepted", deposit }, "Client")).toBe("Anticipo $3,000 · pendiente");
+    });
+
+    it("shows nothing for other statuses, for the group's own view or without a deposit", () => {
+        expect(clientDepositLabel({ status: "Pending", deposit }, "Client")).toBeNull();
+        expect(clientDepositLabel({ status: "Cancelled", deposit }, "Client")).toBeNull();
+        expect(clientDepositLabel({ status: "Accepted", deposit }, "Group")).toBeNull();
+        expect(clientDepositLabel({ status: "Accepted", deposit: null }, "Client")).toBeNull();
+        expect(clientDepositLabel({ status: "Accepted" }, "Client")).toBeNull();
     });
 });

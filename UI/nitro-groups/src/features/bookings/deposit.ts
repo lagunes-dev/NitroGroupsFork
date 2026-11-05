@@ -1,3 +1,4 @@
+import type { EventRequest, EventRequestParty } from "./types";
 import { formatEventDate, formatPrice, todayInMexico } from "@/lib/format";
 
 /** The deposit as the API sends it: a recorded fact, the app never charges it. */
@@ -29,4 +30,13 @@ export function depositLabel(deposit: unknown): string | null {
     if (typeof receivedAt !== "string" || !receivedAt.trim()) return `${head} · pendiente`;
     const date = receivedDate(receivedAt);
     return date ? `${head} · recibido el ${date}` : `${head} · recibido`;
+}
+
+/**
+ * The only piece of the gig logistics a client may see. Shown for an accepted request and only to the
+ * client: the setlist, the call time and what musicians are paid never reach this view.
+ */
+export function clientDepositLabel(request: Pick<EventRequest, "status" | "deposit">, viewer: EventRequestParty): string | null {
+    if (viewer !== "Client" || request.status !== "Accepted") return null;
+    return depositLabel(request.deposit);
 }

@@ -1,3 +1,5 @@
+import type { DepositPayload } from "./deposit";
+
 export type EventRequestStatus = "Pending" | "Accepted" | "Declined" | "Cancelled";
 export type EventRequestParty = "Client" | "Group";
 
@@ -31,6 +33,8 @@ export interface EventRequest {
     respondedAt: string | null;
     responseMessage: string | null;
     messages?: EventRequestMessage[] | null;
+    /** Recorded by the group once the request is accepted; the app never charges it. */
+    deposit?: DepositPayload | null;
 }
 
 export interface CreateEventRequestBody {
