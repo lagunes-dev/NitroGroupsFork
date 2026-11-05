@@ -1,8 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui";
 import { ROUTES } from "@/config/routes";
+import { useMyMemberships } from "@/hooks/useMyMemberships";
+import { membershipSummary } from "../summary";
 
 interface PathProps {
     icon: LucideIcon;
@@ -35,6 +39,29 @@ function Path({ icon: Icon, title, text, href, action, hint }: PathProps) {
  * The invitations tab stays right below it (rendered by the dashboard page).
  */
 export function NoGroupPaths() {
+    const memberships = useMyMemberships();
+    const summary = membershipSummary(memberships.data?.length ?? 0);
+
+    // Someone who already belongs to groups does not need the two big cards: their groups come first (tab below).
+    if (summary) {
+        return (
+            <section aria-labelledby="sin-grupo" className="pt-14">
+                <h1 id="sin-grupo" className="titulo">Tus grupos</h1>
+                <p className="mt-3 max-w-[60ch] text-tinta-2">
+                    {summary} Aún no gestionas uno propio: puedes crear el tuyo o seguir pidiendo unirte a otros.
+                </p>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                    <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+                        <Link href={ROUTES.AUTH.ONBOARDING}>Crear mi grupo</Link>
+                    </Button>
+                    <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+                        <Link href={ROUTES.GROUPS.SEARCH}>Buscar grupos</Link>
+                    </Button>
+                </div>
+            </section>
+        );
+    }
+
     return (
         <section aria-labelledby="sin-grupo" className="pt-14">
             <h1 id="sin-grupo" className="titulo">Aún no gestionas un grupo</h1>
