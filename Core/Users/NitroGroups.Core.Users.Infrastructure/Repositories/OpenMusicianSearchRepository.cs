@@ -23,20 +23,63 @@ namespace NitroGroups.Core.Users.Infrastructure.Repositories
                 YearsExperience = m.YearsExperience
             };
 
-        public async Task<PagedResult<OpenMusicianSummary>> SearchAsync(
+        private static readonly Expression<Func<Musician, MusicianDirectoryItem>> DirectoryProjection = m =>
+            new MusicianDirectoryItem
+            {
+                UserId = m.UserId,
+                FullName = (m.User.FirstName + " " + m.User.LastName).Trim(),
+                Headline = m.Headline,
+                Instruments = m.Instruments,
+                City = m.City,
+                YearsExperience = m.YearsExperience,
+                ProfilePictureUrl = m.User.ProfilePictureUrl
+            };
+
+        public Task<PagedResult<OpenMusicianSummary>> SearchAsync(
             string? text,
+            int page,
+            int size,
+            CancellationToken cancellationToken = default)
+            => PageAsync(Apply(text), SummaryProjection, page, size, cancellationToken);
+
+        public Task<PagedResult<MusicianDirectoryItem>> SearchDirectoryAsync(
+            string? text,
+            string? instrument,
+            string? city,
             int page,
             int size,
             CancellationToken cancellationToken = default)
         {
             var query = Apply(text);
 
+            if (instrument is { } instrumentValue)
+            {
+                var lowered = instrumentValue.ToLowerInvariant();
+                query = query.Where(m => m.Instruments != null && m.Instruments.ToLower().Contains(lowered));
+            }
+
+            if (city is { } cityValue)
+            {
+                var lowered = cityValue.ToLowerInvariant();
+                query = query.Where(m => m.City != null && m.City.ToLower().Contains(lowered));
+            }
+
+            return PageAsync(query, DirectoryProjection, page, size, cancellationToken);
+        }
+
+        private static async Task<PagedResult<T>> PageAsync<T>(
+            IQueryable<Musician> query,
+            Expression<Func<Musician, T>> projection,
+            int page,
+            int size,
+            CancellationToken cancellationToken)
+        {
             var total = await query.CountAsync(cancellationToken);
 
             // El offset se calcula en long: una página enorme da una página vacía, no un overflow.
             var skip = (long)(page - 1) * size;
             if (skip >= total)
-                return new PagedResult<OpenMusicianSummary>([], total, page, size);
+                return new PagedResult<T>([], total, page, size);
 
             var items = await query
                 .OrderBy(m => m.User.FirstName)
@@ -44,10 +87,10 @@ namespace NitroGroups.Core.Users.Infrastructure.Repositories
                 .ThenBy(m => m.UserId) // desempate estable entre páginas
                 .Skip((int)skip)
                 .Take(size)
-                .Select(SummaryProjection)
+                .Select(projection)
                 .ToListAsync(cancellationToken);
 
-            return new PagedResult<OpenMusicianSummary>(items, total, page, size);
+            return new PagedResult<T>(items, total, page, size);
         }
 
         public async Task<IReadOnlyList<OpenMusicianSummary>> GetSummariesByUserIdsAsync(
