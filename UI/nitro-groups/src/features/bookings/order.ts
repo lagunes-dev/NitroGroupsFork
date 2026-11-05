@@ -56,10 +56,11 @@ export function groupClientRequests(requests: EventRequest[], today: string): Cl
 }
 
 /**
- * Oldest first: a conversation is read from the first message down. Messages written in the same
- * second keep a stable order by id, and a timestamp we cannot read goes last.
+ * Oldest first: a conversation is read from the first message down, and the group answers the
+ * request that has waited longest first. Entries written in the same second keep a stable order
+ * by id, and a timestamp we cannot read goes last.
  */
-export function compareMessages(a: { id: number; createdAt: string }, b: { id: number; createdAt: string }): number {
+export function compareByCreatedAtAsc(a: { id: number; createdAt: string }, b: { id: number; createdAt: string }): number {
     const timeA = Date.parse(a.createdAt);
     const timeB = Date.parse(b.createdAt);
     const badA = Number.isNaN(timeA);

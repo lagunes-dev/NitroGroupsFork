@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareClientRequests, compareMessages, groupClientRequests } from "./order";
+import { compareByCreatedAtAsc, compareClientRequests, groupClientRequests } from "./order";
 import type { EventRequest, EventRequestMessage, EventRequestStatus } from "./types";
 
 function request(id: number, eventDate: string, status: EventRequestStatus = "Pending"): EventRequest {
@@ -99,7 +99,7 @@ describe("groupClientRequests", () => {
     });
 });
 
-describe("compareMessages", () => {
+describe("compareByCreatedAtAsc", () => {
     const message = (id: number, createdAt: string): EventRequestMessage => ({
         id,
         senderUserId: 1,
@@ -111,16 +111,16 @@ describe("compareMessages", () => {
 
     it("reads the thread in send order", () => {
         const list = [message(1, "2026-11-01T12:00:00Z"), message(2, "2026-11-01T09:00:00Z"), message(3, "2026-11-01T18:00:00Z")];
-        expect([...list].sort(compareMessages).map((m) => m.id)).toEqual([2, 1, 3]);
+        expect([...list].sort(compareByCreatedAtAsc).map((m) => m.id)).toEqual([2, 1, 3]);
     });
 
     it("breaks a tie on the same timestamp by id", () => {
         const list = [message(7, "2026-11-01T12:00:00Z"), message(3, "2026-11-01T12:00:00Z")];
-        expect([...list].sort(compareMessages).map((m) => m.id)).toEqual([3, 7]);
+        expect([...list].sort(compareByCreatedAtAsc).map((m) => m.id)).toEqual([3, 7]);
     });
 
     it("leaves an unreadable timestamp last", () => {
         const list = [message(1, "not-a-date"), message(2, "2026-11-01T12:00:00Z")];
-        expect([...list].sort(compareMessages).map((m) => m.id)).toEqual([2, 1]);
+        expect([...list].sort(compareByCreatedAtAsc).map((m) => m.id)).toEqual([2, 1]);
     });
 });
