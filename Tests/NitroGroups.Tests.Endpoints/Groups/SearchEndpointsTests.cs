@@ -46,4 +46,18 @@ public class SearchEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Buscar_SinFecha_NoEnviaFechaAlBuscador()
+    {
+        _mediator
+            .SendQueryAsync<SearchGroupsQuery, PagedResult<GroupSearchItem>>(Arg.Any<SearchGroupsQuery>())
+            .Returns(new PagedResult<GroupSearchItem>([], 0, 1, 12));
+
+        var response = await _anonymous.GetAsync("api/groups/search");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await _mediator.Received().SendQueryAsync<SearchGroupsQuery, PagedResult<GroupSearchItem>>(
+            Arg.Is<SearchGroupsQuery>(q => q.Date == null));
+    }
 }
