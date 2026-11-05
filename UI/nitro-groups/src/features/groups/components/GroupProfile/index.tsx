@@ -50,8 +50,10 @@ export default function GroupProfile({ mode = "private", slug, initialGroup }: G
     refetchOnWindowFocus: false,
     refetchOnMount: true,
     refetchOnReconnect: false,
-    retry: 5,
-    retryDelay: 3000,
+    // A 404 can be transient right after onboarding (the group is created by an outbox event), so retry briefly;
+    // anything longer leaves a user without a group staring at an empty panel.
+    retry: 3,
+    retryDelay: 1500,
     enabled: shouldFetch,
   });
 
