@@ -86,11 +86,11 @@ public class GroupGigsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
         var gig = Assert.Single(json.RootElement.EnumerateArray());
         // El orden de las propiedades de un objeto JSON no importa; el conjunto sí.
         Assert.Equal(
-            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "attendees" }.Order(StringComparer.Ordinal),
+            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "attendees", "setlist", "callTime", "deposit" }.Order(StringComparer.Ordinal),
             gig.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
         Assert.Equal("Confirmed", gig.GetProperty("attendance").GetString());
         var attendee = Assert.Single(gig.GetProperty("attendees").EnumerateArray());
-        Assert.Equal(["userId", "fullName", "status"], attendee.EnumerateObject().Select(property => property.Name));
+        Assert.Equal(["userId", "fullName", "status", "pay"], attendee.EnumerateObject().Select(property => property.Name));
         Assert.Equal(400, attendee.GetProperty("userId").GetInt64());
         Assert.Equal("Mateo Ruiz", attendee.GetProperty("fullName").GetString());
         Assert.Equal("Confirmed", attendee.GetProperty("status").GetString());

@@ -29,6 +29,9 @@ namespace NitroGroups.Shared.Contracts.Bookings.Responses
         public DateTime? RespondedAt { get; set; }
         public string? ResponseMessage { get; set; }
 
+        /// <summary>Anticipo registrado por el grupo. El cliente no ve el setlist ni los pagos a los músicos.</summary>
+        public GigDepositResponse Deposit { get; set; } = new();
+
         /// <summary>Solo en el detalle (<c>GET api/event-requests/{id}</c>); null en los listados.</summary>
         public List<EventRequestMessageResponse>? Messages { get; set; }
     }

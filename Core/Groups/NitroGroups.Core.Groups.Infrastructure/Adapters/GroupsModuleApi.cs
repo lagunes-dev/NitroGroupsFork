@@ -59,6 +59,13 @@ namespace NitroGroups.Core.Groups.Infrastructure.Adapters
             return managers.Distinct().ToList();
         }
 
+        public async Task<IReadOnlyList<long>> GetActiveMemberUserIdsAsync(long groupId, CancellationToken cancellationToken = default)
+            => await context.GroupMembers.AsNoTracking()
+                .Where(m => m.GroupId == groupId && m.IsActive)
+                .Select(m => m.UserId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
         public async Task<IReadOnlyList<GroupMembershipSummary>> GetUserGroupMembershipsAsync(
             long userId,
             CancellationToken cancellationToken = default)

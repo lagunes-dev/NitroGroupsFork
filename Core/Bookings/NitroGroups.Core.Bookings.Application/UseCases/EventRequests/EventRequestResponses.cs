@@ -75,6 +75,7 @@ public static class EventRequestResponses
             CreatedAt = r.CreatedAt,
             RespondedAt = r.RespondedAt,
             ResponseMessage = r.ResponseMessage,
+            Deposit = new GigDepositResponse { Amount = r.DepositAmount, ReceivedAt = r.DepositReceivedAt },
             Messages = includeMessages
                 ? r.Messages
                     .OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)

@@ -33,9 +33,13 @@ public sealed class GetMyGigsQueryHandler(
         var attendance = await unitOfWork.GigAttendances.ListByEventRequestsAsync(
             gigs.Select(gig => gig.Id).ToList(), query.UserId, cancellationToken);
 
+        var pay = await unitOfWork.GigPays.ListByEventRequestsAsync(
+            gigs.Select(gig => gig.Id).ToList(), query.UserId, cancellationToken);
+
         return GigResponses.Build(
             gigs,
             memberships.ToDictionary(membership => membership.GroupId),
-            attendance.ToDictionary(row => row.EventRequestId, row => row.Status));
+            attendance.ToDictionary(row => row.EventRequestId, row => row.Status),
+            pay.ToDictionary(row => row.EventRequestId, row => row.Amount));
     }
 }

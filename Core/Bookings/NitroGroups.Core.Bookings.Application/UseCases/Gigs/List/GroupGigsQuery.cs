@@ -2,7 +2,6 @@ using Cortex.Mediator.Queries;
 using NitroGroups.Core.Bookings.Application.Abstractions;
 using NitroGroups.Core.Bookings.Domain.Entities;
 using NitroGroups.Shared.Contracts.Bookings.Responses;
-using NitroGroups.Shared.Contracts.Groups.Responses;
 using NitroGroups.Shared.Contracts.Modules;
 
 namespace NitroGroups.Core.Bookings.Application.UseCases.Gigs.List;
@@ -27,28 +26,7 @@ public sealed class GetGroupGigsQueryHandler(
         if (gigs.Count == 0)
             return [];
 
-        var group = await groups.GetGroupAsync(query.GroupId, cancellationToken);
-
-        IReadOnlyList<GroupMembershipSummary> memberships = query.CallerUserId is null
-            ? []
-            : await groups.GetUserGroupMembershipsAsync(query.CallerUserId.Value, cancellationToken);
-        var membership = memberships.FirstOrDefault(candidate => candidate.GroupId == query.GroupId);
-
-        var attendance = await unitOfWork.GigAttendances.ListByEventRequestsAsync(
-            gigs.Select(gig => gig.Id).ToList(), cancellationToken);
-        var byGig = attendance
-            .GroupBy(row => row.EventRequestId)
-            .ToDictionary(rows => rows.Key, rows => rows.ToList());
-        var userMap = await users.GetUsersAsync(
-            attendance.Select(row => row.UserId).Distinct(), cancellationToken);
-
-        return GroupGigResponses.Build(
-            gigs,
-            group?.GroupName ?? membership?.GroupName ?? string.Empty,
-            group?.Slug ?? membership?.Slug ?? string.Empty,
-            membership?.Role,
-            query.CallerUserId,
-            byGig,
-            userMap);
+        return await GroupGigResponses.LoadAsync(
+            unitOfWork, groups, users, query.GroupId, query.CallerUserId, gigs, cancellationToken);
     }
 }

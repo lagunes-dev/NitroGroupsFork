@@ -29,6 +29,9 @@ namespace NitroGroups.Shared.Contracts.Modules
         /// <summary>Ids de usuario de los Owner/Manager activos del grupo.</summary>
         Task<IReadOnlyList<long>> GetManagerUserIdsAsync(long groupId, CancellationToken cancellationToken = default);
 
+        /// <summary>Ids de usuario de todos los miembros activos del grupo (cualquier rol).</summary>
+        Task<IReadOnlyList<long>> GetActiveMemberUserIdsAsync(long groupId, CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Membresías activas del usuario, para que otros módulos muestren los grupos en los que
         /// toca sin leer el esquema de Groups. Mismas reglas que la lista de membresías propias:
