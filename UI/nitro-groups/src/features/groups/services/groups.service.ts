@@ -137,8 +137,10 @@ export const groupsService = {
             }
             return data;
         } catch (error: unknown) {
-            // Let 404 errors propagate so React Query can retry
-            // (group may not be created yet by outbox processor)
+            // Un músico sin grupo propio es un estado normal, no una falla: el endpoint contesta 404 y
+            // dejarlo escapar ensuciaba la consola en cada visita (lo vieron la ronda 4). Cualquier
+            // otro error sí se propaga. Si el grupo está naciendo, el próximo refetch lo trae.
+            if (isNotFound(error)) return null;
             throw error;
         }
     },
@@ -224,4 +226,10 @@ export function generateSlug(name: string): string {
         .replace(/\s+/g, "-") // Replace spaces with dashes
         .replace(/-+/g, "-") // Remove duplicate dashes
         .trim();
+}
+
+/** true cuando el cliente HTTP contestó 404: el dato no existe, no es una falla. */
+function isNotFound(error: unknown): boolean {
+    const status = (error as { response?: { status?: number } } | null)?.response?.status;
+    return status === 404;
 }
