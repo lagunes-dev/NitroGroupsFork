@@ -2,7 +2,7 @@ import { apiClient } from "@/lib/api-client";
 import { normalizeDirection, normalizeStatus } from "./status";
 import { openMusiciansParams } from "./search";
 import { normalizeRole } from "./roles";
-import type { MembershipFilters, MembershipRequest, MyMembership, OpenMusician, PagedResult } from "./types";
+import type { GroupTeamMember, MembershipFilters, MembershipRequest, MyMembership, OpenMusician, PagedResult } from "./types";
 
 type WireRequest = Omit<MembershipRequest, "direction" | "status"> & { direction: unknown; status: unknown };
 
@@ -33,6 +33,13 @@ export const membershipService = {
 
     requestToJoin: async (groupId: number, message?: string) =>
         toRequest((await apiClient.post<WireRequest>(`/groups/${groupId}/membership-requests`, { message: message?.trim() || undefined })).data),
+
+    /**
+     * The group's active members with names and roles (Owner, Manager, Member, oldest first).
+     * Owner or Manager of that group only; `toTeamView` turns the rows into the team list.
+     */
+    team: async (groupId: number) =>
+        (await apiClient.get<GroupTeamMember[]>(`/groups/${groupId}/team`)).data,
 
     /** Public list (ids only, no names). Used to tell whether the viewer already belongs to the group. */
     groupMembers: async (groupId: number) =>

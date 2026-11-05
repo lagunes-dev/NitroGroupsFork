@@ -46,6 +46,19 @@ export interface MembershipFilters {
 
 export type MembershipRole = "Owner" | "Manager" | "Member";
 
+/**
+ * Row of `GET api/groups/{id}/team` (Owner or Manager only): an active member with a name and a
+ * role. Never an email. `role` arrives as the enum name and `toTeamView` normalizes it.
+ */
+export interface GroupTeamMember {
+    userId: number;
+    fullName: string;
+    /** Unknown value: normalize it, never trust it. */
+    role: unknown;
+    profilePictureUrl: string | null;
+    joinedAt: string;
+}
+
 /** Fila de `GET api/users/me/memberships`: un grupo activo del usuario y su rol. */
 export interface MyMembership {
     groupId: number;
