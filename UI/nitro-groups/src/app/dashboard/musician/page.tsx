@@ -16,6 +16,8 @@ import { GroupInbox } from "@/features/bookings/components/GroupInbox";
 import { TeamTab } from "@/features/membership/components/TeamTab";
 import { MyInvitations } from "@/features/membership/components/MyInvitations";
 import { MyGroups } from "@/features/membership/components/MyGroups";
+import { MusicianProfileForm } from "@/features/musicians/components/MusicianProfileForm";
+import { UserTypeEnum } from "@/features/groups/types/User";
 
 /**
  * Panel del grupo. Arriba, quién es y en qué estado está; abajo, el trabajo diario:
@@ -96,6 +98,15 @@ export default function MusicianDashboardPage() {
           <TabItem title="Invitaciones" count={invitations} tabKey="invitaciones">
             <MyInvitations onViewMyGroups={() => showTab("mis-grupos")} />
           </TabItem>
+          {/*
+            "Mi perfil" va al final a propósito: es el trabajo menos frecuente del panel y, al no ser
+            la primera pestaña, no cambia la pestaña que abre el panel hoy.
+          */}
+          {userId && user?.userType === UserTypeEnum.Musician ? (
+            <TabItem title="Mi perfil" tabKey="mi-perfil">
+              <MusicianProfileForm userId={userId} />
+            </TabItem>
+          ) : null}
         </TabbedSection>
         </div>
       ) : null}
