@@ -11,9 +11,19 @@ export interface ProfileVisitsView {
  * The notice a musician reads in his panel, or null when there is nothing to say. Nothing at all
  * is the honest answer for a new musician: no empty furniture, no "0 grupos".
  */
+/** Lo que ve un músico a quien todavía nadie miró: nombra la función, no la disimula. */
+export const EMPTY_VISITS = "Ningún grupo miró tu perfil todavía";
+
 export function toProfileVisitsView(summary: ProfileVisits | null | undefined): ProfileVisitsView | null {
-    const count = summary?.count ?? 0;
-    if (!Number.isInteger(count) || count < 1) return null;
+    // Sin respuesta no hay nada que decir; con cero visitas sí, porque el músico tiene que saber
+    // que la función existe.
+    if (summary == null) return null;
+    const count = summary.count ?? 0;
+    if (!Number.isInteger(count) || count < 0) return null;
+
+    // Un músico sin visitas ve que la función existe: esconder el bloque entero lo dejaba sin saber
+    // que su perfil se puede mirar (ronda 4, Mateo). El estado vacío es una línea, no un adorno.
+    if (count === 0) return { headline: EMPTY_VISITS, groups: [] };
 
     // A number without names behind it is not worth showing: the block lists who looked.
     const groups = summary?.groups ?? [];

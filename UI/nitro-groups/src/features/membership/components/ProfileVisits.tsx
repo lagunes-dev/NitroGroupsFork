@@ -28,6 +28,18 @@ export function ProfileVisits() {
     const view = toProfileVisitsView(visits.data);
     if (view === null) return null;
 
+    // Sin visitas el bloque igual aparece: esconde la función y el músico no sabe que existe.
+    if (view.groups.length === 0) {
+        return (
+            <section aria-labelledby={HEADING_ID} className="superficie mt-6 rounded-[12px] p-4 sm:p-5">
+                <h2 id={HEADING_ID} className="font-semibold text-tinta">{view.headline}</h2>
+                <p className="mt-1 text-sm text-tinta-2">
+                    Cuando un manager abra tu perfil desde el directorio, vas a verlo acá.
+                </p>
+            </section>
+        );
+    }
+
     return (
         <section aria-labelledby={HEADING_ID} className="superficie mt-6 rounded-[12px] p-4 sm:p-5">
             <h2 id={HEADING_ID} className="font-semibold text-tinta">{view.headline}</h2>

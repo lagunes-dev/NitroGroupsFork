@@ -13,13 +13,12 @@ function renderBlock() {
 }
 
 describe("ProfileVisits", () => {
-    it("renders nothing at all for a musician nobody looked at", async () => {
+    it("names the feature for a musician nobody looked at, instead of hiding it", async () => {
         profileVisits.mockResolvedValue({ count: 0, groups: [] });
-        const { container } = renderBlock();
+        renderBlock();
 
-        await vi.waitFor(() => expect(profileVisits).toHaveBeenCalled());
-        expect(container).toBeEmptyDOMElement();
-        expect(screen.queryByRole("heading")).toBeNull();
+        expect(await screen.findByText("Ningún grupo miró tu perfil todavía")).toBeInTheDocument();
+        expect(screen.getByText(/Cuando un manager abra tu perfil/)).toBeInTheDocument();
     });
 
     it("says how many groups looked and links each one to its public profile", async () => {
