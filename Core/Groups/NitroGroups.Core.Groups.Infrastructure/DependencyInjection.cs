@@ -24,6 +24,7 @@ namespace NitroGroups.Core.Groups.Infrastructure
 
             services.AddScoped<INotificationHandler<UsersEvents.SoloMusicianCreatedEvent>, SoloMusicianCreatedEventHandler>();
             services.AddScoped<INotificationHandler<UsersEvents.MusicianWithGroupCreatedEvent>, MusicianWithGroupCreatedEventHandler>();
+            services.AddScoped<INotificationHandler<BookingsEvents.GroupReviewPostedEvent>, GroupReviewPostedEventHandler>();
 
             services.AddEndpoints(typeof(DependencyInjection).Assembly);
 
