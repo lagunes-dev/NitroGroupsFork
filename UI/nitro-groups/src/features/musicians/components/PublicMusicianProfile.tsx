@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronRight, ExternalLink, Play } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Photo } from "@/components/ui/Photo";
+import { MusicianClosedNotice } from "./MusicianClosedNotice";
 import { ROUTES } from "@/config/routes";
 import { RecordProfileVisit } from "@/features/membership/components/RecordProfileVisit";
 import type { MusicianProfileGroup, MusicianProfileView } from "../profileView";
@@ -151,10 +152,7 @@ export function PublicMusicianProfile({ profile, inviteAction }: { profile: Musi
                             {inviteAction && <div className="mt-6 empty:hidden">{inviteAction}</div>}
                         </>
                     ) : (
-                        <p className="mt-3 max-w-[52ch] text-tinta-2">
-                            Por ahora {name} no está recibiendo invitaciones de grupos. Su perfil sigue siendo público, así que
-                            puedes conocer su trabajo y ver en qué grupos toca.
-                        </p>
+                        <MusicianClosedNotice name={name} musicianUserId={profile.userId} />
                     )}
                 </div>
             </section>

@@ -4,6 +4,17 @@ import { render, screen } from "@testing-library/react";
 import { PublicMusicianProfile } from "./PublicMusicianProfile";
 import type { MusicianProfileView } from "../profileView";
 
+// La voz del propio músico vive en su componente cliente (necesita la sesión); acá se prueba el
+// perfil, así que se reemplaza por el texto de tercero.
+vi.mock("./MusicianClosedNotice", () => ({
+    MusicianClosedNotice: ({ name }: { name: string }) => (
+        <p>
+            Por ahora {name} no está recibiendo invitaciones de grupos. Su perfil sigue siendo público, así que puedes
+            conocer su trabajo y ver en qué grupos toca.
+        </p>
+    ),
+}));
+
 // The profile mounts an invisible client child that leaves the S9 visit; it needs the app's
 // providers, so here it is replaced by a spy. Its own test file covers what it does.
 const { recordedFor } = vi.hoisted(() => ({ recordedFor: vi.fn() }));
