@@ -1,28 +1,89 @@
 "use client";
 
-import { Alert, AlertDescription, Button } from "@/components/ui";
+import { useRef, useState } from "react";
+import { Alert, AlertDescription, Badge, Button } from "@/components/ui";
+import { depositLabel } from "@/features/bookings/deposit";
 import { compareGigsByDate } from "../agenda";
 import { useGroupGigs } from "../gigs.queries";
+import { attendeePayLines } from "../gigLogistics";
 import { attendanceCountLabel, attendeeSummary, declinedLabel, unansweredLabel } from "../groupAgenda";
 import type { GroupGigPayload } from "../types";
-import { scheduleLabel, toGigView } from "../viewModel";
+import { callTimeLabel, scheduleLabel, toGigView } from "../viewModel";
+import { GigEditor } from "./GigEditor";
 
-function GigRow({ row }: { row: GroupGigPayload }) {
+function GigRow({ row, groupId }: { row: GroupGigPayload; groupId: number }) {
     const view = toGigView(row);
     const summary = attendeeSummary(row.attendees);
+    const deposit = depositLabel(row.deposit);
+    const pays = attendeePayLines(row.attendees);
+    const [editing, setEditing] = useState(false);
+    const [notice, setNotice] = useState("");
+    const editButton = useRef<HTMLButtonElement>(null);
+    const panelId = `toque-${view.id}-editor`;
+
     return (
         <li className="grid gap-x-6 gap-y-2 py-5 md:grid-cols-12 md:items-baseline [&+&]:shadow-[inset_0_1px_0_var(--fondo-3)]">
             <p className="type-heading text-lg tabular first-letter:uppercase md:col-span-4">{view.dateLabel}</p>
             <div className="md:col-span-4">
                 <p className="text-tinta">{view.placeLabel}</p>
-                <p className="tabular text-sm text-tinta-2">{scheduleLabel(view)}</p>
+                <p className="tabular text-sm text-tinta-2">
+                    {scheduleLabel(view)}
+                    {callTimeLabel(row.callTime) && <span> · {callTimeLabel(row.callTime)}</span>}
+                </p>
+                {deposit && (
+                    <Badge variant="secondary" className="mt-2 w-fit">
+                        {deposit}
+                    </Badge>
+                )}
             </div>
             <div className="md:col-span-4">
                 <p className="font-semibold text-tinta">{attendanceCountLabel(summary)}</p>
                 {summary.names.length > 0 && <p className="text-sm text-tinta-2">{summary.names.join(", ")}</p>}
                 {declinedLabel(summary) && <p className="text-sm text-error">{declinedLabel(summary)}</p>}
                 {unansweredLabel(summary) && <p className="text-sm text-tinta-2">{unansweredLabel(summary)}</p>}
+                {pays.length > 0 && <p className="text-sm text-tinta-2">Pagos: {pays.join(" · ")}</p>}
             </div>
+
+            <div className="md:col-span-12">
+                <Button
+                    ref={editButton}
+                    type="button"
+                    variant="outline"
+                    className="h-11 sm:h-10"
+                    aria-expanded={editing}
+                    aria-controls={panelId}
+                    aria-label={`Editar toque ${view.dateLabel}`}
+                    onClick={() => {
+                        setNotice("");
+                        setEditing((open) => !open);
+                    }}
+                >
+                    Editar toque
+                </Button>
+                {/* Outside the panel on purpose: the panel closes after saving and the live region must stay mounted. */}
+                <p role="status" aria-live="polite" className={notice ? "mt-2 text-sm text-ok" : "sr-only"}>
+                    {notice}
+                </p>
+            </div>
+
+            {editing && (
+                <div id={panelId} className="md:col-span-12">
+                    <GigEditor
+                        row={row}
+                        groupId={groupId}
+                        idPrefix={`toque-${view.id}`}
+                        onCancel={() => {
+                            setEditing(false);
+                            setTimeout(() => editButton.current?.focus(), 0);
+                        }}
+                        onSaved={() => {
+                            setEditing(false);
+                            setNotice(`Guardamos los cambios del toque del ${view.dateLabel}.`);
+                            setTimeout(() => editButton.current?.focus(), 0);
+                        }}
+                    />
+                </div>
+            )}
         </li>
     );
 }
@@ -84,7 +145,7 @@ export function GroupAgenda({ groupId }: { groupId: number }) {
             ) : (
                 <ul className="mt-6 flex flex-col">
                     {[...gigs.data].sort(compareGigsByDate).map((row) => (
-                        <GigRow key={row.id} row={row} />
+                        <GigRow key={row.id} row={row} groupId={groupId} />
                     ))}
                 </ul>
             )}

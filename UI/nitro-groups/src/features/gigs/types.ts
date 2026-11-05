@@ -1,3 +1,5 @@
+import type { DepositPayload } from "@/features/bookings/deposit";
+
 /** The two answers `POST api/gigs/{id}/attendance` accepts. */
 export type GigAnswer = "Confirmed" | "Declined";
 
@@ -35,9 +37,12 @@ export interface AttendeePayload {
     userId?: number | string | null;
     fullName?: string | null;
     status?: string | null;
+    /** What this member is paid for the gig. Manager view only; informational. */
+    pay?: number | string | null;
 }
 
 /** Manager row: the same gig plus who answered. */
 export interface GroupGigPayload extends GigPayload {
     attendees?: AttendeePayload[] | null;
+    deposit?: DepositPayload | null;
 }
