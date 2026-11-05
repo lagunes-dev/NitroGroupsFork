@@ -17,6 +17,12 @@ namespace NitroGroups.Shared.Contracts.Groups.Responses
 
         public string? ProfilePictureUrl { get; set; }
 
+        /// <summary>Instrumentos que toca (texto libre del perfil del músico); null si no los cargó.</summary>
+        public string? Instruments { get; set; }
+
+        /// <summary>Ciudad del músico; null si no la cargó.</summary>
+        public string? City { get; set; }
+
         public DateTime JoinedAt { get; set; }
     }
 }

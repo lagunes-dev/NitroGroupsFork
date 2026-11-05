@@ -20,7 +20,9 @@ namespace NitroGroups.Core.Users.Infrastructure.Repositories
                 UserId = m.UserId,
                 FullName = (m.User.FirstName + " " + m.User.LastName).Trim(),
                 ProfilePictureUrl = m.User.ProfilePictureUrl,
-                YearsExperience = m.YearsExperience
+                YearsExperience = m.YearsExperience,
+                Instruments = m.Instruments,
+                City = m.City
             };
 
         private static readonly Expression<Func<Musician, MusicianDirectoryItem>> DirectoryProjection = m =>

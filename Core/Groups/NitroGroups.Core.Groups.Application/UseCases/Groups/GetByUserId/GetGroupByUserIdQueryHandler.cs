@@ -35,6 +35,11 @@ namespace NitroGroups.Core.Groups.Application.UseCases.Groups.GetByUserId
 
             var response = _mapper.Map<GroupResponse>(group);
 
+            // "Integrantes" se toma del equipo real, igual que en el perfil público: el número que el
+            // dueño escribió a mano ya no puede contradecir a las membresías activas.
+            response.NumMembers = (await _unitOfWork.GroupMembers.FindAsync(
+                member => member.GroupId == group.Id && member.IsActive)).Count();
+
             var genres = await _unitOfWork.GroupGenres.FindWithIncludesAsync(
                 gg => gg.GroupId == group.Id,
                 gg => gg.Genre);

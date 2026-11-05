@@ -33,6 +33,11 @@ public sealed class GetGroupTeamQueryHandler(IUnitOfWorkGroups unitOfWork, IUser
         var userMap = await users.GetUsersAsync(
             rows.Select(row => row.UserId).Distinct(), cancellationToken);
 
+        // Instrumento y ciudad viven en el perfil del músico. Se piden por la API del módulo Users,
+        // sin filtrar por IsOpenToJoin: quien cerró su perfil sigue siendo parte del equipo.
+        var musicianMap = await users.GetMusicianSummariesAsync(
+            rows.Select(row => row.UserId).Distinct(), cancellationToken);
+
         // Owner, Manager, Member (by privilege), then the oldest membership first.
         var team = rows
             .OrderBy(row => RolePriority(row.Role))
@@ -40,12 +45,15 @@ public sealed class GetGroupTeamQueryHandler(IUnitOfWorkGroups unitOfWork, IUser
             .Select(row =>
             {
                 var user = userMap.GetValueOrDefault(row.UserId);
+                var musician = musicianMap.GetValueOrDefault(row.UserId);
                 return new GroupTeamMemberResponse
                 {
                     UserId = row.UserId,
                     FullName = DisplayName(user),
                     Role = row.Role.ToString(),
                     ProfilePictureUrl = user?.ProfilePictureUrl,
+                    Instruments = musician?.Instruments,
+                    City = musician?.City,
                     JoinedAt = row.JoinedAt
                 };
             })

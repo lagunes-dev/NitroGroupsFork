@@ -23,6 +23,10 @@ namespace NitroGroups.Core.Groups.Application.UseCases.Groups.GetBySlug
 
             var response = _mapper.Map<GroupResponse>(group);
 
+            // "Integrantes" no es un número que se escriba: son los lugares ocupados del equipo.
+            response.NumMembers = (await _unitOfWork.GroupMembers.FindAsync(
+                member => member.GroupId == group.Id && member.IsActive)).Count();
+
             var genres = await _unitOfWork.GroupGenres.FindWithIncludesAsync(
                 gg => gg.GroupId == group.Id,
                 gg => gg.Genre);

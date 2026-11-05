@@ -57,6 +57,9 @@ export interface GroupTeamMember {
     role: unknown;
     profilePictureUrl: string | null;
     joinedAt: string;
+    /** Free text loaded by the musician on his own profile; null or missing when he has not. */
+    instruments?: string | null;
+    city?: string | null;
 }
 
 /** Fila de `GET api/users/me/memberships`: un grupo activo del usuario y su rol. */

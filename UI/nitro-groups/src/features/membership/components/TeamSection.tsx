@@ -89,6 +89,7 @@ function TeamMemberRow({ member: m }: { member: TeamMemberView }) {
                         <span className="inline-flex min-h-11 max-w-full items-center truncate">{m.fullName}</span>
                     )}
                 </p>
+                {m.craftLabel && <p className="text-sm text-tinta-2">{m.craftLabel}</p>}
                 {m.joinedLabel && (
                     <p className="text-sm text-tinta-2">
                         {m.joinedAt ? <time dateTime={m.joinedAt}>{m.joinedLabel}</time> : m.joinedLabel}

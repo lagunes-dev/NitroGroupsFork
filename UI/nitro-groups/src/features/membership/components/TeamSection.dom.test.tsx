@@ -33,6 +33,19 @@ describe("TeamSection", () => {
         expect(within(second).getByText("Rol: Miembro")).toBeInTheDocument();
     });
 
+    it("says what each member plays and where he lives, and stays quiet when he has not loaded it", async () => {
+        team.mockResolvedValue([
+            { ...rows[0], instruments: "Bajo", city: "Guadalajara, Jalisco" },
+            rows[1],
+        ]);
+        renderSection();
+
+        const list = await screen.findByRole("list", { name: "2 músicos en el equipo" });
+        const [first, second] = within(list).getAllByRole("listitem");
+        expect(within(first).getByText("Bajo · Guadalajara, Jalisco")).toBeInTheDocument();
+        expect(within(second).queryByText(/·/)).toBeNull();
+    });
+
     it("offers the invite search when the team is empty", async () => {
         team.mockResolvedValue([]);
         renderSection();

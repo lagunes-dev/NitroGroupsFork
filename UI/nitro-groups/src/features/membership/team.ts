@@ -23,6 +23,8 @@ export interface TeamMemberView {
     /** "Se unió el 4 de octubre de 2026"; null when the timestamp cannot be read. */
     joinedLabel: string | null;
     joinedAt: string | null;
+    /** "Bajo · Guadalajara, Jalisco"; null when the musician has not loaded either one. */
+    craftLabel: string | null;
 }
 
 /** React Query key of one group's team: also the key the membership answers invalidate. */
@@ -72,7 +74,21 @@ function toMemberView(row: GroupTeamMember): TeamMemberView {
         profilePictureUrl: row.profilePictureUrl ?? null,
         joinedLabel: date ? `Se unió el ${date}` : null,
         joinedAt: time === null ? null : row.joinedAt,
+        craftLabel: craftLabel(row),
     };
+}
+
+/** "Bajo · Guadalajara, Jalisco": what the member plays and where he lives, whichever half arrived. */
+function craftLabel(row: GroupTeamMember): string | null {
+    const parts = [loaded(row.instruments), loaded(row.city)];
+    const present = parts.filter((part): part is string => part !== null);
+    return present.length > 0 ? present.join(" · ") : null;
+}
+
+/** A trimmed value, or null when the field came empty: nunca se inventa un dato del perfil. */
+function loaded(value: unknown): string | null {
+    const trimmed = typeof value === "string" ? value.trim() : "";
+    return trimmed || null;
 }
 
 function name(value: unknown): string {
