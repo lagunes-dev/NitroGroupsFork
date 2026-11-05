@@ -1,5 +1,6 @@
 "use client";
 
+import { Banknote, CalendarClock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { bookingsService } from "../bookings.service";
 import { toSignalsView } from "../signals";
@@ -44,12 +45,19 @@ export function RequestSignals({
 
     return (
         <section aria-labelledby={HEADING_ID} className="rounded-xl bg-fondo-2 p-5">
-            <h2 id={HEADING_ID} className="text-sm font-medium text-tinta-2">Antes de responder</h2>
-            <ul className="mt-3 flex flex-col gap-3">
-                <li className="text-lg">{view.clash}</li>
-                <li>
-                    <p className="text-lg tabular">{view.budget}</p>
-                    <p className="mt-1 text-sm text-tinta-2">{view.comparison}</p>
+            {/* La fecha manda: un choque decide más rápido que un número. El título pesa más que el contenido. */}
+            <h2 id={HEADING_ID} className="type-heading text-lg text-tinta">Antes de responder</h2>
+            <ul className="mt-4 flex flex-col gap-4">
+                <li className="flex items-start gap-3">
+                    <CalendarClock aria-hidden className="mt-1 size-5 shrink-0 text-acento" />
+                    <p className="text-lg text-tinta">{view.clash}</p>
+                </li>
+                <li className="flex items-start gap-3">
+                    <Banknote aria-hidden className="mt-1 size-5 shrink-0 text-tinta-2" />
+                    <div>
+                        <p className="text-lg tabular text-tinta">{view.budget}</p>
+                        <p className="mt-1 text-sm text-tinta-2">{view.comparison}</p>
+                    </div>
                 </li>
             </ul>
         </section>
