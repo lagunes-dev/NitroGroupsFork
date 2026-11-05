@@ -51,7 +51,11 @@ public sealed class GetEventRequestSignalsQueryHandler(
                     {
                         Id = otherGig.Id,
                         EventType = otherGig.EventType,
-                        LocationText = otherGig.LocationText
+                        LocationText = otherGig.LocationText,
+                        // Las horas viajan para que el manager no tenga que ir a la agenda a calcular
+                        // si los dos toques se pisan (ronda 5, Mónica).
+                        StartTime = otherGig.StartTime?.ToString(@"HH\:mm"),
+                        DurationHours = otherGig.DurationHours
                     }
             },
             Budget = new BudgetSignalResponse

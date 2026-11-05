@@ -45,6 +45,9 @@ public class EventRequestSignalsIntegrationTests(IntegrationTestFixture fixture)
         Assert.Equal(other.Id, clash.WithGig!.Id);
         Assert.Equal("XV años", clash.WithGig.EventType);
         Assert.Equal("Jardín Las Flores", clash.WithGig.LocationText);
+        // Reloj de 24 horas: un toque de las 18:00 no puede viajar como "06:00" (ronda 5, Mónica).
+        Assert.Equal("18:00", clash.WithGig.StartTime);
+        Assert.Equal(4, clash.WithGig.DurationHours);
     }
 
     [Fact]

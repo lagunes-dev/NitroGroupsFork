@@ -26,6 +26,12 @@ namespace NitroGroups.Shared.Contracts.Bookings.Responses
         public long Id { get; set; }
         public string EventType { get; set; } = string.Empty;
         public string LocationText { get; set; } = string.Empty;
+
+        /// <summary>Hora de inicio del otro toque (HH:mm:ss); null si no la cargó.</summary>
+        public string? StartTime { get; set; }
+
+        /// <summary>Duración del otro toque en horas; null si no la cargó.</summary>
+        public int? DurationHours { get; set; }
     }
 
     /// <summary>

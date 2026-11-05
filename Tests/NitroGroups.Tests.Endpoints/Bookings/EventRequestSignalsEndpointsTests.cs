@@ -122,7 +122,10 @@ public class EventRequestSignalsEndpointsTests : IClassFixture<NitroGroupsWebApp
         Assert.Equal(["clashes", "withGig"], clash.EnumerateObject().Select(property => property.Name));
         Assert.True(clash.GetProperty("clashes").GetBoolean());
         var withGig = clash.GetProperty("withGig");
-        Assert.Equal(["id", "eventType", "locationText"], withGig.EnumerateObject().Select(property => property.Name));
+        // Las horas viajan para que el manager no tenga que abrir la agenda (ronda 5, Mónica).
+        Assert.Equal(
+            ["id", "eventType", "locationText", "startTime", "durationHours"],
+            withGig.EnumerateObject().Select(property => property.Name));
         Assert.Equal(77, withGig.GetProperty("id").GetInt64());
         Assert.Equal("Boda", withGig.GetProperty("eventType").GetString());
         Assert.Equal("Hacienda San Gabriel", withGig.GetProperty("locationText").GetString());
