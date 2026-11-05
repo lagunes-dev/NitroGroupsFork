@@ -94,7 +94,7 @@ export default function MusicianDashboardPage() {
             </TabItem>
           ) : null}
           <TabItem title="Invitaciones" count={invitations} tabKey="invitaciones">
-            <MyInvitations />
+            <MyInvitations onViewMyGroups={() => showTab("mis-grupos")} />
           </TabItem>
         </TabbedSection>
         </div>
