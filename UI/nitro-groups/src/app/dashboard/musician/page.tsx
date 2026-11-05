@@ -13,6 +13,7 @@ import GroupProfile from "@/features/groups/components/GroupProfile";
 import GroupCalendar from "@/features/groupAvailability/components/GroupCalendar";
 import GroupGallery from "@/features/groupMedia/components/GroupGallery";
 import { GroupInbox } from "@/features/bookings/components/GroupInbox";
+import { MyAgenda } from "@/features/gigs/components";
 import { TeamTab } from "@/features/membership/components/TeamTab";
 import { MyInvitations } from "@/features/membership/components/MyInvitations";
 import { MyGroups } from "@/features/membership/components/MyGroups";
@@ -90,6 +91,13 @@ export default function MusicianDashboardPage() {
               <GroupCalendar groupId={groupId} mode="private" />
             </TabItem>
           ) : null}
+          {/*
+            "Mi agenda" es del músico, no del grupo: sin grupo gestionado queda como primera pestaña del
+            panel, y con grupo espera a las pestañas de trabajo (el panel sigue abriendo en "Pedidos de fecha").
+          */}
+          <TabItem title="Mi agenda" tabKey="mi-agenda">
+            <MyAgenda />
+          </TabItem>
           {myGroupsTab ? (
             <TabItem title="Mis grupos" tabKey="mis-grupos">
               <MyGroups managedGroupId={groupId ?? null} />

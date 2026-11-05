@@ -1,0 +1,135 @@
+import { describe, expect, it } from "vitest";
+import { answerNotice, confirmButtonName, declineButtonName, scheduleLabel, toGigView } from "./viewModel";
+import type { GigPayload } from "./types";
+
+const ROW: GigPayload = {
+    id: 7,
+    groupId: 3,
+    groupName: "Mariachi Sol de Jalisco",
+    groupSlug: "mariachi-sol-de-jalisco",
+    eventDate: "2026-11-15",
+    startTime: "20:00:00",
+    durationHours: 3,
+    eventType: "Wedding",
+    locationText: "Hacienda Los Arcos",
+    role: "Member",
+    attendance: "Confirmed",
+};
+
+describe("toGigView", () => {
+    it("maps a complete row into what the card shows", () => {
+        const view = toGigView(ROW);
+        expect(view).toMatchObject({
+            id: 7,
+            eventDate: "2026-11-15",
+            dateLabel: "domingo 15 de noviembre",
+            placeLabel: "Hacienda Los Arcos",
+            timeLabel: "20:00",
+            durationLabel: "3 h",
+            roleLabel: null,
+        });
+        expect(view.group).toEqual({ id: 3, name: "Mariachi Sol de Jalisco", slug: "mariachi-sol-de-jalisco", href: "/groups/mariachi-sol-de-jalisco" });
+        expect(view.attendance).toMatchObject({ status: "Confirmed", text: "Confirmado" });
+    });
+
+    it("keeps the group name and date even when the row has no start time", () => {
+        const view = toGigView({ ...ROW, startTime: null });
+        expect(view.timeLabel).toBeNull();
+        expect(scheduleLabel(view)).toBe("3 h");
+    });
+
+    it("tolerates a missing duration, a zero and a negative one", () => {
+        expect(toGigView({ ...ROW, durationHours: null }).durationLabel).toBeNull();
+        expect(toGigView({ ...ROW, durationHours: 0 }).durationLabel).toBeNull();
+        expect(toGigView({ ...ROW, durationHours: -2 }).durationLabel).toBeNull();
+        expect(toGigView({ ...ROW, durationHours: undefined }).durationLabel).toBeNull();
+        expect(toGigView({ ...ROW, durationHours: "2.5" }).durationLabel).toBe("2.5 h");
+    });
+
+    it("says the time is still unknown when neither time nor duration arrived", () => {
+        const view = toGigView({ ...ROW, startTime: null, durationHours: null });
+        expect(scheduleLabel(view)).toBe("Horario por definir");
+    });
+
+    it("shows an unanswered gig as unanswered", () => {
+        expect(toGigView({ ...ROW, attendance: null }).attendance).toMatchObject({ status: null, text: "Sin responder" });
+    });
+
+    it("does not guess an attendance status it does not know", () => {
+        expect(toGigView({ ...ROW, attendance: "Maybe" }).attendance).toMatchObject({ status: null, text: "Maybe", tone: "muted" });
+    });
+
+    it("labels the roles it knows and stays silent about the ones it does not", () => {
+        expect(toGigView({ ...ROW, role: "Owner" }).roleLabel).toBe("Dueño");
+        expect(toGigView({ ...ROW, role: "Manager" }).roleLabel).toBe("Manager");
+        expect(toGigView({ ...ROW, role: "Member" }).roleLabel).toBeNull();
+        expect(toGigView({ ...ROW, role: "Wizard" }).roleLabel).toBeNull();
+        expect(toGigView({ ...ROW, role: null }).roleLabel).toBeNull();
+    });
+
+    it("fills the gaps of a sparse row without throwing", () => {
+        const view = toGigView({ id: 1 });
+        expect(view).toMatchObject({
+            eventDate: "",
+            dateLabel: "Fecha por definir",
+            placeLabel: "Lugar por definir",
+            timeLabel: null,
+            durationLabel: null,
+            roleLabel: null,
+        });
+        expect(view.group).toEqual({ id: null, name: "Grupo sin nombre", slug: "", href: null });
+        expect(view.attendance.text).toBe("Sin responder");
+    });
+
+    it("does not link to a group without a slug", () => {
+        expect(toGigView({ ...ROW, groupSlug: "  " }).group.href).toBeNull();
+    });
+
+    it("prints an unreadable date as pending instead of inventing one", () => {
+        expect(toGigView({ ...ROW, eventDate: "2026-02-30" }).dateLabel).toBe("Fecha por definir");
+        expect(toGigView({ ...ROW, eventDate: null }).dateLabel).toBe("Fecha por definir");
+    });
+});
+
+describe("answer button names", () => {
+    it("names the group and the date, so a screen reader user can tell two rows apart", () => {
+        const view = toGigView(ROW);
+        expect(confirmButtonName(view)).toBe("Confirmar el domingo 15 de noviembre · Mariachi Sol de Jalisco");
+        expect(declineButtonName(view)).toBe("Avisar que no puedo el domingo 15 de noviembre · Mariachi Sol de Jalisco");
+    });
+
+    it("reads naturally when the date is still unknown", () => {
+        const view = toGigView({ id: 1, groupName: "Mariachi Sol" });
+        expect(confirmButtonName(view)).toBe("Confirmar la fecha por definir · Mariachi Sol");
+    });
+});
+
+describe("answerNotice", () => {
+    it("tells the musician what was saved, in past tense", () => {
+        expect(answerNotice("Confirmed", "sábado 15 de noviembre", "Mariachi Sol")).toBe(
+            "Confirmaste el sábado 15 de noviembre · Mariachi Sol"
+        );
+        expect(answerNotice("Declined", "sábado 15 de noviembre", "Mariachi Sol")).toBe(
+            "Avisaste que no puedes el sábado 15 de noviembre · Mariachi Sol"
+        );
+    });
+});
+
+describe("scheduleLabel", () => {
+    it("joins the start time and the duration", () => {
+        expect(scheduleLabel(toGigView(ROW))).toBe("20:00 · 3 h");
+    });
+
+    it("keeps only what arrived", () => {
+        expect(scheduleLabel(toGigView({ ...ROW, startTime: null }))).toBe("3 h");
+        expect(scheduleLabel(toGigView({ ...ROW, durationHours: null }))).toBe("20:00");
+    });
+
+    it("prints a one digit hour with two digits", () => {
+        expect(toGigView({ ...ROW, startTime: "9:30" }).timeLabel).toBe("09:30");
+    });
+
+    it("ignores a start time it cannot read", () => {
+        expect(toGigView({ ...ROW, startTime: "tarde" }).timeLabel).toBeNull();
+    });
+});
