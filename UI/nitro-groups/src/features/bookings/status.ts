@@ -1,4 +1,33 @@
+import { Ban, Check, CircleHelp, Clock, X, type LucideIcon } from "lucide-react";
+import type { VariantProps } from "class-variance-authority";
+import type { badgeVariants } from "@/components/ui/Badge";
 import type { EventRequest, EventRequestParty, EventRequestStatus } from "./types";
+
+type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>;
+
+/** Cómo se ve un estado: la palabra, el tono del chip y su icono (el color nunca va solo). */
+export interface StatusAppearance {
+    text: string;
+    variant: BadgeVariant;
+    /** Clases extra para los tonos que el Badge no trae de fábrica. */
+    className?: string;
+    icon: LucideIcon;
+}
+
+const STATUS_APPEARANCE: Record<EventRequestStatus, StatusAppearance> = {
+    Pending: { text: "Pendiente", variant: "default", className: "text-acento", icon: Clock },
+    Accepted: { text: "Aceptada", variant: "ok", icon: Check },
+    Declined: { text: "Rechazada", variant: "destructive", icon: X },
+    Cancelled: { text: "Cancelada", variant: "secondary", icon: Ban },
+};
+
+/**
+ * Presentación de un estado. La API manda el estado como texto: uno que no conocemos se muestra
+ * tal cual, en tono neutro, para que una transición nueva no se disface de "aceptada".
+ */
+export function statusAppearance(status: string): StatusAppearance {
+    return STATUS_APPEARANCE[status as EventRequestStatus] ?? { text: status.trim() || "Sin estado", variant: "secondary", icon: CircleHelp };
+}
 
 /** Cómo se nombra cada estado ante cada parte. */
 export function statusLabel(status: EventRequestStatus, viewer: EventRequestParty): string {
