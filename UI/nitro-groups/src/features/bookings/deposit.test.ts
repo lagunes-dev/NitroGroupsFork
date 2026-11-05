@@ -71,7 +71,8 @@ describe("nextStepLabel", () => {
     const pendingDeposit = { amount: 4000, receivedAt: null };
 
     it("tells the client where the deal stands", () => {
-        expect(nextStepLabel({ status: "Pending" }, "Client")).toBe("El grupo todavía no respondió.");
+        // Pendiente no lleva próximo paso: el chip de estado ya lo dice.
+        expect(nextStepLabel({ status: "Pending" }, "Client")).toBeNull();
         expect(nextStepLabel({ status: "Accepted", budget: 18000, deposit: pendingDeposit }, "Client")).toBe(
             "Acuerda el anticipo con el grupo para cerrar la fecha."
         );

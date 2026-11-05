@@ -35,9 +35,10 @@ describe("RequestList", () => {
         expect(screen.getByText("Acuerda el saldo con el grupo para el día del evento.")).toBeInTheDocument();
     });
 
-    it("shows the next step of a request the group has not answered", () => {
+    it("says since when the client is waiting, without echoing the status chip", () => {
         render(<RequestList requests={[{ ...accepted, status: "Pending", deposit: null }]} viewer="Client" />);
-        expect(screen.getByText("El grupo todavía no respondió.")).toBeInTheDocument();
+        expect(screen.getByText("Solicitud enviada el jueves, 1 de octubre de 2026")).toBeInTheDocument();
+        expect(screen.queryByText("El grupo todavía no respondió.")).toBeNull();
         expect(screen.queryByText(/Falta pagar/)).toBeNull();
     });
 

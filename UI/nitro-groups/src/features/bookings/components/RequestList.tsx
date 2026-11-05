@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { eventTypeLabel } from "@/lib/eventTypeLabel";
 import { formatEventDate } from "@/lib/format";
-import { balanceLabel, budgetLabel, clientDepositLabel, nextStepLabel } from "../deposit";
+import { balanceLabel, budgetLabel, clientDepositLabel, nextStepLabel, sentLabel } from "../deposit";
 import type { EventRequest, EventRequestParty } from "../types";
 import { StatusBadge } from "./StatusBadge";
 
@@ -19,6 +19,7 @@ export function RequestList({ requests, viewer }: { requests: EventRequest[]; vi
                 const deposit = clientDepositLabel(r, viewer);
                 const balance = balanceLabel(r, viewer);
                 const nextStep = nextStepLabel(r, viewer);
+                const sent = sentLabel(r);
                 const what = [eventTypeLabel(r.eventType), r.locationText].filter(Boolean).join(" · ");
                 return (
                     <li key={r.id} className="relative grid gap-x-6 gap-y-2 py-6 md:grid-cols-12 md:items-baseline [&+&]:shadow-[inset_0_1px_0_var(--fondo-3)]">
@@ -31,13 +32,15 @@ export function RequestList({ requests, viewer }: { requests: EventRequest[]; vi
                             </Link>
                             {what && <p className="text-tinta-2">{what}</p>}
                             {deposit && <p className="relative text-sm text-tinta-2">{deposit}</p>}
-                            {balance && <p className="relative text-sm text-tinta-2">{balance}</p>}
+                            {/* Lo que debo pesa como el precio: es la cifra que decide si entro (ronda 5). */}
+                            {balance && <p className="relative tabular text-lg text-tinta">{balance}</p>}
                             {nextStep && <p className="relative text-sm text-tinta">{nextStep}</p>}
+                            {sent && <p className="relative text-sm text-tinta-2">{sent}</p>}
                             {viewer === "Group" && r.isSelfBooked && <span className="block text-sm text-tinta-2">Cargada por el grupo</span>}
                         </div>
                         <p className="tabular md:col-span-2">
                             <span className={price ? "block text-tinta" : "block text-tinta-2"}>{price ?? "Sin presupuesto"}</span>
-                            <span className="block text-sm text-tinta-2">{r.durationHours} h</span>
+                            <span className="block text-sm text-tinta-2">{r.durationHours} h de música</span>
                         </p>
                         <div className="md:col-span-3 md:justify-self-end">
                             <StatusBadge status={r.status} />

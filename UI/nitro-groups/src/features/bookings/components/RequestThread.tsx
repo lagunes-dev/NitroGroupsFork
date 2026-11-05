@@ -7,7 +7,7 @@ import { ROUTES } from "@/config/routes";
 import { eventTypeLabel } from "@/lib/eventTypeLabel";
 import { formatEventDate } from "@/lib/format";
 import { apiErrorMessage, bookingsService } from "../bookings.service";
-import { balanceLabel, budgetLabel, clientDepositLabel, nextStepLabel } from "../deposit";
+import { balanceLabel, budgetLabel, clientDepositLabel, nextStepLabel, sentLabel } from "../deposit";
 import { availableActions, shortTime, statusLabel } from "../status";
 import { threadItems, type ThreadItem } from "../thread";
 import type { EventRequest, EventRequestParty } from "../types";
@@ -105,6 +105,7 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                 <Detail label="Hora de inicio" value={shortTime(r.startTime)} />
                 <Detail label="Duración" value={`${r.durationHours} ${r.durationHours === 1 ? "hora" : "horas"}`} />
                 <Detail label="Invitados" value={r.guestCount ? String(r.guestCount) : null} />
+                <Detail label="Solicitud enviada" value={sentLabel(r)?.replace(/^Solicitud enviada el /, "") ?? null} />
                 <Detail label="Presupuesto" value={budgetLabel(r)} />
                 <Detail label="Anticipo" value={clientDepositLabel(r, viewer)?.replace(/^Anticipo /, "") ?? null} />
                 <Detail label="Saldo" value={balanceLabel(r, viewer)} />

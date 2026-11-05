@@ -88,6 +88,17 @@ export function balanceLabel(
 }
 
 /**
+ * "Solicitud enviada el 5 de noviembre de 2026": el cliente espera y merece saber desde cuándo.
+ * Null cuando la fecha no se puede leer.
+ */
+export function sentLabel(request: { createdAt?: string | null }): string | null {
+    const raw = request.createdAt;
+    if (typeof raw !== "string" || !raw.trim()) return null;
+    const day = formatEventDate(raw.slice(0, 10));
+    return day ? `Solicitud enviada el ${day}` : null;
+}
+
+/**
  * The one line that tells the client what happens next. Only the client gets it: the group answers
  * with its own actions, never with this copy.
  */
@@ -97,8 +108,9 @@ export function nextStepLabel(
 ): string | null {
     if (viewer !== "Client") return null;
     switch (request.status) {
+        // Pendiente no lleva próximo paso: el chip de estado ya lo dice y repetirlo suena a eco.
         case "Pending":
-            return "El grupo todavía no respondió.";
+            return null;
         case "Declined":
             return "El grupo no puede con esa fecha. Busca otro grupo.";
         case "Cancelled":
