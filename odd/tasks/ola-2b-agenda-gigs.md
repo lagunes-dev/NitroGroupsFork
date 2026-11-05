@@ -38,3 +38,4 @@ Documento ODD. Rama `feat/membership-ux`. Contrato de API fijado abajo para que 
 - D1 Pagos y anticipos: quién cobra, con qué comisión y con qué política de cancelación. Requiere definición del negocio.
 - D2 Paga por miembro: hoy el modelo no guarda cuánto gana cada músico por toque; implementarlo exige una decisión de producto.
 - D3 Setlist y rider técnico: contenido y permisos a definir.
+- L4 (decisión técnica tomada en la noche, sin consultar): faltaban los rewrites de `/api/me` y `/api/gigs` en `UI/nitro-groups/next.config.ts` y en la lista `BACKEND_API_PREFIXES` de `src/proxy.ts`. Sin ellos, la agenda solo funciona si `NEXT_PUBLIC_API_BASE_URL` está definida y, sin esa variable, ambas llamadas dan 404 en Next. Se agregaron ambas entradas; no cambia ninguna ruta existente.
