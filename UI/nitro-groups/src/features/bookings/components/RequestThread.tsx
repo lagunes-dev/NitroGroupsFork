@@ -95,7 +95,14 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
             {/* D6: only the group sees the signals; the client's thread is untouched. */}
             {viewer === "Group" && (
                 <div className="md:col-span-12">
-                    <RequestSignals groupId={r.groupId} requestId={r.id} viewer={viewer} currency={r.currency} />
+                    <RequestSignals
+                        groupId={r.groupId}
+                        requestId={r.id}
+                        viewer={viewer}
+                        currency={r.currency}
+                        startTime={r.startTime}
+                        durationHours={r.durationHours}
+                    />
                 </div>
             )}
 

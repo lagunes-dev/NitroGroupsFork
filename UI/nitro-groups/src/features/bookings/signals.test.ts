@@ -40,27 +40,24 @@ describe("clashLabel", () => {
 });
 
 describe("budgetLabel", () => {
-    it("states what the client offers and the group's base rate", () => {
-        expect(budgetLabel({ offered: 18000, baseRate: 12000, status: "Above" })).toBe(
-            "Ofrece $18,000 · tu tarifa base es $12,000"
-        );
+    it("compares against the group's base rate without repeating the amount already in the request", () => {
+        // El monto ofrecido vive en la ficha del pedido: repetirlo acá sobraba (ronda 5, Mónica).
+        expect(budgetLabel({ offered: 18000, baseRate: 12000, status: "Above" })).toBe("Tu tarifa base es $12,000");
     });
 
     it("reads amounts that arrive as strings and formats them like the rest of the app", () => {
         expect(budgetLabel({ offered: "18000", baseRate: "12000.00", status: "Above" }, "MXN")).toBe(
-            "Ofrece $18,000 · tu tarifa base es $12,000"
+            "Tu tarifa base es $12,000"
         );
     });
 
     it("says which number is missing instead of inventing it", () => {
         expect(budgetLabel({ offered: null, baseRate: 12000, status: "Unknown" })).toBe(
-            "El cliente no indicó presupuesto · tu tarifa base es $12,000"
+            "El cliente no indicó presupuesto."
         );
-        expect(budgetLabel({ offered: 18000, baseRate: null, status: "Unknown" })).toBe(
-            "Ofrece $18,000 · tu tarifa base no está cargada"
-        );
+        expect(budgetLabel({ offered: 18000, baseRate: null, status: "Unknown" })).toBe("tu tarifa base no está cargada");
         expect(budgetLabel({ offered: null, baseRate: null, status: "Unknown" })).toBe(
-            "El cliente no indicó presupuesto · tu tarifa base no está cargada"
+            "El cliente no indicó presupuesto."
         );
         expect(budgetLabel(undefined)).toBe("No podemos leer el presupuesto ni tu tarifa base.");
     });
@@ -96,7 +93,7 @@ describe("toSignalsView", () => {
     it("gives the group both facts with the request currency", () => {
         expect(toSignalsView(signals, "Group", "MXN")).toEqual({
             clash: "Ese día ya tienes un toque: Boda en Hacienda San Gabriel",
-            budget: "Ofrece $18,000 · tu tarifa base es $12,000",
+            budget: "Tu tarifa base es $12,000",
             comparison: "Está por encima de tu tarifa base.",
         });
     });
@@ -123,8 +120,32 @@ describe("budgetLabel currency", () => {
     it("counts the group's base rate in the group's money, not the client's", () => {
         const signal = { offered: 12000, baseRate: 12000, currency: "USD", status: "Equal" };
         // La oferta sigue en pesos del cliente; la tarifa base, en dólares del grupo.
-        expect(budgetLabel(signal, "MXN")).toContain("Ofrece $12,000");
         // Intl usa espacio duro entre la moneda y el número: se normaliza para comparar.
         expect(budgetLabel(signal, "MXN").replace(/\s/g, " ")).toContain("USD 12,000");
+    });
+});
+
+describe("clashLabel con horas", () => {
+    const otherGig = { id: 8, eventType: "Boda", locationText: "Hacienda San Gabriel, Tlaquepaque", startTime: "20:00:00", durationHours: 3 };
+
+    it("says the window of the other gig and how much the two overlap", () => {
+        expect(clashLabel({ clashes: true, withGig: otherGig }, { startTime: "21:00:00", durationHours: 3 })).toBe(
+            "Ese día ya tienes un toque: Boda 20:00–23:00 en Hacienda San Gabriel, Tlaquepaque · se pisan 2 h"
+        );
+    });
+
+    it("says when they do not overlap but the day is still taken", () => {
+        expect(clashLabel({ clashes: true, withGig: otherGig }, { startTime: "09:00:00", durationHours: 1 })).toBe(
+            "Ese día ya tienes un toque: Boda 20:00–23:00 en Hacienda San Gabriel, Tlaquepaque · no se pisan, pero hay traslado"
+        );
+    });
+
+    it("falls back to what it knows when the request has no hours", () => {
+        expect(clashLabel({ clashes: true, withGig: otherGig })).toBe(
+            "Ese día ya tienes un toque: Boda 20:00–23:00 en Hacienda San Gabriel, Tlaquepaque"
+        );
+        expect(clashLabel({ clashes: true, withGig: { eventType: "Boda", locationText: "X" } })).toBe(
+            "Ese día ya tienes un toque: Boda en X"
+        );
     });
 });

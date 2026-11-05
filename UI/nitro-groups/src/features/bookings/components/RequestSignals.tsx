@@ -24,11 +24,16 @@ export function RequestSignals({
     requestId,
     viewer,
     currency = "MXN",
+    startTime = null,
+    durationHours = null,
 }: {
     groupId: number;
     requestId: number;
     viewer: EventRequestParty;
     currency?: string;
+    /** Horas del pedido que se está mirando, para decir cuánto se pisan los dos toques. */
+    startTime?: string | null;
+    durationHours?: number | null;
 }) {
     const signals = useQuery({
         queryKey: ["event-request-signals", requestId],
@@ -40,7 +45,7 @@ export function RequestSignals({
 
     if (viewer !== "Group" || !signals.isSuccess) return null;
 
-    const view = toSignalsView(signals.data, viewer, currency);
+    const view = toSignalsView(signals.data, viewer, currency, { startTime, durationHours });
     if (view === null) return null;
 
     return (
@@ -48,9 +53,10 @@ export function RequestSignals({
             {/* La fecha manda: un choque decide más rápido que un número. El título pesa más que el contenido. */}
             <h2 id={HEADING_ID} className="type-heading text-lg text-tinta">Antes de responder</h2>
             <ul className="mt-4 flex flex-col gap-4">
+                {/* El choque manda: decide más rápido que un número, así que pesa como título. */}
                 <li className="flex items-start gap-3">
                     <CalendarClock aria-hidden className="mt-1 size-5 shrink-0 text-acento" />
-                    <p className="text-lg text-tinta">{view.clash}</p>
+                    <p className="type-heading text-xl text-tinta">{view.clash}</p>
                 </li>
                 <li className="flex items-start gap-3">
                     <Banknote aria-hidden className="mt-1 size-5 shrink-0 text-tinta-2" />

@@ -27,7 +27,7 @@ describe("RequestSignals", () => {
         expect(
             await screen.findByText("Ese día ya tienes un toque: Boda en Hacienda San Gabriel")
         ).toBeInTheDocument();
-        expect(screen.getByText("Ofrece $18,000 · tu tarifa base es $12,000")).toBeInTheDocument();
+        expect(screen.getByText("Tu tarifa base es $12,000")).toBeInTheDocument();
         expect(screen.getByText("Está por encima de tu tarifa base.")).toBeInTheDocument();
         expect(signals).toHaveBeenCalledWith(1, 11);
     });
@@ -40,7 +40,7 @@ describe("RequestSignals", () => {
         renderBlock();
 
         expect(await screen.findByText("Ese día no tienes otro toque.")).toBeInTheDocument();
-        expect(screen.getByText("El cliente no indicó presupuesto · tu tarifa base es $12,000")).toBeInTheDocument();
+        expect(screen.getByText("El cliente no indicó presupuesto.")).toBeInTheDocument();
         expect(
             screen.getByText("No podemos compararlos: falta el monto ofrecido o tu tarifa base.")
         ).toBeInTheDocument();

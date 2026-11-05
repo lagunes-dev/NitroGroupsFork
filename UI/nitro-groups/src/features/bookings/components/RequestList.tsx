@@ -34,7 +34,7 @@ export function RequestList({ requests, viewer }: { requests: EventRequest[]; vi
                             {deposit && <p className="relative text-sm text-tinta-2">{deposit}</p>}
                             {/* Lo que debo pesa como el precio: es la cifra que decide si entro (ronda 5). */}
                             {balance && <p className="relative tabular text-lg text-tinta">{balance}</p>}
-                            {nextStep && <p className="relative text-sm text-tinta">{nextStep}</p>}
+                            {nextStep && <p className="relative text-base text-tinta">{nextStep}</p>}
                             {sent && <p className="relative text-sm text-tinta-2">{sent}</p>}
                             {viewer === "Group" && r.isSelfBooked && <span className="block text-sm text-tinta-2">Cargada por el grupo</span>}
                         </div>
