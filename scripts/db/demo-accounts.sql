@@ -13,7 +13,7 @@ INSERT INTO users.musicians (user_id, years_experience, short_bio, is_open_to_jo
 SELECT u.id, v.years, v.bio, v.open_to_join, v.instruments, v.city
 FROM (VALUES
     ('musico.demo@example.com',  4, 'Guitarrista y vocalista, busco un grupo estable para bodas y eventos.', TRUE,  'Guitarra, requinto, voz, coros', 'Guadalajara, Jalisco'),
-    ('manager.demo@example.com', 8, 'Represento a Versátil Rock y Pop.', FALSE, 'Voz, dirección musical', 'Guadalajara, Jalisco'),
+    ('manager.demo@example.com', 8, 'Represento a Versátil Rock y Pop.', TRUE,  'Voz, dirección musical', 'Guadalajara, Jalisco'),
     ('miembro.demo@example.com', 6, 'Bajista con experiencia en bodas y eventos corporativos.', FALSE, 'Bajo, coros', 'Zapopan, Jalisco')
 ) AS v(email, years, bio, open_to_join, instruments, city)
 JOIN users.users u ON u.email = v.email

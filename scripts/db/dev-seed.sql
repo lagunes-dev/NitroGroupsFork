@@ -42,11 +42,12 @@ WHERE NOT EXISTS (SELECT 1 FROM users.users u WHERE u.auth0_id = v.auth0_id);
 INSERT INTO users.musicians (user_id, years_experience, short_bio, is_open_to_join, instruments, city)
 SELECT u.id, v.years, v.bio, v.open_to_join, v.instruments, v.city
 FROM (VALUES
-    ('auth0|seed-maria', 12, 'Violinist and bandleader, 12 years playing weddings and festivals.', false, 'Violín', 'Puebla, Puebla'),
+    ('auth0|seed-maria', 12, 'Violinist and bandleader, 12 years playing weddings and festivals.', true, 'Violín', 'Puebla, Puebla'),
     ('auth0|seed-luis',  8,  'Keyboardist and arranger, loves cumbia and rock en español.',       true,  'Teclados, acordeón', 'Guadalajara, Jalisco')
 ) AS v(auth0_id, years, bio, open_to_join, instruments, city)
 JOIN users.users u ON u.auth0_id = v.auth0_id
-ON CONFLICT (user_id) DO NOTHING;
+ON CONFLICT (user_id) DO UPDATE
+    SET instruments = EXCLUDED.instruments, city = EXCLUDED.city, is_open_to_join = EXCLUDED.is_open_to_join;
 
 -- --------------------------------------------------------------- groups ------
 -- active=false / is_accepting_bookings=false groups are included on purpose.
@@ -81,7 +82,7 @@ FROM (VALUES
         6, 6, '8110000002', 'cumbia@seed.local', 'Monterrey, Nuevo León', 150, 6500.00, 1500.00, 3, 60, 4.30, 22, false, false, true,  true),
     ('auth0|seed-luis',  'versatil-rock-y-pop', 'Versátil Rock y Pop',
         'Versatile cover band: rock en español, pop and dance hits.',
-        'Four-piece band with a repertoire of 200 songs, for corporate events and weddings.',
+        'Band with a repertoire of 200 songs, for corporate events and weddings.',
         4, 7, '8110000003', 'versatil@seed.local', 'San Pedro Garza García, Nuevo León', 100, 12000.00, 3000.00, 3, 60, 4.70, 18, true,  false, true,  true)
 ) AS v(owner_auth0, slug, group_name, description, biography, num_members, years, phone, email,
        location_text, radius, base_price, hourly_rate, min_hours, setup, rating, reviews,
