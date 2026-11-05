@@ -42,10 +42,11 @@ export function MyInvitations({ onViewMyGroups }: { onViewMyGroups?: () => void 
             setNotice(DONE[action](request.counterpartName));
             // El botón pulsado desaparece de la lista: el foco pasa al aviso para no perderlo.
             announceRef.current?.focus();
-            // Al aceptar cambian los grupos del músico: el panel y "Mis grupos" los vuelven a leer.
-            // Se espera la lectura para que la pestaña "Mis grupos" ya exista al pulsar el botón.
+            // Al aceptar cambia la lista "Mis grupos". Se espera la lectura para que la pestaña ya exista al
+            // pulsar el botón. No se invalida ["music-group"]: aceptar siempre da el rol Miembro, así que el
+            // grupo que el usuario gestiona no cambia, y refrescarlo volvía a ocultar todas las pestañas
+            // (consulta sin datos = pendiente) y se perdía este aviso.
             if (action === "accept") {
-                queryClient.invalidateQueries({ queryKey: ["music-group"] });
                 return queryClient.invalidateQueries({ queryKey: MY_MEMBERSHIPS_KEY });
             }
         },
