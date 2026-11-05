@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { eventTypeLabel } from "@/lib/eventTypeLabel";
 import { formatEventDate, formatPrice } from "@/lib/format";
-import { clientDepositLabel } from "../deposit";
+import { balanceLabel, clientDepositLabel, nextStepLabel } from "../deposit";
 import type { EventRequest, EventRequestParty } from "../types";
 import { StatusBadge } from "./StatusBadge";
 
@@ -17,6 +17,8 @@ export function RequestList({ requests, viewer }: { requests: EventRequest[]; vi
                 // Un presupuesto vacío no es cero pesos: el cliente no lo puso.
                 const price = r.budget ? formatPrice(r.budget, r.currency) : "Sin presupuesto";
                 const deposit = clientDepositLabel(r, viewer);
+                const balance = balanceLabel(r, viewer);
+                const nextStep = nextStepLabel(r, viewer);
                 const what = [eventTypeLabel(r.eventType), r.locationText].filter(Boolean).join(" · ");
                 return (
                     <li key={r.id} className="relative grid gap-x-6 gap-y-2 py-6 md:grid-cols-12 md:items-baseline [&+&]:shadow-[inset_0_1px_0_var(--fondo-3)]">
@@ -29,6 +31,8 @@ export function RequestList({ requests, viewer }: { requests: EventRequest[]; vi
                             </Link>
                             {what && <p className="text-tinta-2">{what}</p>}
                             {deposit && <p className="relative text-sm text-tinta-2">{deposit}</p>}
+                            {balance && <p className="relative text-sm text-tinta-2">{balance}</p>}
+                            {nextStep && <p className="relative text-sm text-tinta">{nextStep}</p>}
                             {viewer === "Group" && r.isSelfBooked && <span className="block text-sm text-tinta-2">Cargada por el grupo</span>}
                         </div>
                         <p className="tabular md:col-span-2">
