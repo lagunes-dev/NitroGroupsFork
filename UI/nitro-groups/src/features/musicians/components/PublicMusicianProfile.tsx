@@ -4,6 +4,7 @@ import { ChevronRight, ExternalLink, Play } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Photo } from "@/components/ui/Photo";
 import { ROUTES } from "@/config/routes";
+import { RecordProfileVisit } from "@/features/membership/components/RecordProfileVisit";
 import type { MusicianProfileGroup, MusicianProfileView } from "../profileView";
 
 const ctaClass =
@@ -72,6 +73,8 @@ export function PublicMusicianProfile({ profile, inviteAction }: { profile: Musi
 
     return (
         <article className="pb-[var(--section-gap)]">
+            {/* Invisible: deja la visita si quien mira maneja un grupo (S9). Nunca estorba. */}
+            <RecordProfileVisit musicianUserId={profile.userId} />
             <header className="page-frame pt-10 md:pt-16">
                 <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
                     <Photo

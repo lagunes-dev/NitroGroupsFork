@@ -1,8 +1,18 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PublicMusicianProfile } from "./PublicMusicianProfile";
 import type { MusicianProfileView } from "../profileView";
+
+// The profile mounts an invisible client child that leaves the S9 visit; it needs the app's
+// providers, so here it is replaced by a spy. Its own test file covers what it does.
+const { recordedFor } = vi.hoisted(() => ({ recordedFor: vi.fn() }));
+vi.mock("@/features/membership/components/RecordProfileVisit", () => ({
+    RecordProfileVisit: ({ musicianUserId }: { musicianUserId: number }) => {
+        recordedFor(musicianUserId);
+        return null;
+    },
+}));
 
 const profile: MusicianProfileView = {
     userId: 13,
@@ -19,6 +29,11 @@ const profile: MusicianProfileView = {
 };
 
 describe("PublicMusicianProfile", () => {
+    it("asks to leave the visit for the profile being read", () => {
+        render(<PublicMusicianProfile profile={profile} />);
+        expect(recordedFor).toHaveBeenCalledWith(profile.userId);
+    });
+
     it("describes a closed profile as a state, not as a rejection", () => {
         render(<PublicMusicianProfile profile={profile} />);
         expect(screen.getByText("Sin invitaciones por ahora")).toBeInTheDocument();

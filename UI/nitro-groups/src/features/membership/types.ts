@@ -72,3 +72,20 @@ export interface MyMembership {
     role: MembershipRole | null;
     joinedAt: string;
 }
+
+/**
+ * Un grupo que miró el perfil del músico (`GET api/me/profile-visits`, S9). `slug` es el del
+ * perfil público del grupo. Nunca trae el email de nadie.
+ */
+export interface ProfileVisitGroup {
+    id: number;
+    groupName: string;
+    slug: string;
+    lastVisitedAt: string;
+}
+
+/** Lo que el músico ve en su panel: cuántos grupos lo miraron y cuáles. */
+export interface ProfileVisits {
+    count: number;
+    groups: ProfileVisitGroup[];
+}

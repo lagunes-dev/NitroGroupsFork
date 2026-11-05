@@ -16,6 +16,7 @@ import { GroupInbox } from "@/features/bookings/components/GroupInbox";
 import { GroupAgenda, MyAgenda } from "@/features/gigs/components";
 import { useConfirmedGigDates } from "@/features/gigs/gigs.queries";
 import { TeamTab } from "@/features/membership/components/TeamTab";
+import { ProfileVisits } from "@/features/membership/components/ProfileVisits";
 import { MyInvitations } from "@/features/membership/components/MyInvitations";
 import { MyGroups } from "@/features/membership/components/MyGroups";
 import { MusicianProfileForm } from "@/features/musicians/components/MusicianProfileForm";
@@ -72,6 +73,13 @@ export default function MusicianDashboardPage() {
       )}
 
       <GroupProfile />
+
+      {/*
+        Aviso de visitas (S9): qué grupos miraron el perfil del músico. Va suelto arriba, no en una
+        pestaña: son dos renglones y no cambia la pestaña con la que abre el panel. Sin visitas no
+        dibuja nada, y solo se pide para quien tiene perfil de músico.
+      */}
+      {user?.userType === UserTypeEnum.Musician ? <ProfileVisits /> : null}
 
       {/*
         Las pestañas del grupo solo existen con grupo; "Invitaciones" es del músico y se queda
