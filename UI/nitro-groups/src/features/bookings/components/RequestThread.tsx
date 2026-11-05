@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ROUTES } from "@/config/routes";
 import { eventTypeLabel } from "@/lib/eventTypeLabel";
-import { formatEventDate, formatPrice } from "@/lib/format";
+import { formatEventDate } from "@/lib/format";
 import { apiErrorMessage, bookingsService } from "../bookings.service";
-import { clientDepositLabel } from "../deposit";
+import { balanceLabel, budgetLabel, clientDepositLabel, nextStepLabel } from "../deposit";
 import { availableActions, shortTime, statusLabel } from "../status";
 import { threadItems, type ThreadItem } from "../thread";
 import type { EventRequest, EventRequestParty } from "../types";
@@ -105,9 +105,15 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                 <Detail label="Hora de inicio" value={shortTime(r.startTime)} />
                 <Detail label="Duración" value={`${r.durationHours} ${r.durationHours === 1 ? "hora" : "horas"}`} />
                 <Detail label="Invitados" value={r.guestCount ? String(r.guestCount) : null} />
-                <Detail label="Presupuesto" value={formatPrice(r.budget, r.currency)} />
+                <Detail label="Presupuesto" value={budgetLabel(r)} />
                 <Detail label="Anticipo" value={clientDepositLabel(r, viewer)?.replace(/^Anticipo /, "") ?? null} />
+                <Detail label="Saldo" value={balanceLabel(r, viewer)} />
             </dl>
+
+            {/* El próximo paso que el cliente ya ve en la lista: acá es donde cierra el trato. */}
+            {nextStepLabel(r, viewer) && (
+                <p className="md:col-span-12 text-tinta">{nextStepLabel(r, viewer)}</p>
+            )}
 
             <section className="md:col-span-8 flex flex-col gap-8" aria-label="Conversación">
                 <ol className="flex flex-col gap-6">

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { eventTypeLabel } from "@/lib/eventTypeLabel";
-import { formatEventDate, formatPrice } from "@/lib/format";
-import { balanceLabel, clientDepositLabel, nextStepLabel } from "../deposit";
+import { formatEventDate } from "@/lib/format";
+import { balanceLabel, budgetLabel, clientDepositLabel, nextStepLabel } from "../deposit";
 import type { EventRequest, EventRequestParty } from "../types";
 import { StatusBadge } from "./StatusBadge";
 
@@ -15,7 +15,7 @@ export function RequestList({ requests, viewer }: { requests: EventRequest[]; vi
             {requests.map((r) => {
                 const who = viewer === "Client" ? r.groupName : r.clientName;
                 // Un presupuesto vacío no es cero pesos: el cliente no lo puso.
-                const price = r.budget ? formatPrice(r.budget, r.currency) : "Sin presupuesto";
+                const price = budgetLabel(r);
                 const deposit = clientDepositLabel(r, viewer);
                 const balance = balanceLabel(r, viewer);
                 const nextStep = nextStepLabel(r, viewer);

@@ -48,6 +48,16 @@ export function clientDepositLabel(request: Pick<EventRequest, "status" | "depos
     return depositLabel(request.deposit);
 }
 
+/**
+ * "$18,000", or "Sin presupuesto" when the client left it empty: un cero no es un precio, y la lista
+ * y el detalle tienen que decir lo mismo del mismo dato.
+ */
+export function budgetLabel(request: { budget?: number | null; currency?: string }): string {
+    const amount = request.budget;
+    if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) return "Sin presupuesto";
+    return formatPrice(amount, request.currency ?? "MXN") ?? "Sin presupuesto";
+}
+
 /** The slice of a request the deal copy needs; the currency falls back to pesos. */
 type DealRequest = { status: EventRequestStatus; budget?: number | null; deposit?: unknown; currency?: string };
 

@@ -106,3 +106,29 @@ describe("RequestThread signals", () => {
         expect(screen.queryByText(/Ese día/)).toBeNull();
     });
 });
+
+describe("RequestThread deal", () => {
+    const accepted: EventRequest = {
+        ...request,
+        status: "Accepted",
+        budget: 18000,
+        deposit: { amount: 4000, receivedAt: "2026-11-05T18:00:00Z" },
+    };
+
+    it("repeats the balance and the next step for the client who is closing the deal", async () => {
+        mocks.get.mockResolvedValue(accepted);
+        renderThread("Client");
+
+        expect(await screen.findByText("Saldo")).toBeInTheDocument();
+        expect(screen.getByText("Falta pagar $14,000")).toBeInTheDocument();
+        expect(screen.getByText("Acuerda el saldo con el grupo para el día del evento.")).toBeInTheDocument();
+    });
+
+    it("calls an empty budget what the list calls it, never zero pesos", async () => {
+        mocks.get.mockResolvedValue({ ...accepted, budget: 0, deposit: null });
+        renderThread("Client");
+
+        expect(await screen.findByText("Sin presupuesto")).toBeInTheDocument();
+        expect(screen.queryByText("$0")).toBeNull();
+    });
+});
