@@ -30,6 +30,7 @@ public class MusicianProfileEndpointsTests : IClassFixture<NitroGroupsWebAppFact
         "headline",
         "shortBio",
         "instruments",
+        "city",
         "yearsExperience",
         "profilePictureUrl",
         "videoUrl",
@@ -60,6 +61,7 @@ public class MusicianProfileEndpointsTests : IClassFixture<NitroGroupsWebAppFact
         Headline = "Guitarrista de sesión",
         ShortBio = "Toco desde los 12.",
         Instruments = "Guitarra, bajo",
+        City = "Córdoba",
         YearsExperience = 12,
         ProfilePictureUrl = "https://cdn.example.com/mateo.jpg",
         VideoUrl = "https://youtu.be/xyz",
@@ -110,6 +112,7 @@ public class MusicianProfileEndpointsTests : IClassFixture<NitroGroupsWebAppFact
         Assert.Equal("Guitarrista de sesión", root.GetProperty("headline").GetString());
         Assert.Equal("Toco desde los 12.", root.GetProperty("shortBio").GetString());
         Assert.Equal("Guitarra, bajo", root.GetProperty("instruments").GetString());
+        Assert.Equal("Córdoba", root.GetProperty("city").GetString());
         Assert.Equal(12, root.GetProperty("yearsExperience").GetInt32());
         Assert.Equal("https://cdn.example.com/mateo.jpg", root.GetProperty("profilePictureUrl").GetString());
         Assert.Equal("https://youtu.be/xyz", root.GetProperty("videoUrl").GetString());
@@ -221,6 +224,30 @@ public class MusicianProfileEndpointsTests : IClassFixture<NitroGroupsWebAppFact
     public async Task Put_OverLongInstruments_Returns400(int length)
     {
         var response = await _client.PutAsJsonAsync(PutUrl, new UpdateMusicianProfileRequest { Instruments = new string('a', length) }, ApiJsonOptions.Default);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await _mediator.DidNotReceive().SendCommandAsync<UpdateMyMusicianProfileCommand, Result<MusicianProfileResponse>>(
+            Arg.Any<UpdateMyMusicianProfileCommand>());
+    }
+
+    [Fact]
+    public async Task Put_City_ReachesTheCommand()
+    {
+        PutReturns(Result<MusicianProfileResponse>.Success(Profile()));
+
+        var response = await _client.PutAsJsonAsync(PutUrl, new UpdateMusicianProfileRequest { City = new string('a', 80) }, ApiJsonOptions.Default);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await _mediator.Received().SendCommandAsync<UpdateMyMusicianProfileCommand, Result<MusicianProfileResponse>>(
+            Arg.Is<UpdateMyMusicianProfileCommand>(c => c.City == new string('a', 80)));
+    }
+
+    [Theory]
+    [InlineData(81)]
+    [InlineData(500)]
+    public async Task Put_OverLongCity_Returns400(int length)
+    {
+        var response = await _client.PutAsJsonAsync(PutUrl, new UpdateMusicianProfileRequest { City = new string('a', length) }, ApiJsonOptions.Default);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         await _mediator.DidNotReceive().SendCommandAsync<UpdateMyMusicianProfileCommand, Result<MusicianProfileResponse>>(

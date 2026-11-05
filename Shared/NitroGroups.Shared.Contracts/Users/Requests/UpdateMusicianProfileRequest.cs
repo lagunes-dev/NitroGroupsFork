@@ -13,5 +13,6 @@ namespace NitroGroups.Shared.Contracts.Users.Requests
         public int? YearsExperience { get; set; }
         public string? VideoUrl { get; set; }
         public bool? IsOpenToJoin { get; set; }
+        public string? City { get; set; }
     }
 }

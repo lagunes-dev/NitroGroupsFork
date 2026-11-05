@@ -27,7 +27,8 @@ public class MusicianProfileQueryHandlerIntegrationTests(IntegrationTestFixture 
 
         var userId = AddUser(users, "Mateo", "Ríos", UserType.Musician, "https://cdn.example.com/mateo.jpg");
         AddMusician(users, userId, headline: "Guitarrista de sesión", instruments: "Guitarra, bajo",
-            years: 12, videoUrl: "https://youtu.be/xyz", shortBio: "Toco desde los 12.", isOpenToJoin: true);
+            years: 12, videoUrl: "https://youtu.be/xyz", shortBio: "Toco desde los 12.", isOpenToJoin: true,
+            city: "Córdoba");
 
         var memberGroupId = await AddGroupAsync(groups, "Los Vargas", "los-vargas", ownerId: 1);
         var managedGroupId = await AddGroupAsync(groups, "La Sonora", "la-sonora", ownerId: userId);
@@ -46,6 +47,7 @@ public class MusicianProfileQueryHandlerIntegrationTests(IntegrationTestFixture 
         Assert.Equal("Guitarrista de sesión", profile.Headline);
         Assert.Equal("Toco desde los 12.", profile.ShortBio);
         Assert.Equal("Guitarra, bajo", profile.Instruments);
+        Assert.Equal("Córdoba", profile.City);
         Assert.Equal(12, profile.YearsExperience);
         Assert.Equal("https://cdn.example.com/mateo.jpg", profile.ProfilePictureUrl);
         Assert.Equal("https://youtu.be/xyz", profile.VideoUrl);
@@ -150,7 +152,8 @@ public class MusicianProfileQueryHandlerIntegrationTests(IntegrationTestFixture 
         int years = 0,
         string? videoUrl = null,
         string? shortBio = null,
-        bool isOpenToJoin = true)
+        bool isOpenToJoin = true,
+        string? city = null)
     {
         context.Musicians.Add(new Musician
         {
@@ -160,7 +163,8 @@ public class MusicianProfileQueryHandlerIntegrationTests(IntegrationTestFixture 
             YearsExperience = years,
             VideoUrl = videoUrl,
             ShortBio = shortBio,
-            IsOpenToJoin = isOpenToJoin
+            IsOpenToJoin = isOpenToJoin,
+            City = city
         });
         context.SaveChanges();
     }

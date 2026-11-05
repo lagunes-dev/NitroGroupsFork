@@ -138,6 +138,32 @@ public class UpdateMyMusicianProfileCommandHandlerIntegrationTests(IntegrationTe
         Assert.Equal("El usuario no es músico.", result.Error);
     }
 
+    [Fact]
+    public async Task City_IsSavedAndReturned_AndALaterUpdateWithoutCityKeepsIt()
+    {
+        await using var users = fixture.CreateUsersContext();
+        await using var groups = fixture.CreateGroupsContext();
+
+        var userId = AddUser(users, "Mateo", UserType.Musician);
+        AddMusician(users, userId);
+
+        var first = await Handler(users, groups).Handle(
+            new UpdateMyMusicianProfileCommand(userId, null, null, null, null, null, null, City: "Rosario"),
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error);
+        Assert.Equal("Rosario", first.Value!.City);
+        Assert.Equal("Rosario", MusicianOf(users, userId).City);
+
+        var second = await Handler(users, groups).Handle(
+            new UpdateMyMusicianProfileCommand(userId, Headline: "Productor", null, null, null, null, null),
+            CancellationToken.None);
+
+        Assert.True(second.IsSuccess, second.Error);
+        Assert.Equal("Rosario", second.Value!.City);
+        Assert.Equal("Rosario", MusicianOf(users, userId).City);
+    }
+
     private UpdateMyMusicianProfileCommandHandler Handler(UsersDbContext users, GroupsDbContext groups)
         => new(fixture.CreateUsersUnitOfWork(users), new GroupsModuleApi(groups));
 

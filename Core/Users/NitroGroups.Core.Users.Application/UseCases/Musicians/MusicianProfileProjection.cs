@@ -21,6 +21,7 @@ internal static class MusicianProfileProjection
             Headline = musician.Headline,
             ShortBio = musician.ShortBio,
             Instruments = musician.Instruments,
+            City = musician.City,
             YearsExperience = musician.YearsExperience,
             ProfilePictureUrl = user.ProfilePictureUrl,
             VideoUrl = musician.VideoUrl,

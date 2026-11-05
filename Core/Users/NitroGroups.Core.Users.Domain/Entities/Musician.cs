@@ -19,6 +19,9 @@ namespace NitroGroups.Core.Users.Domain.Entities
         /// <summary>Link to a video or audio sample. Max 300 characters.</summary>
         public string? VideoUrl { get; set; }
 
+        /// <summary>City the musician is based in, as free text. Max 80 characters.</summary>
+        public string? City { get; set; }
+
         public virtual User User { get; set; } = null!;
 
         /// <summary>
@@ -31,7 +34,8 @@ namespace NitroGroups.Core.Users.Domain.Entities
             string? instruments,
             int? yearsExperience,
             string? videoUrl,
-            bool? isOpenToJoin)
+            bool? isOpenToJoin,
+            string? city = null)
         {
             if (headline is not null) Headline = headline;
             if (shortBio is not null) ShortBio = shortBio;
@@ -39,6 +43,7 @@ namespace NitroGroups.Core.Users.Domain.Entities
             if (yearsExperience is not null) YearsExperience = yearsExperience.Value;
             if (videoUrl is not null) VideoUrl = videoUrl;
             if (isOpenToJoin is not null) IsOpenToJoin = isOpenToJoin.Value;
+            if (city is not null) City = city;
         }
 
         public void RaiseMusicianWithGroupCreatedEvent(int idGroup) =>
