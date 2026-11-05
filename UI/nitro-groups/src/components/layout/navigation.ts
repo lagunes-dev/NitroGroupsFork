@@ -34,7 +34,7 @@ export function dashboardEntries(isMusician: boolean, pending: PendingState): Da
     const href = ROUTES.DASHBOARD.MUSICIAN;
     if (pending.hasGroup === false) {
         const invitations: DashboardEntry = { href, label: "Invitaciones", count: pending.invitations };
-        return showMyGroupsEntry(pending) ? [{ href, label: "Mis grupos", count: 0 }, invitations] : [invitations];
+        return showMyGroupsEntry(pending) ? [{ href, label: "Mi panel", count: 0 }, invitations] : [invitations];
     }
     const entries: DashboardEntry[] = [{ href, label: "Mi grupo", count: pending.joinRequests }];
     if (pending.hasGroup && pending.invitations > 0) entries.push({ href, label: "Invitaciones", count: pending.invitations });

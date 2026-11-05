@@ -23,10 +23,10 @@ describe("dashboardEntries", () => {
         const entries = dashboardEntries(true, { ...none, hasGroup: null, invitations: 3 });
         expect(entries.map((e) => e.label)).toEqual(["Mi grupo"]);
     });
-    it("adds Mis grupos for a musician who belongs to a group but manages none", () => {
+    it("adds Mi panel for a musician who belongs to a group but manages none", () => {
         const entries = dashboardEntries(true, { hasGroup: false, invitations: 2, joinRequests: 0, memberships: 1 });
         expect(entries).toEqual([
-            { href: "/dashboard/musician", label: "Mis grupos", count: 0 },
+            { href: "/dashboard/musician", label: "Mi panel", count: 0 },
             { href: "/dashboard/musician", label: "Invitaciones", count: 2 },
         ]);
     });
@@ -34,7 +34,7 @@ describe("dashboardEntries", () => {
         const entries = dashboardEntries(true, { ...none, memberships: 2 });
         expect(entries.map((e) => e.label)).toEqual(["Mi grupo"]);
     });
-    it("does not add Mis grupos for a client", () => {
+    it("does not add Mi panel for a client", () => {
         expect(dashboardEntries(false, { ...none, hasGroup: false, memberships: 1 }).map((e) => e.label)).toEqual(["Mis pedidos"]);
     });
 });

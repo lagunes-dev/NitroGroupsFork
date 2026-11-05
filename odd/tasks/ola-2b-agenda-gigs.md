@@ -41,3 +41,16 @@ Documento ODD. Rama `feat/membership-ux`. Contrato de API fijado abajo para que 
 - L4 (decisión técnica tomada en la noche, sin consultar): faltaban los rewrites de `/api/me` y `/api/gigs` en `UI/nitro-groups/next.config.ts` y en la lista `BACKEND_API_PREFIXES` de `src/proxy.ts`. Sin ellos, la agenda solo funciona si `NEXT_PUBLIC_API_BASE_URL` está definida y, sin esa variable, ambas llamadas dan 404 en Next. Se agregaron ambas entradas; no cambia ninguna ruta existente.
 - L5 (verificado con Playwright, sin decisiones pendientes): como Mateo, "Mi agenda" muestra los dos toques próximos (jueves 19 de noviembre y jueves 3 de diciembre) con grupo, lugar, "20:00 · 3 h" y los botones "Confirmo" / "No puedo"; al confirmar aparece el chip "Confirmado" y el aviso en vivo "Confirmaste el jueves 19 de noviembre · Versátil Rock y Pop". Como Mónica, la pestaña "Agenda" muestra "1 de 1 confirmaron · Mateo Músico" y, en el otro toque, "Nadie ha confirmado todavía". En celular (390 px) no hay desborde y el botón mide 44 px.
 - L6 (decisión técnica tomada en la noche): se agregó infraestructura de tests de componente con `jsdom`, `@testing-library/react`, `user-event` y `jest-dom`; la suite sigue corriendo en `node` por defecto y los componentes optan a `jsdom` con el pragma por archivo y extensión `.test.tsx`. Primer test de componente: `GigCard` (datos, nombres accesibles de los dos botones, respuesta al pulsar y chip del estado guardado). Suite: 367 tests.
+
+## Ronda 2 de críticos (resultados parciales)
+
+- Miguel: 1/10 → **5/10**. Hallazgos propios corregidos en `93b7610`: el manager no veía los "no puedo" (ahora "No pueden: …") y el formulario de contratación seguía visible dentro del grupo propio (ahora `HideForMembers`). También se redujo el título del bloque "Tus grupos".
+- Mateo: 2/10 → **5/10**. Su perfil existe, es público y editable, y la agenda responde en un clic. Pide: directorio público de músicos con filtros, botón de contacto en el perfil, enlace recíproco desde la página del grupo, y el header con "Mi agenda"/"Mi perfil". Hecho acá: la entrada del menú para un músico sin grupo se llama ahora "Mi panel" (antes "Mis grupos" abría "Mi agenda").
+- Mónica: 3/10 → **5/10**. Valora el historial plegado, el hilo ordenado, la agenda con quién confirmó y el calendario marcando toques. Pide: roster real (en curso), señales de decisión (choque de fecha, distancia contra radio, presupuesto contra tarifa), cotizar/proponer fecha, y que en el teléfono lo pendiente no quede bajo 1.300 px de perfil.
+
+## Decisiones pendientes tras la ronda 2 (anotadas, no implementadas)
+
+- D4 Directorio público de músicos con filtros por instrumento, ciudad y fecha: es una funcionalidad nueva de tamaño medio; requiere decidir si el perfil de músico es público por defecto.
+- D5 Canal de contacto cliente → músico (mensaje directo o formulario): define el negocio cómo se contacta y quién paga la comisión.
+- D6 Señales de decisión en el hilo (distancia, choque de fecha, tarifa): depende de D2 (paga por miembro) y de fijar tarifa base por grupo.
+- D7 Colapsar la ficha del grupo en el panel móvil para que "Por responder" quede visible sin scroll: es UI, se toma cuando se retome el panel.
