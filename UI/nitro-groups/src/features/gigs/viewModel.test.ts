@@ -133,3 +133,33 @@ describe("scheduleLabel", () => {
         expect(toGigView({ ...ROW, startTime: "tarde" }).timeLabel).toBeNull();
     });
 });
+
+describe("toGigView logistics", () => {
+    it("maps the call time, the setlist and the caller's own pay", () => {
+        const view = toGigView({ ...ROW, callTime: "17:30:00", setlist: "  Intro\nValses\n", myPay: 2000 });
+        expect(view.callTimeLabel).toBe("Llegada 17:30");
+        expect(view.setlist).toBe("Intro\nValses");
+        expect(view.payLabel).toBe("Tu pago: $2,000");
+    });
+
+    it("leaves all three empty when the row does not carry them", () => {
+        const view = toGigView(ROW);
+        expect(view.callTimeLabel).toBeNull();
+        expect(view.setlist).toBeNull();
+        expect(view.payLabel).toBeNull();
+    });
+
+    it("treats null, blank and malformed values as missing", () => {
+        const view = toGigView({ ...ROW, callTime: "later", setlist: "   ", myPay: -5 });
+        expect(view.callTimeLabel).toBeNull();
+        expect(view.setlist).toBeNull();
+        expect(view.payLabel).toBeNull();
+        expect(toGigView({ ...ROW, myPay: null }).payLabel).toBeNull();
+        expect(toGigView({ ...ROW, myPay: "abc" as unknown as number }).payLabel).toBeNull();
+    });
+
+    it("keeps a zero pay and reads a numeric string", () => {
+        expect(toGigView({ ...ROW, myPay: 0 }).payLabel).toBe("Tu pago: $0");
+        expect(toGigView({ ...ROW, myPay: "1500.00" as unknown as number }).payLabel).toBe("Tu pago: $1,500");
+    });
+});

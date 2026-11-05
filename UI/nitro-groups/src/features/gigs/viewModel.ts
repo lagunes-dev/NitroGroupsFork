@@ -1,4 +1,4 @@
-import { formatEventDate, isIsoDate } from "@/lib/format";
+import { formatEventDate, formatPrice, isIsoDate } from "@/lib/format";
 import { ROUTES } from "@/config/routes";
 import { attendanceAppearance, type AttendanceAppearance } from "./attendance";
 import type { GigAnswer, GigPayload } from "./types";
@@ -34,6 +34,12 @@ export interface GigView {
     /** "Dueño" / "Manager" when the caller manages that group; null for a plain member or an unknown role. */
     roleLabel: string | null;
     attendance: AttendanceAppearance;
+    /** "Llegada 17:30", or null when the manager has not set a call time. */
+    callTimeLabel: string | null;
+    /** The setlist as typed (line breaks kept), or null when empty. */
+    setlist: string | null;
+    /** "Tu pago: $2,000", or null when no amount was set for the caller. */
+    payLabel: string | null;
 }
 
 const HOURS = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 });
@@ -83,6 +89,19 @@ function gigRoleLabel(value: unknown): string | null {
     return null;
 }
 
+/** "Llegada 17:30"; null when the call time is missing or unreadable. */
+export function callTimeLabel(value: unknown): string | null {
+    const time = gigTimeLabel(value);
+    return time ? `Llegada ${time}` : null;
+}
+
+/** "Tu pago: $2,000"; null when there is no amount. A zero is an amount, a negative or non-numeric value is not. */
+export function myPayLabel(value: unknown): string | null {
+    const amount = asNumber(value);
+    if (amount === null || amount < 0) return null;
+    return `Tu pago: ${formatPrice(amount)}`;
+}
+
 /** One row of the contract turned into view data. Missing or wrong values fall back, never throw. */
 export function toGigView(row: GigPayload): GigView {
     const slug = asText(row.groupSlug);
@@ -102,6 +121,9 @@ export function toGigView(row: GigPayload): GigView {
         durationLabel: gigDurationLabel(row.durationHours),
         roleLabel: gigRoleLabel(row.role),
         attendance: attendanceAppearance(row.attendance),
+        callTimeLabel: callTimeLabel(row.callTime),
+        setlist: asText(row.setlist) || null,
+        payLabel: myPayLabel(row.myPay),
     };
 }
 

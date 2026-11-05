@@ -63,7 +63,11 @@ export function GigCard({ gig, saving, failed, onAnswer, onRetry }: GigCardProps
                         {gig.roleLabel && <span className="ml-2 text-sm font-normal text-tinta-2">· {gig.roleLabel}</span>}
                     </p>
                     <p className="text-tinta-2">{gig.placeLabel}</p>
-                    <p className="tabular text-tinta-2">{scheduleLabel(gig)}</p>
+                    <p className="tabular text-tinta-2">
+                        {scheduleLabel(gig)}
+                        {gig.callTimeLabel && <span> · {gig.callTimeLabel}</span>}
+                    </p>
+                    {gig.payLabel && <p className="tabular text-tinta-2">{gig.payLabel}</p>}
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
@@ -96,6 +100,15 @@ export function GigCard({ gig, saving, failed, onAnswer, onRetry }: GigCardProps
                     </div>
                 </div>
             </div>
+
+            {gig.setlist && (
+                <details>
+                    <summary className="flex min-h-11 w-fit cursor-pointer items-center text-sm font-medium text-acento">
+                        Ver setlist
+                    </summary>
+                    <p className="whitespace-pre-line pb-2 text-tinta">{gig.setlist}</p>
+                </details>
+            )}
 
             {failed && (
                 <p role="alert" className="text-sm text-error">

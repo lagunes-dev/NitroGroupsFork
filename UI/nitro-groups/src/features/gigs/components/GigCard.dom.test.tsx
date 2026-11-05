@@ -52,4 +52,29 @@ describe("GigCard", () => {
         );
         expect(screen.getByText("Confirmado")).toBeInTheDocument();
     });
+
+    it("shows the call time, the pay and a collapsed setlist when the row has them", () => {
+        render(
+            <GigCard
+                gig={toGigView({ ...row, callTime: "17:30:00", myPay: 2000, setlist: "Intro\nValses" })}
+                saving={false}
+                failed={false}
+                onAnswer={vi.fn()}
+                onRetry={vi.fn()}
+            />
+        );
+        expect(screen.getByText(/Llegada 17:30/)).toBeInTheDocument();
+        expect(screen.getByText("Tu pago: $2,000")).toBeInTheDocument();
+        const disclosure = screen.getByText("Ver setlist").closest("details");
+        expect(disclosure).not.toBeNull();
+        expect(disclosure).not.toHaveAttribute("open");
+        expect(disclosure).toHaveTextContent(/Intro\s*Valses/);
+    });
+
+    it("shows none of them for a gig without logistics", () => {
+        render(<GigCard gig={toGigView(row)} saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} />);
+        expect(screen.queryByText(/Llegada/)).toBeNull();
+        expect(screen.queryByText(/Tu pago/)).toBeNull();
+        expect(screen.queryByText("Ver setlist")).toBeNull();
+    });
 });
