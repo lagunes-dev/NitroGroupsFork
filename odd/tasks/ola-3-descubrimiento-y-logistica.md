@@ -41,10 +41,10 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 
 ## Tasks
 
-- [ ] T1 (S1, S2) Backend Users: columna `city`, directorio público y perfil con ciudad.
-- [ ] T2 (S1, S2) Frontend: página `/musicians` con filtros, "Invitar a mi grupo" en perfil y directorio para managers, campo ciudad en "Mi perfil", y corregir el texto que habla de contratar a un músico.
-- [ ] T3 (S3, S4) Backend Bookings: setlist, hora de llamado y anticipo en el evento aceptado.
-- [ ] T4 (S3, S4) Frontend: setlist y hora de llamado en la agenda, anticipo visible al manager y al cliente.
+- [x] T1 (S1, S2) Backend Users: columna `city`, directorio público y perfil con ciudad. Hecho en la primera tanda de la ola (el directorio y `users.musicians.city` están en la rama y el seed los usa); la casilla quedó sin tildar, no falta trabajo.
+- [x] T2 (S1, S2) Frontend: página `/musicians` con filtros, "Invitar a mi grupo" en perfil y directorio para managers, campo ciudad en "Mi perfil", y corregir el texto que habla de contratar a un músico.
+- [x] T3 (S3, S4) Backend Bookings: setlist, hora de llamado y anticipo en el evento aceptado. Hecho (el "Contrato de la logística del toque" de este documento lo describe tal como está en la rama); casilla vieja.
+- [x] T4 (S3, S4) Frontend: setlist y hora de llamado en la agenda, anticipo visible al manager y al cliente. Hecho; casilla vieja.
 - [x] T5 (S5) Reseñas: según lo que ya exista en el modelo. `3f2dfe9` (backend), `073b90b` (perfil público + agregado), `dev-seed-reviews.sql`.
 - [x] T6 (S6) Front: estados vacíos honestos en la agenda del músico y del miembro (llegada, setlist y pago sin cargar). `15939b1`; 74 tests en `features/gigs`.
 - [x] T7 (S7) Equipo con oficio: instrumento y ciudad por renglón en "Equipo", e "Integrantes" del perfil público tomado del equipo real. `d9a8b90`; 10 tests de integración + 167 de front.
@@ -59,14 +59,14 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 - [x] T16 (S13) Dos voces en el perfil cerrado y seed sin cierres accidentales. `fb98a82` (componente cliente `MusicianClosedNotice`) y `3695336` (seed: abiertos casi todos, Miguel como único cerrado, instrumento y ciudad para María y Luis).
 - [x] T17 (S6, S8) El saldo en el detalle del pedido y el mismo criterio para el presupuesto en cero. `ce9782c`; `budgetLabel` único para lista y detalle.
 - [x] T18 (S6, S9) Estados vacíos que se ven: bloque de visitas en cero. `eb4f095`. Queda la ficha del directorio sin instrumento ni ciudad.
-- [ ] T19 (S11) Jerarquía visual de las señales del hilo.
-- [ ] T20 (S8) La búsqueda conserva la fecha del evento al pedir otra fecha.
+- [x] T19 (S11) Jerarquía visual de las señales del hilo. Absorbido por T27 y cerrado en L27: el choque pasó a peso de título y el monto se leyó una sola vez.
+- [x] T20 (S8) La búsqueda conserva la fecha del evento al pedir otra fecha. Trazado en el código: `searchParams.profileHref(slug, fecha)` lleva la fecha al perfil, la página la pasa como `requestedDate` y `RequestForm` la usa como `defaultDate` del campo de fecha. No estaba anotado en el log.
 - [x] T21 (S14, revisada) El perfil público muestra el oficio de TODO el equipo; el interruptor gobierna el directorio y las invitaciones, no la plantilla del grupo.
 - [x] T22 (bug) Un usuario sin grupo propio deja de provocar un 404 en consola: el endpoint responde "sin grupo" con 200 y null. `35c1e5b`, junto con T21.
 - [x] T23 (S8) Camila: el saldo pesa como el precio en la lista, "3 h de música" en vez de "3 h", fecha de envío en el pendiente y sin copy duplicado. `7c7d9c1`; el saldo medido a 18 px en blanco.
 - [x] T24 (S6, S12) Avisos del toque: 44 px de alto, etiqueta propia por hueco y ninguno cuando el músico rechazó el toque. `f00e83f`; medido a 390 px: 44 px por botón y cero avisos en el toque rechazado.
 - [x] T25 (S13) "Cambiar mi disponibilidad" abre la pestaña donde vive el interruptor. `2a10503`; el enlace lleva `#mi-perfil` y el panel abre esa pestaña.
-- [ ] T26 (S11) Señales: el choque dice las horas del otro toque y el monto no se repite.
+- [x] T26 (S11) Señales: el choque dice las horas del otro toque y el monto no se repite. Cerrado en L27; casilla vieja.
 - [x] T27 (S11) Jerarquía de los dos títulos de las señales. `97d5ac4` (el choque a peso de título) y `4149363` (renglones del equipo compactos en móvil).
 - [x] T28 (S8) El detalle del pedido pone el saldo como bloque propio arriba, y la lista deja el precio original en gris para que el saldo sea el único número blanco.
 - [x] T29 (S11) La fila de la lista de pedidos avisa del choque sin abrir el hilo.
@@ -97,7 +97,7 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 - [x] T54 (S9) El estado vacío del bloque de visitas se compacta a una línea: hoy mide 125 px y empuja la primera tarjeta a y=476 en un celular de 390 px (Mateo), y estorba en Invitaciones y Mi perfil (Miguel). Se achica, no se quita: lo pidió Mateo en la ronda 4.
 - [x] T55 (S6) Un toque pasado sin respuesta dice "No respondiste" y no "Sin responder", que junto a "Este toque ya pasó" se lee como pendiente de él.
 - [x] T56 (S6, S12) Antes de responder a un toque, una línea dice que la respuesta se guarda al tocar y se puede cambiar, y Confirmo y No puedo se separan más en el celular. Sin diálogo y sin "Deshacer": el API no puede volver a "sin responder".
-- [ ] T57 (datos) Titulares de los músicos demo para que "Titular 0 de 120" no parezca un perfil vacío.
+- [x] T57 (datos) Titulares de los músicos demo para que "Titular 0 de 120" no parezca un perfil vacío.
 - [x] T58 (S21) Aviso "No me pagaron" para un toque pasado con pago pendiente.
 - [x] T59 (S22) Compañeros del toque y teléfono del manager, visibles solo para miembros activos. `a9e2886`; el rol del grupo (`IGroupsModuleApi.GetActiveMemberRolesAsync`) viaja en `GET api/me/gigs` con el nombre, y el teléfono se normaliza en el borde del módulo Groups. Medido a 390 px: "Luis Ramírez · Manager", "María Hernández · Miembro", "Miguel Miembro · Miembro", "Llamar a Versátil Rock y Pop" de 44 px con `tel:8110000003`, cero correos, y ninguna traza del teléfono en la lista del cliente, el panel del manager ni el perfil público.
 - [x] T60 (S23) Cuadre del toque en el editor del manager: cachet total, deuda a músicos y diferencia. `64d06f8`; el cachet no llegaba al editor (`GroupGigResponse` no tenía `Budget`/`Currency`), se agregaron aditivos solo a la fila del manager. Medido a 390 px: "Cachet total $14,000 · Debes a tus músicos $7,800 · Diferencia $6,200", sin desborde.
