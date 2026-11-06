@@ -2,6 +2,7 @@ import Link from "next/link";
 import { eventTypeLabel } from "@/lib/eventTypeLabel";
 import { formatEventDate } from "@/lib/format";
 import { balanceLabel, budgetLabel, clientDepositLabel, nextStepLabel, sentLabel } from "../deposit";
+import { rowClashLabel } from "../signals";
 import type { EventRequest, EventRequestParty } from "../types";
 import { StatusBadge } from "./StatusBadge";
 
@@ -21,6 +22,8 @@ export function RequestList({ requests, viewer }: { requests: EventRequest[]; vi
                 const nextStep = nextStepLabel(r, viewer);
                 const sent = sentLabel(r);
                 const what = [eventTypeLabel(r.eventType), r.locationText].filter(Boolean).join(" · ");
+                // T39: el choque que la API ya manda en la fila, con las horas del propio pedido.
+                const clash = viewer === "Group" ? rowClashLabel(r.dateClash, { startTime: r.startTime, durationHours: r.durationHours }) : null;
                 return (
                     <li key={r.id} className="relative grid gap-x-6 gap-y-2 py-6 md:grid-cols-12 md:items-baseline [&+&]:shadow-[inset_0_1px_0_var(--fondo-3)]">
                         <p className="type-heading text-xl tabular first-letter:uppercase md:col-span-3">
@@ -31,6 +34,8 @@ export function RequestList({ requests, viewer }: { requests: EventRequest[]; vi
                                 {who}
                             </Link>
                             {what && <p className="text-tinta-2">{what}</p>}
+                            {/* El día ocupado manda: sin esto el pedido imposible se lee como el mejor del mes. */}
+                            {clash && <p className="relative mt-1 text-tinta">{clash}</p>}
                             {deposit && <p className="relative text-sm text-tinta-2">{deposit}</p>}
                             {/* Lo que debo es la única cifra blanca de la fila: el presupuesto original baja a gris (ronda 6). */}
                             {balance && <p className="relative tabular text-lg text-tinta">{balance}</p>}

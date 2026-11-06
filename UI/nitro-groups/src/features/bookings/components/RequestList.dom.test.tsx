@@ -64,3 +64,52 @@ describe("RequestList", () => {
         expect(screen.getByText("Camila Ramos")).toBeInTheDocument();
     });
 });
+
+/** El pedido del 19 de noviembre, el día en que el grupo ya toca: la API manda el choque en la fila. */
+const clashing: EventRequest = {
+    ...accepted,
+    id: 12,
+    eventDate: "2026-11-19",
+    startTime: "21:00:00",
+    durationHours: 3,
+    status: "Pending",
+    budget: 15000,
+    respondedAt: null,
+    deposit: null,
+    dateClash: {
+        clashes: true,
+        withGig: {
+            id: 77,
+            eventType: "Boda",
+            locationText: "Hacienda San Gabriel, Tlaquepaque",
+            startTime: "20:00",
+            durationHours: 3,
+        },
+    },
+};
+
+describe("RequestList clash of dates", () => {
+    it("warns the group about the clash on the row itself, in the thread's own words", () => {
+        render(<RequestList requests={[clashing]} viewer="Group" />);
+
+        const clash = screen.getByText(
+            "Ese día ya tienes un toque: Boda 20:00–23:00 en Hacienda San Gabriel, Tlaquepaque · se pisan 2 h · tu pedido es 21:00–00:00, el otro toque acaba 23:00"
+        );
+        // Un solo renglón de texto, no un bloque: la fila sigue siendo una fila.
+        expect(clash.tagName).toBe("P");
+        expect(clash).toHaveTextContent(/^Ese día ya tienes un toque: /);
+    });
+
+    it("does not change what the client sees: the client's list carries no clash", () => {
+        const { container } = render(<RequestList requests={[clashing]} viewer="Client" />);
+        expect(screen.queryByText(/Ese día ya tienes/)).toBeNull();
+        expect(screen.queryByText(/se pisan/)).toBeNull();
+        expect(container.textContent).not.toMatch(/Ese día/);
+    });
+
+    it("says nothing on a row without a clash, instead of the thread's we-cannot-know line", () => {
+        const { container } = render(<RequestList requests={[{ ...accepted, status: "Pending", deposit: null }]} viewer="Group" />);
+        expect(container.textContent).not.toMatch(/Ese día/);
+        expect(screen.queryByText(/No podemos saber/)).toBeNull();
+    });
+});

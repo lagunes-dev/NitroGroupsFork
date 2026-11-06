@@ -147,6 +147,17 @@ export function clashLabel(dateClash: unknown, own?: OwnGigWindow): string {
     return "Ese día ya tienes otro toque.";
 }
 
+/**
+ * T39: el choque en la fila de la bandeja, con la misma frase que el hilo. La lista del grupo trae
+ * la señal en la fila y solo cuando hay choque; una fila sin señal no dice nada, en vez de repetir
+ * el "no podemos saber" que el hilo sí muestra cuando alguien pregunta. Null si no hay qué decir.
+ */
+export function rowClashLabel(dateClash: unknown, own?: OwnGigWindow): string | null {
+    const signal = readDateClash(dateClash);
+    if (!signal || !signal.clashes) return null;
+    return clashLabel(dateClash, own);
+}
+
 /** "Ofrece $18,000 · tu tarifa base es $12,000", naming whichever number is missing. */
 export function budgetLabel(budget: unknown, currency = "MXN"): string {
     const signal = readBudget(budget);

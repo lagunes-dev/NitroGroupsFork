@@ -1,4 +1,5 @@
 import type { DepositPayload } from "./deposit";
+import type { DateClashSignal } from "./signals";
 
 export type EventRequestStatus = "Pending" | "Accepted" | "Declined" | "Cancelled";
 export type EventRequestParty = "Client" | "Group";
@@ -35,6 +36,11 @@ export interface EventRequest {
     messages?: EventRequestMessage[] | null;
     /** Recorded by the group once the request is accepted; the app never charges it. */
     deposit?: DepositPayload | null;
+    /**
+     * T39: only on the lists the group receives, one per row, and only when the day already has an
+     * accepted gig. The client's list never carries it and keeps rendering exactly as it did.
+     */
+    dateClash?: DateClashSignal | null;
 }
 
 export interface CreateEventRequestBody {

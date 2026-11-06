@@ -22,6 +22,7 @@ import { MyGroups } from "@/features/membership/components/MyGroups";
 import { MusicianProfileForm } from "@/features/musicians/components/MusicianProfileForm";
 import { UserTypeEnum } from "@/features/groups/types/User";
 import { AVAILABILITY_ANCHOR_ID, AvailabilityAnchor, tabFromHash } from "./AvailabilityAnchor";
+import { CollapsibleProfile } from "./CollapsibleProfile";
 
 /**
  * El calendario del grupo con sus días de toque marcados. La consulta vive aquí y no en la página
@@ -88,7 +89,14 @@ export default function MusicianDashboardPage() {
         </div>
       )}
 
-      <GroupProfile />
+      {/*
+        El perfil va primero porque dice quién es el grupo, pero a 390 px ocupaba una pantalla entera
+        y la bandeja arrancaba debajo (T42). Debajo de `md` queda plegado detrás de su nombre, a una
+        pulsación; de `md` para arriba se ve siempre, como hasta ahora.
+      */}
+      <CollapsibleProfile title={group?.groupName?.trim() || "Tu grupo"}>
+        <GroupProfile />
+      </CollapsibleProfile>
 
       {/*
         Aviso de visitas (S9): qué grupos miraron el perfil del músico. Va suelto arriba, no en una
@@ -104,7 +112,7 @@ export default function MusicianDashboardPage() {
       */}
       {!groupPending || groupId ? (
         <div ref={tabsRef}>
-        <TabbedSection label="Gestión del grupo" className="mt-16 md:mt-20" activeKey={activeTab} onActiveKeyChange={setActiveTab}>
+        <TabbedSection label="Gestión del grupo" className="mt-8 md:mt-20" activeKey={activeTab} onActiveKeyChange={setActiveTab}>
           {groupId ? (
             <TabItem title="Pedidos de fecha" shortTitle="Pedidos" tabKey="pedidos">
               <GroupInbox groupId={groupId} />

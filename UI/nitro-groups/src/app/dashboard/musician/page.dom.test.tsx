@@ -1,0 +1,92 @@
+// @vitest-environment jsdom
+import { describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+/**
+ * El panel del grupo es una página de composición: acá se fija el orden de los bloques que produce
+ * el arranque a 390 px (T42). Las pestañas reales se usan tal cual; el perfil se sustituye por un
+ * bloque alto para no depender de la tarjeta.
+ */
+vi.mock("@/hooks/useCurrentUser", () => ({
+    useCurrentUser: () => ({ user: { id: 7, userType: "Musician" }, isLoading: false, isError: false }),
+}));
+vi.mock("@/hooks/usePendingMembership", () => ({ usePendingMembership: () => ({ invitations: 0, joinRequests: 0 }) }));
+vi.mock("@/hooks/useMyMemberships", () => ({ useMyMemberships: () => ({ data: [] }) }));
+vi.mock("@/features/groups/types/User", () => ({ UserTypeEnum: { Musician: "Musician", Client: "Client" } }));
+vi.mock("@/features/groups/services/groups.service", () => ({
+    groupsService: {
+        getByUserId: async () => ({
+            id: 3,
+            groupName: "Versátil Rock y Pop",
+            isAcceptingBookings: true,
+            genres: [],
+        }),
+    },
+}));
+vi.mock("@/features/groups/components/GroupProfile", () => ({
+    default: () => <div>Tarjeta del perfil del grupo</div>,
+}));
+vi.mock("@/features/groupAvailability/components/GroupCalendar", () => ({ default: () => <div>Calendario</div> }));
+vi.mock("@/features/groupMedia/components/GroupGallery", () => ({ default: () => <div>Galería</div> }));
+vi.mock("@/features/bookings/components/GroupInbox", () => ({ GroupInbox: () => <div>Pedidos de fecha</div> }));
+vi.mock("@/features/gigs/components", () => ({
+    GroupAgenda: () => <div>Agenda del grupo</div>,
+    MyAgenda: () => <div>Mi agenda</div>,
+}));
+vi.mock("@/features/gigs/gigs.queries", () => ({ useConfirmedGigDates: () => [] }));
+vi.mock("@/features/membership/components/TeamTab", () => ({ TeamTab: () => <div>Equipo</div> }));
+vi.mock("@/features/membership/components/ProfileVisits", () => ({ ProfileVisits: () => null }));
+vi.mock("@/features/membership/components/MyInvitations", () => ({ MyInvitations: () => <div>Invitaciones</div> }));
+vi.mock("@/features/membership/components/MyGroups", () => ({ MyGroups: () => <div>Mis grupos</div> }));
+vi.mock("@/features/musicians/components/MusicianProfileForm", () => ({
+    MusicianProfileForm: () => <div>Mi perfil</div>,
+}));
+
+import MusicianDashboardPage from "./page";
+
+function renderPage() {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+        <QueryClientProvider client={client}>
+            <MusicianDashboardPage />
+        </QueryClientProvider>
+    );
+}
+
+describe("musician dashboard at 390 px", () => {
+    it("keeps the profile folded above the tabs so the pending work is on the first screen", async () => {
+        renderPage();
+
+        const toggle = await screen.findByRole("button", { name: "Ver perfil" });
+        expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+        const panel = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
+        expect(panel).not.toBeNull();
+        // La tarjeta entera sigue en la página, plegada, y abierta desde `md`.
+        expect(panel).toHaveClass("hidden");
+        expect(panel).toHaveClass("md:block");
+        expect(screen.getByText("Tarjeta del perfil del grupo")).toBeInTheDocument();
+
+        // El trabajo pendiente viene después del resumen, no de una pantalla de tarjeta.
+        const tablist = await screen.findByRole("tablist");
+        expect(toggle.compareDocumentPosition(tablist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(screen.getByRole("tab", { name: /Pedidos/ })).toBeInTheDocument();
+        // El resumen dice de qué grupo es el panel en cuanto el grupo llega.
+        expect(await screen.findByText("Versátil Rock y Pop")).toBeInTheDocument();
+    });
+
+    it("opens the whole profile when the manager asks for it", async () => {
+        const user = userEvent.setup();
+        renderPage();
+
+        await user.click(await screen.findByRole("button", { name: "Ver perfil" }));
+
+        const close = screen.getByRole("button", { name: "Ocultar perfil" });
+        expect(close).toHaveAttribute("aria-expanded", "true");
+        expect(document.getElementById(close.getAttribute("aria-controls") ?? "")).toHaveClass("block");
+        // Nada de lo que había arriba se perdió: la tarjeta entera está ahí.
+        expect(screen.getByText("Tarjeta del perfil del grupo")).toBeVisible();
+    });
+});
