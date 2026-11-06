@@ -189,3 +189,23 @@ describe("toGigView paidLabel (T48)", () => {
         expect(toGigView({ ...ROW, myPay: 2000, myPayPaidAt: "2026-12-13T15:00:00Z" }).payLabel).toBe("Tu pago: $2,000");
     });
 });
+
+describe("toGigView unpaidNotice (S21)", () => {
+    it("carries the one notice a past gig may offer when the pay is still pending", () => {
+        expect(toGigView({ ...ROW, myPay: 1500 }).unpaidNotice).toEqual({ kind: "Unpaid", sent: false });
+        expect(toGigView({ ...ROW, myPay: 1500 }, ["Unpaid"]).unpaidNotice).toEqual({ kind: "Unpaid", sent: true });
+    });
+
+    it("carries nothing when the pay was recorded as received", () => {
+        expect(toGigView({ ...ROW, myPay: 1500, myPayPaidAt: "2026-11-20T15:00:00Z" }).unpaidNotice).toBeNull();
+    });
+
+    it("carries nothing when there is no pay row for the caller", () => {
+        expect(toGigView(ROW).unpaidNotice).toBeNull();
+        expect(toGigView({ ...ROW, myPay: -5 }).unpaidNotice).toBeNull();
+    });
+
+    it("does not leak into the notices of a future gig", () => {
+        expect(toGigView({ ...ROW, myPay: 1500 }).notices.map((slot) => slot.kind)).not.toContain("Unpaid");
+    });
+});

@@ -61,8 +61,9 @@ interface GigCardProps {
  * sound alike, and they stay mounted after answering, so focus is never lost.
  *
  * A gig whose date already passed asks nothing: it says so, and neither the answer buttons nor the
- * logistics notices are drawn (ronda 6, Mateo). A gig the musician declined keeps the answer buttons
- * but says in one line what happens next.
+ * logistics notices are drawn (ronda 6, Mateo). Its one exception is "Avisar que no me pagaron"
+ * (S21): a past gig whose pay is still pending offers exactly that notice and nothing else. A gig the
+ * musician declined keeps the answer buttons but says in one line what happens next.
  */
 export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, notifying, notifyFailed, onNotify }: GigCardProps) {
     const answered = gig.attendance.status;
@@ -73,9 +74,10 @@ export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, 
         if (!saving) onAnswer(status);
     };
     const declined = answered === "Declined";
-    // Un toque rechazado no pide logística (no vas) y uno pasado no pide nada de nada.
+    // Un toque rechazado no pide logística (no vas) y uno pasado no pide nada, salvo (S21) el aviso
+    // de que no le pagaron, que va solo: los otros cinco siguen ocultos en los dos casos.
     const skipped = declined || past;
-    const slots = skipped ? [] : gig.notices;
+    const slots = declined ? [] : past ? (gig.unpaidNotice ? [gig.unpaidNotice] : []) : gig.notices;
     return (
         <li className="superficie flex flex-col gap-4 rounded-[12px] p-4 sm:p-5">
             <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
@@ -166,7 +168,7 @@ export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, 
                 !skipped && <p className="text-sm text-tinta-2 italic">{SETLIST_PENDING}</p>
             )}
 
-            {!past && notifyFailed && (
+            {!declined && notifyFailed && (
                 <p role="alert" className="text-sm text-error">
                     No pudimos enviar el aviso. Intenta de nuevo.
                 </p>

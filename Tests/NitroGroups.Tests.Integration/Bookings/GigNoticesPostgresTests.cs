@@ -87,7 +87,7 @@ public class GigNoticesPostgresTests(IntegrationTestFixture fixture) : IClassFix
     }
 
     [PostgresFact]
-    public async Task LaTablaAdmiteLlegoTardeYNoEncuentroElLugar_YSigueRechazandoElSeisYElCero()
+    public async Task LaTablaAdmiteLlegoTardeYNoEncuentroElLugar_YSigueRechazandoElSieteYElCero()
     {
         await using var db = await PostgresTestDatabase.CreateAsync();
         await using var ctx = Context(db.ConnectionString);
@@ -100,12 +100,55 @@ public class GigNoticesPostgresTests(IntegrationTestFixture fixture) : IClassFix
         await using var check = Context(db.ConnectionString);
         Assert.Equal([4, 5], (await check.GigNotices.OrderBy(n => n.Kind).ToListAsync()).Select(n => (int)n.Kind));
 
-        foreach (var invalid in new[] { 0, 6 })
+        foreach (var invalid in new[] { 0, 7 })
         {
             await using var bad = Context(db.ConnectionString);
             bad.GigNotices.Add(Notice(gigId, (GigNoticeKind)invalid, Today.AddDays(1)));
             await Assert.ThrowsAsync<DbUpdateException>(() => bad.SaveChangesAsync());
         }
+    }
+
+    // T58 / S21: "no me pagaron" es el tipo 6. El CHECK llega hasta ahí y el índice único sigue igual.
+
+    [PostgresFact]
+    public async Task LaTablaAdmiteElAvisoDeQueNoPagaron_YSigueRechazandoElSieteYElCero()
+    {
+        await using var db = await PostgresTestDatabase.CreateAsync();
+        await using var ctx = Context(db.ConnectionString);
+        await ctx.Database.MigrateAsync();
+        var gigId = await SeedAcceptedAsync(ctx);
+
+        ctx.GigNotices.Add(Notice(gigId, (GigNoticeKind)6));
+        await ctx.SaveChangesAsync();
+
+        await using var check = Context(db.ConnectionString);
+        Assert.Equal("Unpaid", Assert.Single(await check.GigNotices.ToListAsync()).Kind.ToString());
+
+        foreach (var invalid in new[] { 0, 7 })
+        {
+            await using var bad = Context(db.ConnectionString);
+            bad.GigNotices.Add(Notice(gigId, (GigNoticeKind)invalid, Today.AddDays(1)));
+            await Assert.ThrowsAsync<DbUpdateException>(() => bad.SaveChangesAsync());
+        }
+    }
+
+    [PostgresFact]
+    public async Task ElAvisoDeQueNoPagaron_TambienSeDedupaPorDiaYAdmiteOtroDia()
+    {
+        await using var db = await PostgresTestDatabase.CreateAsync();
+        await using var ctx = Context(db.ConnectionString);
+        await ctx.Database.MigrateAsync();
+        var gigId = await SeedAcceptedAsync(ctx);
+        ctx.GigNotices.Add(Notice(gigId, (GigNoticeKind)6));
+        await ctx.SaveChangesAsync();
+
+        await using var dup = Context(db.ConnectionString);
+        dup.GigNotices.Add(Notice(gigId, (GigNoticeKind)6));
+        await Assert.ThrowsAsync<DbUpdateException>(() => dup.SaveChangesAsync());
+
+        await using var nextDay = Context(db.ConnectionString);
+        nextDay.GigNotices.Add(Notice(gigId, (GigNoticeKind)6, Today.AddDays(1)));
+        await nextDay.SaveChangesAsync();
     }
 
     [PostgresFact]

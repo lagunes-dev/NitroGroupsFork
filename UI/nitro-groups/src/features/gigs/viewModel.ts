@@ -2,7 +2,7 @@ import { formatEventDate, formatPrice, isIsoDate } from "@/lib/format";
 import { ROUTES } from "@/config/routes";
 import { receivedDate } from "@/features/bookings/deposit";
 import { attendanceAppearance, type AttendanceAppearance } from "./attendance";
-import { noticeSlots, type NoticeSlot } from "./notices";
+import { noticeSlots, unpaidNoticeSlot, type NoticeSlot } from "./notices";
 import type { GigAnswer, GigPayload } from "./types";
 
 const DATE_FALLBACK = "Fecha por definir";
@@ -63,6 +63,11 @@ export interface GigView {
      * declined or past gig.
      */
     notices: NoticeSlot[];
+    /**
+     * The only notice a past gig may offer (S21): the caller has a pay row the manager has not marked
+     * as paid. Null when there is nothing pending, so the past card offers nothing at all.
+     */
+    unpaidNotice: NoticeSlot | null;
 }
 
 const HOURS = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 });
@@ -167,6 +172,7 @@ export function toGigView(row: GigPayload, sentNotices: readonly unknown[] = [])
         payLabel,
         paidLabel: myPaidLabel(row.myPay, row.myPayPaidAt),
         notices: noticeSlots({ callTimeLabel: callTime, payLabel, setlist }, sentNotices),
+        unpaidNotice: unpaidNoticeSlot({ loaded: payLabel !== null, paid: asText(row.myPayPaidAt) !== "" }, sentNotices),
     };
 }
 

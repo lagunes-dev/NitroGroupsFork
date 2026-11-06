@@ -2,9 +2,10 @@ namespace NitroGroups.Core.Bookings.Domain.Entities;
 
 /// <summary>
 /// Qué le avisa el músico al manager: lo que le falta al toque (llegada, pago, setlist) o que llega
-/// tarde / no encuentra el lugar (S17). Se guarda como entero: no reordenar ni reutilizar
-/// valores (las filas existentes cambiarían de significado). Los nombres son los literales que
-/// usa la API ("CallTime" / "Pay" / "Setlist" / "Late" / "CannotFindVenue").
+/// tarde / no encuentra el lugar (S17), o que el toque ya fue y no le pagaron (S21). Se guarda como
+/// entero: no reordenar ni reutilizar valores (las filas existentes cambiarían de significado). Los
+/// nombres son los literales que usa la API ("CallTime" / "Pay" / "Setlist" / "Late" /
+/// "CannotFindVenue" / "Unpaid").
 /// </summary>
 public enum GigNoticeKind
 {
@@ -12,12 +13,13 @@ public enum GigNoticeKind
     Pay = 2,
     Setlist = 3,
     Late = 4,
-    CannotFindVenue = 5
+    CannotFindVenue = 5,
+    Unpaid = 6
 }
 
 public static class GigNoticeKinds
 {
-    /// <summary>Los cinco avisos del contrato, en el orden en que la agenda los muestra.</summary>
+    /// <summary>Los cinco avisos que la agenda ofrece en un toque futuro, en el orden en que los muestra.</summary>
     public static readonly IReadOnlyList<GigNoticeKind> All =
         [GigNoticeKind.CallTime, GigNoticeKind.Pay, GigNoticeKind.Setlist, GigNoticeKind.Late, GigNoticeKind.CannotFindVenue];
 
@@ -46,6 +48,9 @@ public static class GigNoticeKinds
                 return true;
             case nameof(GigNoticeKind.CannotFindVenue):
                 kind = GigNoticeKind.CannotFindVenue;
+                return true;
+            case nameof(GigNoticeKind.Unpaid):
+                kind = GigNoticeKind.Unpaid;
                 return true;
             default:
                 kind = default;

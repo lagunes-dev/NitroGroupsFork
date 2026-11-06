@@ -355,6 +355,100 @@ describe("GigCard of a gig that already happened", () => {
     });
 });
 
+describe("GigCard of a past gig whose pay is still pending (S21)", () => {
+    const props = { past: true, saving: false, failed: false, onAnswer: vi.fn(), onRetry: vi.fn() } as const;
+    const withLogistics = { ...row, callTime: "17:30:00", setlist: "Intro" };
+    const unpaid = { ...withLogistics, myPay: 1500 };
+
+    it("offers exactly one notice, in its own block, and hides the other five", () => {
+        render(<GigCard gig={toGigView(unpaid)} {...props} notifying={null} notifyFailed={false} onNotify={vi.fn()} />);
+
+        const block = screen.getByRole("list", { name: "Avisarle al grupo lo que pasó" });
+        const actions = within(block).getAllByRole("button");
+        expect(actions.map((action) => action.textContent)).toEqual(["Avisar que no me pagaron"]);
+        expect(actions[0]).toHaveAttribute("aria-label", "Avisar que no me pagaron");
+        // 44 px de alto y su propio renglón a 390 px, igual que los otros avisos.
+        expect(actions[0]).toHaveClass("min-h-11", "w-full");
+        // El toque pasado no pide nada más: ni logística ni los dos del día.
+        expect(screen.queryByRole("button", { name: /^Avisar que falta/ })).toBeNull();
+        expect(screen.queryByRole("button", { name: "Avisar que llego tarde" })).toBeNull();
+        expect(screen.queryByRole("button", { name: "Avisar que no encuentro el lugar" })).toBeNull();
+        // Y sigue diciendo cuánto le deben y que sigue pendiente.
+        expect(screen.getByText("Tu pago: $1,500")).toBeInTheDocument();
+        expect(screen.getByText(/· pendiente/)).toBeInTheDocument();
+    });
+
+    it("keeps the whole block to that one notice and no 'lo que falta' heading", () => {
+        render(<GigCard gig={toGigView(unpaid)} {...props} notifying={null} notifyFailed={false} onNotify={vi.fn()} />);
+
+        expect(screen.getByText("Avisarle al grupo lo que pasó")).toBeInTheDocument();
+        expect(screen.queryByText(/lo que falta/)).toBeNull();
+        const block = screen.getByRole("list", { name: "Avisarle al grupo lo que pasó" });
+        expect(within(block).getAllByRole("listitem")).toHaveLength(1);
+    });
+
+    it("says it was sent today and offers nothing again", () => {
+        render(
+            <GigCard gig={toGigView(unpaid, ["Unpaid"])} {...props} notifying={null} notifyFailed={false} onNotify={vi.fn()} />
+        );
+
+        expect(screen.getByText("Avisaste hoy que no te pagaron")).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Avisar que no me pagaron" })).toBeNull();
+    });
+
+    it("offers nothing when the payment was already recorded", () => {
+        render(
+            <GigCard
+                gig={toGigView({ ...unpaid, myPayPaidAt: "2026-11-20T15:00:00Z" })}
+                {...props}
+                notifying={null}
+                notifyFailed={false}
+                onNotify={vi.fn()}
+            />
+        );
+
+        expect(screen.queryByRole("button", { name: "Avisar que no me pagaron" })).toBeNull();
+        expect(screen.queryByRole("list")).toBeNull();
+    });
+
+    it("offers nothing when the gig has no pay row at all", () => {
+        render(
+            <GigCard gig={toGigView({ ...row, callTime: "17:30:00", setlist: "Intro" })} {...props} notifying={null} notifyFailed={false} onNotify={vi.fn()} />
+        );
+
+        expect(screen.queryByRole("button", { name: "Avisar que no me pagaron" })).toBeNull();
+    });
+
+    it("offers nothing on a gig the musician declined, even with a pending pay", () => {
+        render(
+            <GigCard
+                gig={toGigView({ ...unpaid, attendance: "Declined" })}
+                {...props}
+                notifying={null}
+                notifyFailed={false}
+                onNotify={vi.fn()}
+            />
+        );
+
+        // Si no ibas, no tocaste: no hay nada que reclamar (ronda 5, Mateo).
+        expect(screen.queryByRole("button", { name: "Avisar que no me pagaron" })).toBeNull();
+        expect(screen.queryByRole("list")).toBeNull();
+    });
+
+    it("keeps the same five notices on a future gig, never the past one", () => {
+        render(<GigCard gig={toGigView(unpaid)} saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} notifying={null} notifyFailed={false} onNotify={vi.fn()} />);
+
+        expect(screen.queryByRole("button", { name: "Avisar que no me pagaron" })).toBeNull();
+        expect(screen.getByRole("list", { name: "Avisarle al grupo" })).toBeInTheDocument();
+    });
+
+    it("still says a notice did not land, because the block is the only thing left to do", () => {
+        render(<GigCard gig={toGigView(unpaid)} {...props} notifying={null} notifyFailed onNotify={vi.fn()} />);
+
+        expect(screen.getByRole("alert")).toHaveTextContent("No pudimos enviar el aviso. Intenta de nuevo.");
+    });
+});
+
 describe("GigCard of a future gig the musician declined", () => {
     it("says in one line what happens next", () => {
         render(

@@ -4,15 +4,17 @@ import {
     NOTICE_KINDS,
     isNoticeKind,
     noticeActionName,
+    noticeListLabel,
     noticeManagerLine,
     noticeSentLabel,
     noticeSlots,
     noticesByGig,
+    unpaidNoticeSlot,
 } from "./notices";
 
 describe("isNoticeKind", () => {
-    it("accepts only the five kinds of the contract", () => {
-        expect(NOTICE_KINDS).toEqual(["CallTime", "Pay", "Setlist", "Late", "CannotFindVenue"]);
+    it("accepts only the kinds of the contract", () => {
+        expect(NOTICE_KINDS).toEqual(["CallTime", "Pay", "Setlist", "Late", "CannotFindVenue", "Unpaid"]);
         for (const kind of NOTICE_KINDS) expect(isNoticeKind(kind)).toBe(true);
         for (const other of ["Chat", "pay", "", null, undefined, 1, {}]) expect(isNoticeKind(other), String(other)).toBe(false);
     });
@@ -24,12 +26,16 @@ describe("the one-tap action", () => {
         expect(noticeActionName("CallTime")).toBe("Avisar que falta la llegada");
         expect(noticeActionName("Pay")).toBe("Avisar que falta el pago");
         expect(noticeActionName("Setlist")).toBe("Avisar que falta el setlist");
-        expect(new Set(NOTICE_KINDS.map(noticeActionName)).size).toBe(5);
+        expect(new Set(NOTICE_KINDS.map(noticeActionName)).size).toBe(6);
     });
 
     it("names the two day-of notices in their own words, not as something missing (S17)", () => {
         expect(noticeActionName("Late")).toBe("Avisar que llego tarde");
         expect(noticeActionName("CannotFindVenue")).toBe("Avisar que no encuentro el lugar");
+    });
+
+    it("names the past-gig notice of a payment that never arrived (S21)", () => {
+        expect(noticeActionName("Unpaid")).toBe("Avisar que no me pagaron");
     });
 });
 
@@ -40,6 +46,7 @@ describe("noticeSentLabel", () => {
         expect(noticeSentLabel("Setlist")).toBe("Avisaste hoy que falta el setlist");
         expect(noticeSentLabel("Late")).toBe("Avisaste hoy que llegas tarde");
         expect(noticeSentLabel("CannotFindVenue")).toBe("Avisaste hoy que no encuentras el lugar");
+        expect(noticeSentLabel("Unpaid")).toBe("Avisaste hoy que no te pagaron");
     });
 });
 
@@ -50,6 +57,10 @@ describe("noticeManagerLine", () => {
         expect(noticeManagerLine("Sofía Nava", "Setlist")).toBe("Sofía Nava avisa que falta el setlist");
         expect(noticeManagerLine("Mateo", "Late")).toBe("Mateo avisa que llega tarde");
         expect(noticeManagerLine("Mateo", "CannotFindVenue")).toBe("Mateo avisa que no encuentra el lugar");
+    });
+
+    it("tells the manager the payment of a past gig never arrived (S21)", () => {
+        expect(noticeManagerLine("Miguel", "Unpaid")).toBe("Miguel avisa que no le pagaron");
     });
 
     it("never leaves a line without a subject", () => {
@@ -99,6 +110,39 @@ describe("noticeSlots", () => {
             { kind: "Late", sent: true },
             { kind: "CannotFindVenue", sent: false },
         ]);
+    });
+
+    it("never offers the past-gig notice on a gig that has not happened yet (S21)", () => {
+        // "No me pagaron" es solo de un toque pasado: la tarjeta futura sigue ofreciendo los mismos cinco.
+        for (const slots of [noticeSlots(MISSING, []), noticeSlots({ callTimeLabel: "x", setlist: "x", payLabel: "x" }, [])])
+            expect(slots.map((slot) => slot.kind)).not.toContain("Unpaid");
+    });
+});
+
+describe("unpaidNoticeSlot (S21)", () => {
+    it("offers the one notice of a past gig whose pay is still pending", () => {
+        expect(unpaidNoticeSlot({ loaded: true, paid: false })).toEqual({ kind: "Unpaid", sent: false });
+    });
+
+    it("offers nothing when the payment was recorded or when there is no pay row at all", () => {
+        expect(unpaidNoticeSlot({ loaded: true, paid: true })).toBeNull();
+        expect(unpaidNoticeSlot({ loaded: false, paid: false })).toBeNull();
+    });
+
+    it("says it was already sent today instead of offering it again", () => {
+        expect(unpaidNoticeSlot({ loaded: true, paid: false }, ["Unpaid"])).toEqual({ kind: "Unpaid", sent: true });
+        expect(unpaidNoticeSlot({ loaded: true, paid: false }, ["Pay", "Chat"])).toEqual({ kind: "Unpaid", sent: false });
+    });
+});
+
+describe("noticeListLabel", () => {
+    it("keeps 'lo que falta' only when something of the gig is really missing", () => {
+        expect(noticeListLabel(["Pay"])).toBe("Avisarle al grupo lo que falta");
+        expect(noticeListLabel(["Late", "CannotFindVenue"])).toBe("Avisarle al grupo");
+    });
+
+    it("has its own wording for a past gig whose payment never arrived (S21)", () => {
+        expect(noticeListLabel(["Unpaid"])).toBe("Avisarle al grupo lo que pasó");
     });
 });
 
