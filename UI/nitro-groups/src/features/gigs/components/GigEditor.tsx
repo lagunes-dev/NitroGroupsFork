@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Input, Textarea, TimeSelect } from "@/components/ui";
+import { Button, DatePicker, Input, Textarea, TimeSelect } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { groupGigsKey } from "../gigs.queries";
 import { gigsService } from "../gigs.service";
@@ -137,6 +137,14 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                         />
                         Anticipo recibido
                     </label>
+                    {/* T61 (S24): la fecha límite es un día del calendario, y la carga el manager. */}
+                    <DatePicker
+                        id={`${idPrefix}-deposit-due`}
+                        label="Fecha límite del anticipo"
+                        value={form.depositDueDate}
+                        helperText="El cliente la ve junto al anticipo."
+                        onChange={(depositDueDate) => setForm((f) => ({ ...f, depositDueDate }))}
+                    />
                     {/* T48: the balance is recorded like the deposit: a fact with its date, never a charge. */}
                     <label className="flex min-h-11 w-fit cursor-pointer items-center gap-3 text-tinta">
                         <input
@@ -151,6 +159,13 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                     <p id={`${idPrefix}-balance-state`} className="text-sm text-tinta-2">
                         {balanceState}
                     </p>
+                    <DatePicker
+                        id={`${idPrefix}-balance-due`}
+                        label="Fecha límite del saldo"
+                        value={form.balanceDueDate}
+                        helperText="El cliente la ve junto al saldo."
+                        onChange={(balanceDueDate) => setForm((f) => ({ ...f, balanceDueDate }))}
+                    />
                 </div>
             </div>
 

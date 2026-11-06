@@ -50,6 +50,12 @@ public sealed class UpdateGigDetailsCommandHandler(
             gig.SetDepositReceived(received, time.GetUtcNow().UtcDateTime);
         if (body.HasBalanceReceived && body.BalanceReceived is { } balanceReceived)
             gig.SetBalanceReceived(balanceReceived, time.GetUtcNow().UtcDateTime);
+        // S24: la fecha límite se guarda tal como viene, sin compararla con hoy: un plazo vencido es un
+        // hecho que se muestra, no un error que se rechaza. Null la limpia y omitirla no la toca.
+        if (body.HasDepositDueDate)
+            gig.SetDepositDueDate(body.DepositDueDate);
+        if (body.HasBalanceDueDate)
+            gig.SetBalanceDueDate(body.BalanceDueDate);
 
         await unitOfWork.CompleteAsync();
 

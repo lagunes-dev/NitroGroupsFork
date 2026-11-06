@@ -53,6 +53,15 @@ public class EventRequest : AuditableModel
     /// <summary>Cuándo se recibió el saldo; null mientras no se haya recibido.</summary>
     public DateTime? BalanceReceivedAt { get; private set; }
 
+    /// <summary>
+    /// Fecha límite del anticipo (S24): un día del calendario, como <see cref="EventDate"/>, no un
+    /// instante. Puede existir sin monto: el manager pone el plazo antes de que exista la plata.
+    /// </summary>
+    public DateOnly? DepositDueDate { get; private set; }
+
+    /// <summary>Fecha límite del saldo (S24), con las mismas reglas que el anticipo.</summary>
+    public DateOnly? BalanceDueDate { get; private set; }
+
     public List<EventRequestMessage> Messages { get; set; } = [];
 
     /// <summary>Respuestas de asistencia de los miembros del grupo (una por usuario).</summary>
@@ -147,6 +156,15 @@ public class EventRequest : AuditableModel
     /// <summary>Igual que el anticipo: fija la fecha si estaba vacía, o la limpia.</summary>
     public void SetBalanceReceived(bool received, DateTime nowUtc)
         => BalanceReceivedAt = received ? BalanceReceivedAt ?? nowUtc : null;
+
+    /// <summary>
+    /// Guarda o limpia la fecha límite del anticipo. No se valida contra hoy: un plazo que ya pasó se
+    /// registra igual, porque es un hecho y la app no cobra ni reclama nada (D1, D2, S18).
+    /// </summary>
+    public void SetDepositDueDate(DateOnly? dueDate) => DepositDueDate = dueDate;
+
+    /// <summary>Igual que el anticipo, para la fecha límite del saldo.</summary>
+    public void SetBalanceDueDate(DateOnly? dueDate) => BalanceDueDate = dueDate;
 
     /// <summary>Agrega un mensaje de una de las partes y avisa a la otra.</summary>
     public EventRequestMessage PostMessage(long senderUserId, EventRequestParty senderParty, string body, DateTime nowUtc)

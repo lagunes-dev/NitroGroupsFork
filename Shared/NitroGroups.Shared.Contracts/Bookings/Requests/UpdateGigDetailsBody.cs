@@ -14,6 +14,8 @@ namespace NitroGroups.Shared.Contracts.Bookings.Requests
         private decimal? _depositAmount;
         private bool? _depositReceived;
         private bool? _balanceReceived;
+        private DateOnly? _depositDueDate;
+        private DateOnly? _balanceDueDate;
 
         /// <summary>Lista de canciones en texto libre (máximo 4000 caracteres).</summary>
         public string? Setlist
@@ -50,10 +52,30 @@ namespace NitroGroups.Shared.Contracts.Bookings.Requests
             set { _balanceReceived = value; HasBalanceReceived = true; }
         }
 
+        /// <summary>
+        /// Fecha límite del anticipo (S24), como <c>YYYY-MM-DD</c>. Es un día del calendario, no un
+        /// instante. Enviarla como <c>null</c> la limpia; omitirla no la toca. Una fecha que ya pasó se
+        /// acepta igual: la app registra el plazo, no lo cumple ni lo valida.
+        /// </summary>
+        public DateOnly? DepositDueDate
+        {
+            get => _depositDueDate;
+            set { _depositDueDate = value; HasDepositDueDate = true; }
+        }
+
+        /// <summary>Igual que <c>DepositDueDate</c>, para el saldo.</summary>
+        public DateOnly? BalanceDueDate
+        {
+            get => _balanceDueDate;
+            set { _balanceDueDate = value; HasBalanceDueDate = true; }
+        }
+
         [JsonIgnore] public bool HasSetlist { get; private set; }
         [JsonIgnore] public bool HasCallTime { get; private set; }
         [JsonIgnore] public bool HasDepositAmount { get; private set; }
         [JsonIgnore] public bool HasDepositReceived { get; private set; }
         [JsonIgnore] public bool HasBalanceReceived { get; private set; }
+        [JsonIgnore] public bool HasDepositDueDate { get; private set; }
+        [JsonIgnore] public bool HasBalanceDueDate { get; private set; }
     }
 }

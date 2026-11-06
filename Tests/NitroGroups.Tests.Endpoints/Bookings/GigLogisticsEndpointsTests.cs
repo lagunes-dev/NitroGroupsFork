@@ -114,7 +114,7 @@ public class GigLogisticsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory
         Assert.Equal("18:30:00", gig.GetProperty("callTime").GetString());
         Assert.Equal("Cielito lindo", gig.GetProperty("setlist").GetString());
         var deposit = gig.GetProperty("deposit");
-        Assert.Equal(["amount", "receivedAt"], deposit.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(["amount", "receivedAt", "dueDate"], deposit.EnumerateObject().Select(p => p.Name));
         Assert.Equal(5000m, deposit.GetProperty("amount").GetDecimal());
         Assert.Equal("2026-11-03T18:00:00Z", deposit.GetProperty("receivedAt").GetString());
         Assert.Equal(1200m, gig.GetProperty("attendees")[0].GetProperty("pay").GetDecimal());
@@ -304,7 +304,7 @@ public class GigLogisticsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory
         Assert.Equal("2026-12-13T15:00:00Z", gig.GetProperty("attendees")[0].GetProperty("paidAt").GetString());
         Assert.Equal(JsonValueKind.Null, gig.GetProperty("attendees")[1].GetProperty("paidAt").ValueKind);
         // Los campos de siempre siguen en su orden y lo nuevo entra al final de su objeto.
-        Assert.Equal(["amount", "receivedAt"], gig.GetProperty("deposit").EnumerateObject().Select(p => p.Name));
+        Assert.Equal(["amount", "receivedAt", "dueDate"], gig.GetProperty("deposit").EnumerateObject().Select(p => p.Name));
         Assert.Equal(["userId", "fullName", "status", "pay", "paidAt"], gig.GetProperty("attendees")[0].EnumerateObject().Select(p => p.Name));
     }
 
@@ -321,5 +321,80 @@ public class GigLogisticsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty("balanceReceivedAt").ValueKind);
         Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty("attendees")[0].GetProperty("paidAt").ValueKind);
+    }
+
+    // T61 (S24): el anticipo y el saldo llevan fecha límite. Son días del calendario, como la fecha
+    // del evento: viajan como "YYYY-MM-DD", y null limpia la fecha.
+    [Theory]
+    [InlineData("{\"depositDueDate\":\"2026-11-15\"}", true, true, "2026-11-15")]
+    [InlineData("{\"depositDueDate\":null}", true, false, null)]
+    [InlineData("{\"setlist\":\"x\"}", false, false, null)]
+    public async Task Detalles_FechaLimiteDelAnticipo_ViajaComoDiaDelCalendario_YNullLaLimpia(
+        string json, bool expectedHas, bool expectedPresent, string? expectedDate)
+    {
+        UpdateGigDetailsCommand? sent = null;
+        _mediator.SendCommandAsync<UpdateGigDetailsCommand, BookingResult<GroupGigResponse>>(Arg.Do<UpdateGigDetailsCommand>(c => sent = c))
+            .Returns(BookingResult<GroupGigResponse>.Success(Row()));
+
+        var response = await _client.SendAsync(Put("api/groups/10/gigs/5/details", json));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(expectedHas, sent!.Body.HasDepositDueDate);
+        Assert.Equal(expectedPresent ? new DateOnly(2026, 11, 15) : null, sent.Body.DepositDueDate);
+        if (expectedDate is not null)
+            Assert.Equal(expectedDate, sent.Body.DepositDueDate?.ToString("yyyy-MM-dd"));
+        Assert.False(sent.Body.HasBalanceDueDate); // el anticipo no toca la fecha del saldo
+    }
+
+    [Fact]
+    public async Task Detalles_FechaLimiteDelSaldo_ViajaComoDiaDelCalendario_YNullLaLimpia()
+    {
+        UpdateGigDetailsCommand? sent = null;
+        _mediator.SendCommandAsync<UpdateGigDetailsCommand, BookingResult<GroupGigResponse>>(Arg.Do<UpdateGigDetailsCommand>(c => sent = c))
+            .Returns(BookingResult<GroupGigResponse>.Success(Row()));
+
+        var response = await _client.SendAsync(Put("api/groups/10/gigs/5/details",
+            "{\"depositDueDate\":\"2026-11-15\",\"balanceDueDate\":\"2026-12-12\"}"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(new DateOnly(2026, 11, 15), sent!.Body.DepositDueDate);
+        Assert.Equal(new DateOnly(2026, 12, 12), sent.Body.BalanceDueDate);
+
+        await _client.SendAsync(Put("api/groups/10/gigs/5/details", "{\"balanceDueDate\":null}"));
+
+        Assert.True(sent.Body.HasBalanceDueDate);
+        Assert.Null(sent.Body.BalanceDueDate);
+    }
+
+    [Fact]
+    public async Task Fila_DelManager_LlevaLaFechaLimiteDelAnticipoYDelSaldo_ConNulosSiNoHay()
+    {
+        var row = Row();
+        row.Deposit.DueDate = new DateOnly(2026, 11, 15);
+        row.BalanceDueDate = new DateOnly(2026, 12, 12);
+        _mediator.SendCommandAsync<UpdateGigDetailsCommand, BookingResult<GroupGigResponse>>(Arg.Any<UpdateGigDetailsCommand>())
+            .Returns(BookingResult<GroupGigResponse>.Success(row));
+
+        var response = await _client.SendAsync(Put("api/groups/10/gigs/5/details", "{\"depositDueDate\":\"2026-11-15\"}"));
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var gig = json.RootElement;
+        Assert.Equal("2026-11-15", gig.GetProperty("deposit").GetProperty("dueDate").GetString());
+        Assert.Equal("2026-12-12", gig.GetProperty("balanceDueDate").GetString());
+    }
+
+    [Fact]
+    public async Task Fila_SinFechasLimite_LasDevuelveNulasYNuncaClavesFaltantes()
+    {
+        var bare = Row();
+        bare.Deposit = new GigDepositResponse { Amount = 5000m };
+        _mediator.SendCommandAsync<SetGigPayCommand, BookingResult<GroupGigResponse>>(Arg.Any<SetGigPayCommand>())
+            .Returns(BookingResult<GroupGigResponse>.Success(bare));
+
+        var response = await _client.SendAsync(Put("api/groups/10/gigs/5/pay", "{\"payments\":[]}"));
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty("deposit").GetProperty("dueDate").ValueKind);
+        Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty("balanceDueDate").ValueKind);
     }
 }

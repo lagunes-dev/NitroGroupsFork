@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GigEditor } from "./GigEditor";
@@ -116,6 +116,65 @@ describe("GigEditor money as data (T48)", () => {
         expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos guardar los cambios del toque.");
         expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
         expect(onSaved).not.toHaveBeenCalled();
+    });
+});
+
+describe("Fechas límite del anticipo y del saldo (T61, S24)", () => {
+    const withDeadlines: GroupGigPayload = {
+        ...row,
+        deposit: { amount: 4000, receivedAt: null, dueDate: "2026-11-15" },
+        balanceDueDate: "2026-12-12",
+    };
+
+    it("offers the two deadlines next to the deposit and the balance, with the saved day", () => {
+        renderEditor(withDeadlines);
+        expect(screen.getByRole("combobox", { name: "Fecha límite del anticipo" })).toHaveTextContent("dom 15 nov 2026");
+        expect(screen.getByRole("combobox", { name: "Fecha límite del saldo" })).toHaveTextContent("sáb 12 dic 2026");
+    });
+
+    it("starts both empty when the manager never loaded one", () => {
+        renderEditor();
+        expect(screen.getByRole("combobox", { name: "Fecha límite del anticipo" })).toHaveTextContent("Selecciona una fecha");
+        expect(screen.getByRole("combobox", { name: "Fecha límite del saldo" })).toHaveTextContent("Selecciona una fecha");
+    });
+
+    it("saves both deadlines with the details", async () => {
+        mocks.saveDetails.mockResolvedValue({});
+        mocks.savePay.mockResolvedValue({});
+        const onSaved = renderEditor(withDeadlines);
+
+        await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+        await vi.waitFor(() => expect(onSaved).toHaveBeenCalled());
+        expect(mocks.saveDetails).toHaveBeenCalledWith(
+            1,
+            7,
+            expect.objectContaining({ depositDueDate: "2026-11-15", balanceDueDate: "2026-12-12" })
+        );
+    });
+
+    it("lets the manager pick a day and clear one", async () => {
+        const user = userEvent.setup();
+        mocks.saveDetails.mockResolvedValue({});
+        mocks.savePay.mockResolvedValue({});
+        const onSaved = renderEditor(withDeadlines);
+
+        await user.click(screen.getByRole("combobox", { name: "Fecha límite del anticipo" }));
+        const calendar = screen.getByRole("dialog", { name: /Elegir fecha/ });
+        await user.click(calendar.querySelector('[data-day="2026-11-24"] button') as HTMLElement);
+        expect(screen.getByRole("combobox", { name: "Fecha límite del anticipo" })).toHaveTextContent("mar 24 nov 2026");
+
+        await user.click(screen.getByRole("combobox", { name: "Fecha límite del saldo" }));
+        await user.click(within(screen.getByRole("dialog", { name: /Elegir fecha/ })).getByRole("button", { name: "Borrar fecha" }));
+
+        await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+        await vi.waitFor(() => expect(onSaved).toHaveBeenCalled());
+        expect(mocks.saveDetails).toHaveBeenCalledWith(
+            1,
+            7,
+            expect.objectContaining({ depositDueDate: "2026-11-24", balanceDueDate: null })
+        );
     });
 });
 

@@ -86,7 +86,7 @@ public class GroupGigsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
         var gig = Assert.Single(json.RootElement.EnumerateArray());
         // El orden de las propiedades de un objeto JSON no importa; el conjunto sí.
         Assert.Equal(
-            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "attendees", "setlist", "callTime", "deposit", "balanceReceivedAt", "budget", "currency" }.Order(StringComparer.Ordinal),
+            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "attendees", "setlist", "callTime", "deposit", "balanceReceivedAt", "balanceDueDate", "budget", "currency" }.Order(StringComparer.Ordinal),
             gig.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
         Assert.Equal("Confirmed", gig.GetProperty("attendance").GetString());
         var attendee = Assert.Single(gig.GetProperty("attendees").EnumerateArray());
@@ -122,7 +122,7 @@ public class GroupGigsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
         using var json = JsonDocument.Parse(body);
         var gig = Assert.Single(json.RootElement.EnumerateArray());
         Assert.Equal(
-            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "attendees", "setlist", "callTime", "deposit", "balanceReceivedAt", "budget", "currency" }.Order(StringComparer.Ordinal),
+            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "attendees", "setlist", "callTime", "deposit", "balanceReceivedAt", "balanceDueDate", "budget", "currency" }.Order(StringComparer.Ordinal),
             gig.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
     }
 

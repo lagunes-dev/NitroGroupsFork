@@ -76,8 +76,9 @@ public static class GroupGigResponses
             var row = new GroupGigResponse
             {
                 Attendees = attendees,
-                Deposit = new GigDepositResponse { Amount = gig.DepositAmount, ReceivedAt = gig.DepositReceivedAt },
+                Deposit = new GigDepositResponse { Amount = gig.DepositAmount, ReceivedAt = gig.DepositReceivedAt, DueDate = gig.DepositDueDate },
                 BalanceReceivedAt = gig.BalanceReceivedAt,
+                BalanceDueDate = gig.BalanceDueDate,
                 // T60 (S23): el cachet del pedido, tal como lo dejó el cliente. Un dato, no un cálculo.
                 Budget = gig.Budget,
                 Currency = gig.Currency

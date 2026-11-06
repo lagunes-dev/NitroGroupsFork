@@ -11,7 +11,17 @@ import {
     type LogisticsForm,
 } from "./gigLogistics";
 
-const FORM: LogisticsForm = { callTime: "", setlist: "", depositAmount: "", depositReceived: false, balanceReceived: false, pay: {}, paid: {} };
+const FORM: LogisticsForm = {
+    callTime: "",
+    setlist: "",
+    depositAmount: "",
+    depositReceived: false,
+    balanceReceived: false,
+    depositDueDate: "",
+    balanceDueDate: "",
+    pay: {},
+    paid: {},
+};
 
 describe("parseAmount", () => {
     it("reads empty, valid and invalid text apart", () => {
@@ -43,6 +53,8 @@ describe("initialLogisticsForm", () => {
             depositAmount: "3000",
             depositReceived: true,
             balanceReceived: false,
+            depositDueDate: "",
+            balanceDueDate: "",
             pay: { "5": "2000", "6": "" },
             paid: { "5": false, "6": false },
         });
@@ -103,16 +115,50 @@ describe("buildDetailsBody", () => {
             depositAmount: 3000,
             depositReceived: true,
             balanceReceived: false,
+            depositDueDate: null,
+            balanceDueDate: null,
         });
     });
 
     it("omits an empty call time and deposit, keeps the setlist so it can be cleared", () => {
-        expect(buildDetailsBody(FORM)).toEqual({ setlist: "", depositReceived: false, balanceReceived: false });
+        expect(buildDetailsBody(FORM)).toEqual({ setlist: "", depositReceived: false, balanceReceived: false, depositDueDate: null, balanceDueDate: null });
     });
 
     it("sends the balance like the deposit: true records it, false clears it (T48)", () => {
         expect(buildDetailsBody({ ...FORM, balanceReceived: true }).balanceReceived).toBe(true);
         expect(buildDetailsBody({ ...FORM, balanceReceived: false }).balanceReceived).toBe(false);
+    });
+});
+
+describe("fechas límite del anticipo y del saldo (T61, S24)", () => {
+    it("reads the two deadlines the row carries, as YYYY-MM-DD", () => {
+        const form = initialLogisticsForm({ deposit: { amount: 3000, dueDate: "2026-11-15" }, balanceDueDate: "2026-12-12" });
+        expect(form.depositDueDate).toBe("2026-11-15");
+        expect(form.balanceDueDate).toBe("2026-12-12");
+    });
+
+    it("starts both empty when the row has no deadline or cannot be read", () => {
+        expect(initialLogisticsForm({}).depositDueDate).toBe("");
+        expect(initialLogisticsForm({}).balanceDueDate).toBe("");
+        const odd = initialLogisticsForm({ deposit: { dueDate: "15/11/2026" }, balanceDueDate: "2026-02-30" });
+        expect(odd.depositDueDate).toBe("");
+        expect(odd.balanceDueDate).toBe("");
+    });
+
+    it("sends both deadlines always, so an emptied date clears the saved one", () => {
+        expect(buildDetailsBody({ ...FORM, depositDueDate: "2026-11-15", balanceDueDate: "2026-12-12" })).toMatchObject({
+            depositDueDate: "2026-11-15",
+            balanceDueDate: "2026-12-12",
+        });
+        expect(buildDetailsBody(FORM)).toMatchObject({ depositDueDate: null, balanceDueDate: null });
+    });
+
+    it("does not validate the deadline: a day that already passed is a fact", () => {
+        expect(validateLogistics({ ...FORM, depositDueDate: "2020-01-01", balanceDueDate: "2020-01-01" })).toEqual({
+            valid: true,
+            errors: { pay: {} },
+            firstInvalid: null,
+        });
     });
 });
 

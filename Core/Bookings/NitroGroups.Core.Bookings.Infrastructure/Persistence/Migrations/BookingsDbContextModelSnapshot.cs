@@ -32,6 +32,10 @@ namespace NitroGroups.Core.Bookings.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<DateOnly?>("BalanceDueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("balance_due_date");
+
                     b.Property<DateTime?>("BalanceReceivedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("balance_received_at");
@@ -79,6 +83,10 @@ namespace NitroGroups.Core.Bookings.Infrastructure.Persistence.Migrations
                         .HasPrecision(12, 2)
                         .HasColumnType("numeric(12,2)")
                         .HasColumnName("deposit_amount");
+
+                    b.Property<DateOnly?>("DepositDueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("deposit_due_date");
 
                     b.Property<DateTime?>("DepositReceivedAt")
                         .HasColumnType("timestamp with time zone")

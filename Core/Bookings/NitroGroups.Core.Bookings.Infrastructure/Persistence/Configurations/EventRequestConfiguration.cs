@@ -40,6 +40,10 @@ public class EventRequestConfiguration : IEntityTypeConfiguration<EventRequest>
         builder.Property(e => e.DepositReceivedAt).HasColumnName("deposit_received_at");
         builder.Property(e => e.BalanceReceivedAt).HasColumnName("balance_received_at");
 
+        // S24: un día del calendario, igual que event_date, no un instante.
+        builder.Property(e => e.DepositDueDate).HasColumnName("deposit_due_date");
+        builder.Property(e => e.BalanceDueDate).HasColumnName("balance_due_date");
+
         builder.Property(e => e.CreatedAt).HasDefaultValueSql("now()").HasColumnName("created_at");
         builder.Property(e => e.CreatedBy).HasColumnName("created_by");
         builder.Property(e => e.DeletedAt).HasColumnName("deleted_at");

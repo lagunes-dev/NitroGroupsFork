@@ -522,4 +522,106 @@ public class GigLogisticsHandlersIntegrationTests : IClassFixture<IntegrationTes
         var properties = typeof(EventRequestResponse).GetProperties().Select(p => p.Name);
         Assert.DoesNotContain(properties, name => name.Contains("Paid") || name.Contains("Pay") || name.Contains("Setlist"));
     }
+
+    // T61 (S24): el anticipo y el saldo llevan fecha límite, un día del calendario. El manager la
+    // carga y el cliente la ve; null la limpia y omitirla no la toca.
+    [Fact]
+    public async Task FechasLimite_ElManagerLasGuarda_YElClienteLasVeEnSuSolicitud()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context);
+
+        var saved = await DetailsAsync(context, gig.Id, new UpdateGigDetailsBody
+        {
+            DepositAmount = 4000m,
+            DepositDueDate = new DateOnly(2026, 11, 15),
+            BalanceDueDate = new DateOnly(2026, 12, 12)
+        });
+
+        Assert.True(saved.IsSuccess, saved.Error);
+        Assert.Equal(new DateOnly(2026, 11, 15), saved.Value!.Deposit.DueDate);
+        Assert.Equal(new DateOnly(2026, 12, 12), saved.Value!.BalanceDueDate);
+
+        var row = Assert.Single(await GroupGigsAsync(context));
+        Assert.Equal(new DateOnly(2026, 11, 15), row.Deposit.DueDate);
+        Assert.Equal(4000m, row.Deposit.Amount);
+        Assert.Equal(new DateOnly(2026, 12, 12), row.BalanceDueDate);
+
+        var client = await new GetEventRequestByIdQueryHandler(
+                _fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users, _scenario.Time)
+            .Handle(new GetEventRequestByIdQuery(gig.Id, ClientId, false), CancellationToken.None);
+        Assert.True(client.IsSuccess, client.Error);
+        Assert.Equal(new DateOnly(2026, 11, 15), client.Value!.Deposit.DueDate);
+        Assert.Equal(new DateOnly(2026, 12, 12), client.Value.BalanceDueDate);
+    }
+
+    [Fact]
+    public async Task FechasLimite_SeGuardanSinMontoYSinFecha_LasDosValen_YNullLimpiaLaFecha()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context);
+
+        // Una fecha sin monto: el manager puede poner el plazo antes de que exista la plata.
+        var dateOnly = await DetailsAsync(context, gig.Id, new UpdateGigDetailsBody { DepositDueDate = new DateOnly(2026, 11, 15) });
+        Assert.True(dateOnly.IsSuccess, dateOnly.Error);
+        var row = Assert.Single(await GroupGigsAsync(context));
+        Assert.Equal(new DateOnly(2026, 11, 15), row.Deposit.DueDate);
+        Assert.Null(row.Deposit.Amount);
+
+        // Un monto sin fecha: sigue siendo lo de hoy, y la fecha queda vacía. Omitir la fecha no la
+        // limpia (la actualización es parcial), así que se prueba en un toque sin fecha cargada.
+        var fresh = await SeedGigAsync(context, eventDate: new DateOnly(2027, 1, 9));
+        var amountOnly = await DetailsAsync(context, fresh.Id, new UpdateGigDetailsBody { DepositAmount = 4000m });
+        Assert.True(amountOnly.IsSuccess, amountOnly.Error);
+        var amountRow = (await GroupGigsAsync(context)).Single(candidate => candidate.Id == fresh.Id);
+        Assert.Null(amountRow.Deposit.DueDate);
+        Assert.Equal(4000m, amountRow.Deposit.Amount);
+
+        // Omitir la fecha en una actualización posterior tampoco la mueve.
+        await DetailsAsync(context, gig.Id, new UpdateGigDetailsBody { DepositAmount = 4000m });
+        row = Assert.Single((await GroupGigsAsync(context)).Where(candidate => candidate.Id == gig.Id));
+        Assert.Equal(new DateOnly(2026, 11, 15), row.Deposit.DueDate);
+        Assert.Equal(4000m, row.Deposit.Amount);
+
+        // La fecha del saldo se guarda y se limpia sin tocar el anticipo.
+        await DetailsAsync(context, gig.Id, new UpdateGigDetailsBody { BalanceDueDate = new DateOnly(2026, 12, 12) });
+        row = Assert.Single((await GroupGigsAsync(context)).Where(candidate => candidate.Id == gig.Id));
+        Assert.Equal(new DateOnly(2026, 12, 12), row.BalanceDueDate);
+        Assert.Equal(4000m, row.Deposit.Amount);
+
+        await DetailsAsync(context, gig.Id, new UpdateGigDetailsBody { DepositDueDate = null, BalanceDueDate = null });
+        var cleared = Assert.Single((await GroupGigsAsync(context)).Where(candidate => candidate.Id == gig.Id));
+        Assert.Null(cleared.BalanceDueDate);
+        Assert.Null(cleared.Deposit.DueDate);
+        Assert.Equal(4000m, cleared.Deposit.Amount);
+    }
+
+    [Fact]
+    public async Task FechaLimite_UnaFechaQueYaPaso_SeGuardaIgual_SinValidacionNiAviso()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context);
+
+        // Hoy es 3/11/2026 en el escenario: una fecha límite de octubre ya pasó y es un hecho, no un error.
+        var past = await DetailsAsync(context, gig.Id, new UpdateGigDetailsBody { BalanceDueDate = new DateOnly(2026, 10, 1) });
+
+        Assert.True(past.IsSuccess, past.Error);
+        Assert.Equal(new DateOnly(2026, 10, 1), Assert.Single(await GroupGigsAsync(context)).BalanceDueDate);
+    }
+
+    [Fact]
+    public async Task FechasLimite_ToqueDeOtroGrupoOSinAceptar_Returns404YNoGuarda()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var ajeno = await SeedGigAsync(context, groupId: OtherGroupId);
+        var pendiente = await SeedAsync(context);
+
+        var other = await DetailsAsync(context, ajeno.Id, new UpdateGigDetailsBody { DepositDueDate = new DateOnly(2026, 11, 15) });
+        var pending = await DetailsAsync(context, pendiente.Id, new UpdateGigDetailsBody { BalanceDueDate = new DateOnly(2026, 11, 15) });
+
+        Assert.Equal(BookingErrorKind.NotFound, other.ErrorKind);
+        Assert.Equal(BookingErrorKind.NotFound, pending.ErrorKind);
+        Assert.Null((await _fixture.CreateBookingsUnitOfWork(context).EventRequests.GetByIdAsync(ajeno.Id))!.DepositDueDate);
+        Assert.Null((await _fixture.CreateBookingsUnitOfWork(context).EventRequests.GetByIdAsync(pendiente.Id))!.BalanceDueDate);
+    }
 }

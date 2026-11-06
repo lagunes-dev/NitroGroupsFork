@@ -211,7 +211,7 @@ public class EventRequestsEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
         var item = json.RootElement[0];
 
         // El campo nuevo entra al final: los de siempre no se movieron ni se perdieron.
-        Assert.Equal([.. LegacyKeys, "balanceReceivedAt", "dateClash"], item.EnumerateObject().Select(property => property.Name));
+        Assert.Equal([.. LegacyKeys, "balanceReceivedAt", "balanceDueDate", "dateClash"], item.EnumerateObject().Select(property => property.Name));
 
         var clash = item.GetProperty("dateClash");
         Assert.True(clash.GetProperty("clashes").GetBoolean());
@@ -237,7 +237,7 @@ public class EventRequestsEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
 
         // Sin choque el hecho es null, y un null no viaja: la fila queda como siempre.
         Assert.False(item.TryGetProperty("dateClash", out _));
-        Assert.Equal([.. LegacyKeys, "balanceReceivedAt"], item.EnumerateObject().Select(property => property.Name));
+        Assert.Equal([.. LegacyKeys, "balanceReceivedAt", "balanceDueDate"], item.EnumerateObject().Select(property => property.Name));
     }
 
     // T29: el cliente nunca ve si el grupo está ocupado.
@@ -257,7 +257,7 @@ public class EventRequestsEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
         Assert.False(item.TryGetProperty("dateClash", out _));
         Assert.DoesNotContain("dateClash", await response.Content.ReadAsStringAsync());
         // T48: lo único nuevo es el saldo recibido, al final de los campos de siempre.
-        Assert.Equal([.. LegacyKeys, "balanceReceivedAt"], item.EnumerateObject().Select(property => property.Name));
+        Assert.Equal([.. LegacyKeys, "balanceReceivedAt", "balanceDueDate"], item.EnumerateObject().Select(property => property.Name));
     }
 
     // T48 (S18): el cliente ve cuándo se recibió su saldo, y nunca lo que se le paga a los músicos.
@@ -279,6 +279,38 @@ public class EventRequestsEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
         Assert.DoesNotContain("myPay", body);
         Assert.DoesNotContain("setlist", body);
         Assert.DoesNotContain("attendees", body);
+    }
+
+    // T61 (S24): el cliente ve la fecha límite del anticipo y la del saldo en su lista y en su
+    // detalle, como días del calendario ("YYYY-MM-DD"). Sin fecha cargada, el campo viaja nulo y el
+    // texto del cliente queda como está.
+    [Fact]
+    public async Task Mias_ElClienteVeLaFechaLimiteDelAnticipoYDelSaldo()
+    {
+        var withDates = Row();
+        withDates.Deposit = new GigDepositResponse { Amount = 4000m, DueDate = new DateOnly(2026, 11, 15) };
+        withDates.BalanceDueDate = new DateOnly(2026, 12, 12);
+        _mediator.SendQueryAsync<GetMyEventRequestsQuery, List<EventRequestResponse>>(Arg.Any<GetMyEventRequestsQuery>())
+            .Returns([withDates, Row()]);
+        _mediator.SendQueryAsync<GetEventRequestByIdQuery, BookingResult<EventRequestResponse>>(Arg.Any<GetEventRequestByIdQuery>())
+            .Returns(BookingResult<EventRequestResponse>.Success(withDates));
+
+        var list = await _client.GetAsync("api/event-requests/mine");
+        var detail = await _client.GetAsync("api/event-requests/7");
+
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+
+        using var listJson = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
+        Assert.Equal("2026-11-15", listJson.RootElement[0].GetProperty("deposit").GetProperty("dueDate").GetString());
+        Assert.Equal("2026-12-12", listJson.RootElement[0].GetProperty("balanceDueDate").GetString());
+        // Sin fecha cargada: nulo, nunca una fecha inventada.
+        Assert.Equal(JsonValueKind.Null, listJson.RootElement[1].GetProperty("deposit").GetProperty("dueDate").ValueKind);
+        Assert.Equal(JsonValueKind.Null, listJson.RootElement[1].GetProperty("balanceDueDate").ValueKind);
+
+        using var detailJson = JsonDocument.Parse(await detail.Content.ReadAsStringAsync());
+        Assert.Equal("2026-11-15", detailJson.RootElement.GetProperty("deposit").GetProperty("dueDate").GetString());
+        Assert.Equal("2026-12-12", detailJson.RootElement.GetProperty("balanceDueDate").GetString());
     }
 
     // T59 (S22): el cliente nunca ve con quién toca el grupo ni el teléfono de su manager, ni en la
@@ -303,7 +335,7 @@ public class EventRequestsEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
         }
 
         using var listJson = JsonDocument.Parse(listBody);
-        Assert.Equal([.. LegacyKeys, "balanceReceivedAt"], listJson.RootElement[0].EnumerateObject().Select(property => property.Name));
+        Assert.Equal([.. LegacyKeys, "balanceReceivedAt", "balanceDueDate"], listJson.RootElement[0].EnumerateObject().Select(property => property.Name));
         using var detailJson = JsonDocument.Parse(detailBody);
         Assert.DoesNotContain("managerPhone", detailJson.RootElement.EnumerateObject().Select(property => property.Name));
         Assert.DoesNotContain("teammates", detailJson.RootElement.EnumerateObject().Select(property => property.Name));
