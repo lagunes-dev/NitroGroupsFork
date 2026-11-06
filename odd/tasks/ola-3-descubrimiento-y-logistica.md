@@ -24,7 +24,14 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 - **S18 (ronda 7, aprobada).** "Registrar como dato (Recomendada)". El manager marca "saldo recibido" en el pedido y "pagado el <fecha>" a cada músico, igual que ya hace con el anticipo. Sin pasarela, sin comisión y sin que la app sume ni valide: D1 y D2 siguen en pie. El cliente ve "Saldo recibido el …"; el músico ve "pagado el …" junto a su pago.
 - **S19 (D7, ya decidida; trabajo que se había dejado caer).** El perfil público del grupo lista sus reseñas reales (promedio, cantidad y las más recientes con calificación, comentario, fecha, tipo de evento y autor "Nombre A.") y el cliente de un evento aceptado que ya pasó puede escribir la suya, una por evento. El backend ya existe.
 - **S20 (ronda 7, aprobada).** Favoritos: "No por ahora (Recomendada)". Fuera de alcance de esta ola.
-- **Pendiente.** D2 (paga por músico): el usuario pidió "Explica con ejemplos"; se decide después. D6 (señales de decisión en el hilo): "tu recomendación después de que resolvamos D2".
+- **S21 (ronda 8, aprobada).** El músico puede avisar "No me pagaron" en un toque **pasado** con pago pendiente. Encaja en el mecanismo de S17 (aviso preestablecido, sin texto libre) y cierra la duda que reportó Miguel: la app le decía "pendiente" de un toque que ya fue y no le ofrecía nada.
+- **S22 (ronda 8, aprobada).** En el toque, el músico ve **con quién toca** (nombre y rol de los asistentes) y **el teléfono del manager del grupo** para escribirle. Sin correos. El teléfono lo carga el manager en el perfil del grupo y es visible solo para miembros activos del grupo, no para el cliente ni para cualquiera.
+- **S23 (ronda 8, aprobada).** El manager ve el **cuadre del toque**: cachet total, la suma de lo que debe a sus músicos y la diferencia. Es presentación de datos que ya existen; la app no suma plata que mueva ni valida nada (D1 y D2 siguen).
+- **S24 (ronda 8, aprobada).** El anticipo y el saldo llevan **fecha límite**: el manager la carga y el cliente la ve ("Saldo: falta pagar $14,000 · para el 15 de noviembre").
+- **S25 (ronda 8, aprobada).** Cada reseña del perfil público lleva el sello de **contratación verificada**: la regla de escritura ya garantiza que solo reseña el cliente de un evento aceptado y pasado, así que el sello dice la verdad sin trabajo extra.
+- **S26 (ronda 8, aprobada).** Se puede bloquear un día **desde la agenda y desde la bandeja**, no solo arrastrando en el calendario.
+- **S27 (ronda 8, aprobada).** La entrega de la rama **extiende el stack existente** con 5 PRs encima de la 12, una por tramo medido (L58): UX de membresías, Ola 2a, Ola 2b, Ola 3 y arreglos de las rondas 6-8.
+- **Pendiente.** D2 (paga por músico)- **Pendiente.** D2 (paga por músico): el usuario pidió "Explica con ejemplos"; se decide después. D6 (señales de decisión en el hilo): "tu recomendación después de que resolvamos D2".
 
 ## Contrato del directorio (fijado)
 
@@ -91,6 +98,13 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 - [x] T55 (S6) Un toque pasado sin respuesta dice "No respondiste" y no "Sin responder", que junto a "Este toque ya pasó" se lee como pendiente de él.
 - [x] T56 (S6, S12) Antes de responder a un toque, una línea dice que la respuesta se guarda al tocar y se puede cambiar, y Confirmo y No puedo se separan más en el celular. Sin diálogo y sin "Deshacer": el API no puede volver a "sin responder".
 - [ ] T57 (datos) Titulares de los músicos demo para que "Titular 0 de 120" no parezca un perfil vacío.
+- [ ] T58 (S21) Aviso "No me pagaron" para un toque pasado con pago pendiente.
+- [ ] T59 (S22) Compañeros del toque y teléfono del manager, visibles solo para miembros activos.
+- [ ] T60 (S23) Cuadre del toque en el editor del manager: cachet total, deuda a músicos y diferencia.
+- [ ] T61 (S24) Fecha límite del anticipo y del saldo, cargada por el manager y visible al cliente.
+- [ ] T62 (S25) Sello de contratación verificada en cada reseña.
+- [ ] T63 (S26) Bloquear un día desde la agenda y desde la bandeja.
+- [ ] T64 (S27) Preparar los 5 cortes del stack con su tamaño y su orden de lectura, sin pushear hasta que el usuario lo pida.
 
 ## Estrategia de entrega (L58)
 
@@ -170,6 +184,7 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 - L55 (honestidad sobre mi propia prueba): el primer ensayo del bloqueo salió "verde" sin serlo: el clic nunca ocurrió porque el selector buscaba "Confirmo" y el nombre accesible del botón es "Confirmar el jueves 3 de diciembre…". Un bloqueo no probado con un intento real no prueba nada; lo repetí hasta ver el `POST` abortado en el log.
 - L56 (sobre "Confirmo" sin paso intermedio): fue una decisión mía de la ronda 7 (respuesta de un toque, reversible, sin diálogo). Miguel tiene razón en que nada lo avisa *antes*, y no tiene razón en que sea irreversible: se puede cambiar. Lo que no se puede es volver a "sin responder", porque el API no lo permite; por eso T56 avisa antes en vez de ofrecer "Deshacer".
 - L57 (cierre de T54-T56): el worker que las tenía murió por cuota **después** de implementar y escribir sus tests (9 archivos, 120 líneas nuevas), así que solo faltaba verificar. Lo hice yo: front **751 tests**, `tsc` limpio, eslint en 0 errores, `rows.sh` sin cambios antes y después, y medidas en el navegador a 390 px: visitas de 125 → **44 px** (barra de y=238 → 157, primera tarjeta de 476 → 395), el 19 de octubre pasó de "Sin responder" a **"No respondiste"**, y en un toque futuro sin responder aparece la línea "Tu respuesta se guarda al tocar y puedes cambiarla." con los botones a 44 px y **16 px** de hueco. Un test de `GigEditor` falló una vez por timeout (6 s) y pasa solo en 2,5 s: era carga, no regresión; lo verifiqué antes de tocar nada.
+- L59 (decisiones de producto de la ronda 8, respuestas del usuario textuales): entrega: "Extender el stack con 5 PRs por ola (Recomendada)"; privacidad del toque: **"Sumar teléfono del manager"** (eligió la opción con más exposición, no la recomendada: el teléfono del manager será visible para los miembros activos del grupo); plata: "Total del toque y fecha límite (Recomendada)"; extras: "selected: Sello de reseña verificada, Bloquear día desde la agenda, Aviso 'no me pagaron'" — las tres.
 - L8 (D6, decidida por recomendación del usuario "después de que resolvamos D2"): el hilo del manager muestra dos señales calculables con datos que ya existen: **choque de fecha** (el grupo ya tiene un toque aceptado ese día) y **presupuesto contra tarifa base** (lo que ofrece el cliente frente al "desde $X" del grupo). La **distancia** contra el radio no entra en esta ola: el grupo solo guarda su ciudad como texto y no hay coordenadas, así que calcularla exige un catálogo de ciudades o geocodificación. Se anota como D8.
 
 ## Contrato de la logística del toque (fijado)
