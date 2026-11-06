@@ -48,4 +48,15 @@ JOIN users.users u ON u.email IN ('musico.demo@example.com', 'miembro.demo@examp
 WHERE r.message = 'Celebramos veinte años de casados y queremos música para bailar toda la noche.'
   AND NOT EXISTS (SELECT 1 FROM bookings.gig_attendance a WHERE a.event_request_id = r.id AND a.user_id = u.id);
 
+-- Un aviso de ayer para que el manager tenga algo que leer ("Mateo avisa que llega tarde"). Va con fecha
+-- de ayer a propósito: la tarjeta del músico solo cuenta los avisos de HOY, así que a él se le sigue
+-- ofreciendo el botón y el manager igual ve el aviso (su lectura no tiene ventana de fecha).
+INSERT INTO bookings.gig_notices (event_request_id, user_id, kind, sent_on, created_by, created_at)
+SELECT r.id, u.id, 4, (now() AT TIME ZONE 'America/Mexico_City')::date - 1, u.id, now() - interval '1 day'
+FROM bookings.event_requests r
+JOIN users.users u ON u.email = 'musico.demo@example.com'
+WHERE r.status = 1 AND r.group_id = (SELECT id FROM groups.music_groups WHERE slug = 'versatil-rock-y-pop')
+  AND r.event_date = DATE '2026-11-19'
+  AND NOT EXISTS (SELECT 1 FROM bookings.gig_notices n WHERE n.event_request_id = r.id AND n.user_id = u.id AND n.kind = 4);
+
 COMMIT;
