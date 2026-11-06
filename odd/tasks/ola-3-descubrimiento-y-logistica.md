@@ -92,6 +92,20 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 - [x] T56 (S6, S12) Antes de responder a un toque, una línea dice que la respuesta se guarda al tocar y se puede cambiar, y Confirmo y No puedo se separan más en el celular. Sin diálogo y sin "Deshacer": el API no puede volver a "sin responder".
 - [ ] T57 (datos) Titulares de los músicos demo para que "Titular 0 de 120" no parezca un perfil vacío.
 
+## Estrategia de entrega (pendiente de aplicar, L58)
+
+La rama `feat/membership-ux` acumula **293 commits, 994 archivos y 84.496 líneas** sobre `origin/master`: es la entrega de tres olas y trece sesiones, no un PR. Un revisor humano no puede leer eso, y el arnés ya lo marcó al commitear.
+
+Decisión de forma (el contenido no cambia): entregar en **PRs encadenados por ola**, cada uno con su propia revisión, en este orden:
+
+1. `fix/signup-password-policy-error` — ya pusheada, PR independiente.
+2. `feat/ui-polish` — ya pusheada, PR independiente.
+3. `feat/membership-ux` partida en tramos: **Ola 1** (usabilidad), **Ola 2a** (perfil de músico), **Ola 2b** (agenda de gigs), **Ola 3** (directorio, logística y reseñas) y **T41-T57** (los arreglos de las rondas 6-8).
+
+Antes del próximo commit hay que mapear los límites exactos: qué commit cierra cada ola, para poder cortar la rama en tramos revisables con `git format-patch` o ramas hijas. Ese mapeo es el siguiente paso y necesita releer el historial por tramos, porque los asuntos de commit no llevan el nombre de la ola.
+
+Nada de esto autoriza pushear ni abrir PRs: el push y el PR siguen siendo decisiones del usuario.
+
 ## Log
 
 - L1 (usuario, verbatim): "D4: tu recomendacion, D5: EL cliente no contrata musicos, solo grupos, los grupos contratan musicos, D1: tu recomendación, D2: Explica con ejemplos, D6: tu recomendación despues de que resolvamos D2, D3: Tu recomendación, D7:Tu recomendación"
