@@ -139,9 +139,9 @@ decisión del usuario (la rama local va 89 commits adelante de su upstream).
 | #15 | `stack/15-ola-2a-perfil-musico` | `9fab418` → `e96f997` | 20 | 67 | 3.689 | perfil de músico (#169–#188) |
 | #16 | `stack/16-ola-2b-agenda-gigs` | `e96f997` → `656bba4` | 18 | 90 | 4.130 | agenda de gigs (#189–#206) |
 | #17 | `stack/17-ola-3-descubrimiento` | `656bba4` → `3aafd5c` | 75 | 265 | 15.294 | directorio, logística y reseñas (#207–#281) |
-| #18 | `stack/18-rondas-6-8` | `3aafd5c` → `HEAD` | 33 | 96 | 4.868 | arreglos de las rondas 6-8 y T59–T63 (#282–#314) |
+| #18 | `stack/18-rondas-6-8` | `3aafd5c` → `bb55a27` | 35 | 97 | 4.878 | arreglos de las rondas 6-8 y T59–T64 (#282–#316) |
 
-**Total extendido: 214 commits y 45.231 líneas autoradas** sobre las 12 PRs del plan viejo.
+**Total extendido: 216 commits y 45.241 líneas autoradas** sobre las 12 PRs del plan viejo.
 Medición: posiciones en `git rev-list --reverse origin/master..HEAD`; líneas con `git diff --numstat
 <base> <tip>` **excluyendo** lock files, `*.Designer.cs` y los snapshots de migración, que son generados.
 
