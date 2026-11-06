@@ -11,6 +11,7 @@ import {
     declineButtonName,
     scheduleLabel,
     CALL_TIME_PENDING,
+    CONFIRMED_NEXT_STEP,
     DECLINED_NEXT_STEP,
     PAST_GIG_LINE,
     PAY_PENDING,
@@ -141,6 +142,7 @@ export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, 
             </div>
 
             {!past && declined && <p className="text-sm text-tinta-2">{DECLINED_NEXT_STEP}</p>}
+            {!past && answered === "Confirmed" && <p className="text-sm text-tinta-2">{CONFIRMED_NEXT_STEP}</p>}
 
             {/* Los avisos van en su propio bloque: cada uno es una acción con altura de 44 px. */}
             <NoticeActions slots={slots} notifying={notifying} onNotify={onNotify} />

@@ -33,12 +33,14 @@ interface PendingState {
 export function dashboardEntries(isMusician: boolean, pending: PendingState): DashboardEntry[] {
     if (!isMusician) return [{ href: ROUTES.DASHBOARD.CLIENT, label: "Mis pedidos", count: 0 }];
     const href = ROUTES.DASHBOARD.MUSICIAN;
+    // The panel opens the tab named in the hash (tabFromHash); a bare visit keeps its default tab.
+    const invitationsHref = `${href}#invitaciones`;
     if (pending.hasGroup === false) {
-        const invitations: DashboardEntry = { href, label: "Invitaciones", count: pending.invitations };
+        const invitations: DashboardEntry = { href: invitationsHref, label: "Invitaciones", count: pending.invitations };
         return showMyGroupsEntry(pending) ? [{ href, label: "Mi panel", count: 0 }, invitations] : [invitations];
     }
     const entries: DashboardEntry[] = [{ href, label: "Mi grupo", count: pending.joinRequests }];
-    if (pending.hasGroup && pending.invitations > 0) entries.push({ href, label: "Invitaciones", count: pending.invitations });
+    if (pending.hasGroup && pending.invitations > 0) entries.push({ href: invitationsHref, label: "Invitaciones", count: pending.invitations });
     return entries;
 }
 

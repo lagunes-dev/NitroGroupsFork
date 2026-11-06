@@ -61,16 +61,20 @@ export default function MusicianDashboardPage() {
   const tabsRef = useRef<HTMLDivElement>(null);
   const banner = groupId ? joinBannerText(joinRequests) : null;
 
-  // Un enlace puede pedir una pestaña concreta ("#mi-perfil"): aterrizar en la agenda cuando el
-  // botón promete el interruptor de disponibilidad es un callejón (ronda 5, Miguel).
-  // El hash es un sistema externo y no existe en el servidor, así que se lee al montar.
+  // Un enlace puede pedir una pestaña concreta ("#mi-perfil", "#invitaciones"): aterrizar en la agenda
+  // cuando el botón promete otra cosa es un callejón (ronda 5, Miguel; ronda 7, T45).
+  // El hash es un sistema externo y no existe en el servidor: se lee al montar y cada vez que cambia
+  // estando el panel abierto (el enlace "Invitaciones" de la cabecera puede pulsarse desde aquí mismo).
   useEffect(() => {
-    const tab = tabFromHash(window.location.hash);
-    if (!tab) return;
-    // El hash no existe en el servidor: se aplica una vez al montar, no en cada render.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (tab === AVAILABILITY_ANCHOR_ID) setArrivedAtAvailability(true);
-    setActiveTab(tab);
+    const applyHash = () => {
+      const tab = tabFromHash(window.location.hash);
+      if (!tab) return;
+      setArrivedAtAvailability(tab === AVAILABILITY_ANCHOR_ID);
+      setActiveTab(tab);
+    };
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
   }, []);
 
   const showTab = (tabKey: string) => {
@@ -94,9 +98,15 @@ export default function MusicianDashboardPage() {
         y la bandeja arrancaba debajo (T42). Debajo de `md` queda plegado detrás de su nombre, a una
         pulsación; de `md` para arriba se ve siempre, como hasta ahora.
       */}
-      <CollapsibleProfile title={group?.groupName?.trim() || "Tu grupo"}>
-        <GroupProfile />
-      </CollapsibleProfile>
+      {/*
+        Sin grupo propio no hay perfil de grupo que mostrar: la tarjeta vacía, su "Editar perfil" (que abre
+        el formulario de crear grupo) y el aviso de perfil incompleto eran gestión ajena para un miembro (T44).
+      */}
+      {groupId ? (
+        <CollapsibleProfile title={group?.groupName?.trim() || "Tu grupo"}>
+          <GroupProfile />
+        </CollapsibleProfile>
+      ) : null}
 
       {/*
         Aviso de visitas (S9): qué grupos miraron el perfil del músico. Va suelto arriba, no en una
@@ -112,7 +122,7 @@ export default function MusicianDashboardPage() {
       */}
       {!groupPending || groupId ? (
         <div ref={tabsRef}>
-        <TabbedSection label="Gestión del grupo" className="mt-8 md:mt-20" activeKey={activeTab} onActiveKeyChange={setActiveTab}>
+        <TabbedSection label={groupId ? "Gestión del grupo" : "Mi panel"} className="mt-8 md:mt-20" activeKey={activeTab} onActiveKeyChange={setActiveTab}>
           {groupId ? (
             <TabItem title="Pedidos de fecha" shortTitle="Pedidos" tabKey="pedidos">
               <GroupInbox groupId={groupId} />

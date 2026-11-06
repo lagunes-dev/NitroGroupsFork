@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -13,16 +13,15 @@ vi.mock("@/hooks/useCurrentUser", () => ({
     useCurrentUser: () => ({ user: { id: 7, userType: "Musician" }, isLoading: false, isError: false }),
 }));
 vi.mock("@/hooks/usePendingMembership", () => ({ usePendingMembership: () => ({ invitations: 0, joinRequests: 0 }) }));
+const ownedGroup = vi.hoisted(() => ({ value: true }));
 vi.mock("@/hooks/useMyMemberships", () => ({ useMyMemberships: () => ({ data: [] }) }));
 vi.mock("@/features/groups/types/User", () => ({ UserTypeEnum: { Musician: "Musician", Client: "Client" } }));
 vi.mock("@/features/groups/services/groups.service", () => ({
     groupsService: {
-        getByUserId: async () => ({
-            id: 3,
-            groupName: "Versátil Rock y Pop",
-            isAcceptingBookings: true,
-            genres: [],
-        }),
+        getByUserId: async () =>
+            ownedGroup.value
+                ? { id: 3, groupName: "Versátil Rock y Pop", isAcceptingBookings: true, genres: [] }
+                : null,
     },
 }));
 vi.mock("@/features/groups/components/GroupProfile", () => ({
@@ -44,7 +43,13 @@ vi.mock("@/features/musicians/components/MusicianProfileForm", () => ({
     MusicianProfileForm: () => <div>Mi perfil</div>,
 }));
 
+import { beforeEach } from "vitest";
 import MusicianDashboardPage from "./page";
+
+beforeEach(() => {
+    ownedGroup.value = true;
+    window.location.hash = "";
+});
 
 function renderPage() {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -88,5 +93,43 @@ describe("musician dashboard at 390 px", () => {
         expect(document.getElementById(close.getAttribute("aria-controls") ?? "")).toHaveClass("block");
         // Nada de lo que había arriba se perdió: la tarjeta entera está ahí.
         expect(screen.getByText("Tarjeta del perfil del grupo")).toBeVisible();
+    });
+});
+
+describe("musician dashboard for a user who manages no group (T44)", () => {
+    it("does not offer the group card, its fold button or any 'Tu grupo' heading", async () => {
+        ownedGroup.value = false;
+        renderPage();
+
+        await screen.findByRole("tablist");
+        expect(screen.queryByText("Tarjeta del perfil del grupo")).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /perfil/i })).not.toBeInTheDocument();
+        expect(screen.queryByText("Tu grupo")).not.toBeInTheDocument();
+        // What a member does use stays reachable.
+        expect(screen.getByRole("tab", { name: /Mi agenda/ })).toBeInTheDocument();
+        expect(screen.getByRole("tab", { name: /Invitaciones/ })).toBeInTheDocument();
+        expect(screen.getByRole("tab", { name: /Perfil|Mi perfil/ })).toBeInTheDocument();
+    });
+});
+
+describe("musician dashboard honours the tab in the hash (T45)", () => {
+    it("opens Invitaciones from #invitaciones", async () => {
+        window.location.hash = "#invitaciones";
+        renderPage();
+        const tab = await screen.findByRole("tab", { name: /Invitaciones/ });
+        await waitFor(() => expect(tab).toHaveAttribute("aria-selected", "true"));
+    });
+    it("follows a hash change while the panel is already open", async () => {
+        renderPage();
+        const tab = await screen.findByRole("tab", { name: /Invitaciones/ });
+        expect(tab).toHaveAttribute("aria-selected", "false");
+        act(() => {
+            window.location.hash = "#invitaciones";
+        });
+        await waitFor(() => expect(tab).toHaveAttribute("aria-selected", "true"));
+    });
+    it("without a hash opens the first tab as before", async () => {
+        renderPage();
+        expect(await screen.findByRole("tab", { name: /Pedidos/ })).toHaveAttribute("aria-selected", "true");
     });
 });

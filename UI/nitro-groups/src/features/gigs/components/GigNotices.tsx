@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { BellRing, Check } from "lucide-react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -71,16 +72,24 @@ export function NoticeActions({
     notifying: GigNoticeKind | null;
     onNotify: (kind: GigNoticeKind) => void;
 }) {
+    const headingId = useId();
     if (slots.length === 0) return null;
 
+    // Own block: a rule, a visible heading and extra air above, so a thumb aimed at "Confirmo" or
+    // "No puedo" never lands on a notice (T46, 390 px).
     return (
-        <ul aria-label={NOTICE_LIST_LABEL} className="mt-1 flex flex-col gap-2 border-t border-linea pt-3">
-            {slots.map((slot) => (
-                <li key={slot.kind}>
-                    <NoticeAction kind={slot.kind} sent={slot.sent} notifying={notifying === slot.kind} onNotify={onNotify} />
-                </li>
-            ))}
-        </ul>
+        <div className="mt-3 border-t border-linea pt-4">
+            <p id={headingId} className="text-sm font-semibold text-tinta">
+                {NOTICE_LIST_LABEL}
+            </p>
+            <ul aria-labelledby={headingId} className="mt-3 flex flex-col gap-2">
+                {slots.map((slot) => (
+                    <li key={slot.kind}>
+                        <NoticeAction kind={slot.kind} sent={slot.sent} notifying={notifying === slot.kind} onNotify={onNotify} />
+                    </li>
+                ))}
+            </ul>
+        </div>
     );
 }
 

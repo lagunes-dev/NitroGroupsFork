@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildApiQuery, parseFilters, pageHref, profileHref } from "./searchParams";
+import { buildApiQuery, dateSearchHref, leaveOutGroup, parseFilters, pageHref, profileHref } from "./searchParams";
 
 describe("parseFilters", () => {
     it("descarta una fecha que no es YYYY-MM-DD", () => {
@@ -41,5 +41,35 @@ describe("profileHref", () => {
     it("codifica la fecha y no deja inyectar parámetros", () => {
         expect(profileHref("vargas", "2026-12-12")).toBe("/groups/vargas?fecha=2026-12-12");
         expect(profileHref("vargas", "x&admin=1")).toBe("/groups/vargas");
+    });
+});
+
+describe("excluir (the group that already said no)", () => {
+    it("accepts only a positive integer id and never sends it to the API", () => {
+        expect(parseFilters({ excluir: "7" }).excluir).toBe(7);
+        for (const bad of ["0", "-3", "abc", "1.5", "", "7;drop"]) expect(parseFilters({ excluir: bad }).excluir).toBeUndefined();
+        expect(parseFilters({}).excluir).toBeUndefined();
+        expect(buildApiQuery(parseFilters({ fecha: "2026-12-12", excluir: "7" }), 12)).toBe(buildApiQuery(parseFilters({ fecha: "2026-12-12" }), 12));
+    });
+    it("travels with the page links, and leaves them as they were without it", () => {
+        expect(pageHref(parseFilters({ fecha: "2026-12-12", excluir: "7" }), 2)).toBe("/groups?fecha=2026-12-12&pagina=2&excluir=7");
+        expect(pageHref(parseFilters({ fecha: "2026-12-12" }), 2)).toBe("/groups?fecha=2026-12-12&pagina=2");
+    });
+    it("builds the replacement-search link with the date and the rejecting group", () => {
+        expect(dateSearchHref("2026-12-05", 7)).toBe("/groups?fecha=2026-12-05&excluir=7");
+        expect(dateSearchHref("2026-12-05")).toBe("/groups?fecha=2026-12-05");
+    });
+});
+
+describe("leaveOutGroup", () => {
+    const page = (ids: number[], totalCount: number) => ({ items: ids.map((id) => ({ id })), totalCount });
+    it("drops the group and takes one off the count when it was on the page", () => {
+        expect(leaveOutGroup(page([1, 7, 9], 20), 7)).toEqual({ items: [{ id: 1 }, { id: 9 }], totalCount: 19, exact: true });
+    });
+    it("keeps the count as an upper bound when the group is not on this page", () => {
+        expect(leaveOutGroup(page([1, 9], 20), 7)).toEqual({ items: [{ id: 1 }, { id: 9 }], totalCount: 20, exact: false });
+    });
+    it("changes nothing without an excluded group", () => {
+        expect(leaveOutGroup(page([1, 7], 2), undefined)).toEqual({ items: [{ id: 1 }, { id: 7 }], totalCount: 2, exact: true });
     });
 });

@@ -14,6 +14,8 @@ interface SearchFormProps {
     showBudget?: boolean;
     submitLabel?: string;
     id?: string;
+    /** Group left out of the results; it rides along so "Actualizar" does not bring it back (T41). */
+    excludeGroupId?: number;
     /** "glass": la barra de la portada, un panel de vidrio con los campos dentro. */
     variant?: "plain" | "glass";
 }
@@ -26,12 +28,13 @@ interface SearchFormProps {
  * Cada control muestra el valor que la URL lleva de verdad (ver `../filters`): si un filtro no
  * tiene valor, el campo queda vacío y dice "sin filtro" en lugar de un ejemplo que parezca aplicado.
  */
-export function SearchForm({ genres, values = {}, showBudget = false, submitLabel = "Buscar grupos", id = "buscar", variant = "plain" }: SearchFormProps) {
+export function SearchForm({ genres, values = {}, showBudget = false, excludeGroupId, submitLabel = "Buscar grupos", id = "buscar", variant = "plain" }: SearchFormProps) {
     const glass = variant === "glass";
     const controls = filterControls(values);
 
     return (
         <form action={ROUTES.GROUPS.SEARCH} method="get" role="search" aria-label="Buscar grupos" className={glass ? "w-full vidrio rounded-xl p-4" : "w-full"}>
+            {excludeGroupId ? <input type="hidden" name="excluir" value={excludeGroupId} /> : null}
             {/* Los campos comparten una sola línea de base (items-end) y cada uno mide al menos 200px antes de pasar a la fila de abajo. */}
             <div className="flex flex-wrap items-end gap-x-3 gap-y-4">
                 <div className="min-w-[200px] flex-[1.2_1_220px]">

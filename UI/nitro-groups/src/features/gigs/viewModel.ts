@@ -19,6 +19,8 @@ export const PAY_PENDING = "Tu pago sin definir";
 export const PAST_GIG_LINE = "Este toque ya pasó";
 /** What a declined future gig says next, in one line: nothing else is owed. */
 export const DECLINED_NEXT_STEP = "El grupo ya lo sabe · la fecha queda libre";
+/** What a confirmed future gig says next: the app records the answer, it sends nothing else. */
+export const CONFIRMED_NEXT_STEP = "El grupo ya cuenta contigo · puedes cambiar tu respuesta cuando quieras";
 
 /** The group of a gig, ready to link. `href` is null when there is no slug to link to. */
 export interface GigGroupView {

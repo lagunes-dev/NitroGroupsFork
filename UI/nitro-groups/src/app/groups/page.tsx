@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ROUTES } from "@/config/routes";
 import { serverGet } from "@/lib/serverApi";
 import { formatEventDate, formatPrice } from "@/lib/format";
-import { buildApiQuery, pageHref, parseFilters, toUrlFilters, type ParsedFilters } from "@/features/search/searchParams";
+import { buildApiQuery, leaveOutGroup, pageHref, parseFilters, toUrlFilters, type ParsedFilters } from "@/features/search/searchParams";
 import { noFiltersNote } from "@/features/search/filters";
 import { SearchForm } from "@/features/search/components/SearchForm";
 import { GroupResult } from "@/features/search/components/GroupResult";
@@ -36,11 +36,13 @@ export default async function SearchPage({ searchParams }: Props) {
     ]);
 
     const genreName = genres?.find((g) => g.slug === filters.genero)?.name;
-    const items = results?.items ?? [];
+    // The group that just rejected this date is dropped after the fetch (the API paginates).
+    const shown = results ? leaveOutGroup(results, filters.excluir) : null;
+    const items = shown?.items ?? [];
     // Los filtros reales de la URL: si ninguno acota la búsqueda, el resumen lo dice con palabras.
     const controlValues = toUrlFilters(filters);
     const summary = [
-        results ? `${results.totalCount} ${results.totalCount === 1 ? "grupo" : "grupos"}` : null,
+        shown ? `${shown.exact ? "" : "hasta "}${shown.totalCount} ${shown.totalCount === 1 ? "grupo" : "grupos"}` : null,
         filters.fecha ? `libres el ${formatEventDate(filters.fecha)}` : null, // fecha ya validada
         budget > 0 ? `hasta ${formatPrice(budget)}` : null,
         noFiltersNote(controlValues),
@@ -51,7 +53,7 @@ export default async function SearchPage({ searchParams }: Props) {
             <h1 className="titulo max-w-[16ch]">{headline(filters, genreName)}</h1>
 
             <div className="mt-10 md:mt-14">
-                <SearchForm genres={genres ?? []} values={controlValues} showBudget id="resultados" submitLabel="Actualizar" />
+                <SearchForm genres={genres ?? []} values={controlValues} showBudget excludeGroupId={filters.excluir} id="resultados" submitLabel="Actualizar" />
             </div>
 
             {results === null ? (

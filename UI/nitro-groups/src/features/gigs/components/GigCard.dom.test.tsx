@@ -208,7 +208,6 @@ describe("GigCard notices", () => {
 
         // Los tres avisos viven en un bloque propio, no dentro de la frase que dice qué falta.
         const block = screen.getByRole("list", { name: "Avisarle al grupo lo que falta" });
-        expect(block).toHaveClass("border-t");
         const actions = within(block).getAllByRole("button");
         expect(actions).toHaveLength(3);
         for (const action of actions) {
@@ -278,5 +277,46 @@ describe("GigCard of a future gig the musician declined", () => {
         expect(screen.getByText("El grupo ya lo sabe · la fecha queda libre")).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: /^Avisar que falta/ })).toBeNull();
         expect(screen.queryByText("Este toque ya pasó")).toBeNull();
+    });
+});
+
+describe("GigCard of a future gig the musician confirmed (T46)", () => {
+    const props = { saving: false, failed: false, onAnswer: vi.fn(), onRetry: vi.fn(), ...quiet };
+
+    it("says in one line what happens next, without promising a message", () => {
+        render(<GigCard gig={toGigView({ ...row, attendance: "Confirmed" })} {...props} />);
+
+        expect(screen.getByText("El grupo ya cuenta contigo · puedes cambiar tu respuesta cuando quieras")).toBeInTheDocument();
+        expect(screen.queryByText(/El grupo ya lo sabe/)).toBeNull();
+    });
+
+    it("says nothing about next steps before the musician answers", () => {
+        render(<GigCard gig={toGigView(row)} {...props} />);
+        expect(screen.queryByText(/El grupo ya cuenta contigo/)).toBeNull();
+    });
+
+    it("keeps the answer one tap: no dialog between Confirmo and the answer", async () => {
+        const onAnswer = vi.fn();
+        render(<GigCard gig={toGigView(row)} {...props} onAnswer={onAnswer} />);
+        await userEvent.click(screen.getByRole("button", { name: /Confirmar el/ }));
+        expect(onAnswer).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(screen.queryByRole("alertdialog")).toBeNull();
+    });
+
+    it("groups the notices under their own heading and border, after the answer buttons", () => {
+        render(<GigCard gig={toGigView(row)} {...props} />);
+
+        const confirm = screen.getByRole("button", { name: /Confirmar el/ });
+        const heading = screen.getByText("Avisarle al grupo lo que falta");
+        const list = screen.getByRole("list", { name: "Avisarle al grupo lo que falta" });
+        const section = heading.parentElement as HTMLElement;
+
+        // The heading is visible text and the block draws a rule and 16 px+ of air above it.
+        expect(section).toContainElement(list);
+        expect(section).toHaveClass("border-t", "mt-3", "pt-4");
+        expect(heading.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(confirm.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(section).not.toContainElement(confirm);
     });
 });

@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ROUTES } from "@/config/routes";
 import { eventTypeLabel } from "@/lib/eventTypeLabel";
 import { formatEventDate } from "@/lib/format";
+import { dateSearchHref } from "@/features/search/searchParams";
 import { apiErrorMessage, bookingsService } from "../bookings.service";
 import { balanceBlock, budgetLabel, clientDepositLabel, nextStepLabel, sentLabel } from "../deposit";
 import { availableActions, shortTime, statusLabel } from "../status";
@@ -170,7 +171,7 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                             {/* La fecha viaja con el enlace: buscar reemplazo no debería obligar a reescribirla. */}
                             {formatEventDate(r.eventDate) && (
                                 <Link
-                                    href={`${ROUTES.GROUPS.SEARCH}?fecha=${r.eventDate}`}
+                                    href={dateSearchHref(r.eventDate, r.groupId)}
                                     className="inline-flex min-h-11 items-center text-acento underline-offset-4 hover:underline"
                                 >
                                     Ver otros grupos libres el {formatEventDate(r.eventDate)}

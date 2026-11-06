@@ -10,6 +10,8 @@ export interface ParsedFilters {
     fecha?: string;
     budget?: number;
     page: number;
+    /** Group left out of the list after fetching; never sent to the API. */
+    excluir?: number;
 }
 
 const clean = (v?: string) => (v && v.trim() ? v.trim() : undefined);
@@ -17,6 +19,7 @@ const clean = (v?: string) => (v && v.trim() ? v.trim() : undefined);
 export function parseFilters(raw: SearchFilters): ParsedFilters {
     const budget = Number(raw.presupuesto);
     const page = Math.trunc(Number(raw.pagina));
+    const excluir = Number(raw.excluir);
     return {
         q: clean(raw.q),
         genero: clean(raw.genero),
@@ -24,6 +27,7 @@ export function parseFilters(raw: SearchFilters): ParsedFilters {
         fecha: isIsoDate(raw.fecha) ? raw.fecha : undefined,
         budget: Number.isFinite(budget) && budget > 0 ? budget : undefined,
         page: Number.isFinite(page) && page > 0 ? page : 1,
+        excluir: Number.isInteger(excluir) && excluir > 0 ? excluir : undefined,
     };
 }
 
@@ -45,7 +49,8 @@ export function toUrlFilters(f: ParsedFilters): SearchFilters {
 
 export function pageHref(f: ParsedFilters, page: number): string {
     const q = new URLSearchParams();
-    for (const [k, v] of Object.entries({ ...toUrlFilters(f), pagina: String(page) })) if (v) q.set(k, v);
+    const carried = { ...toUrlFilters(f), pagina: String(page), excluir: f.excluir ? String(f.excluir) : undefined };
+    for (const [k, v] of Object.entries(carried)) if (v) q.set(k, v);
     return `${ROUTES.GROUPS.SEARCH}?${q.toString()}`;
 }
 
@@ -53,4 +58,26 @@ export function pageHref(f: ParsedFilters, page: number): string {
 export function profileHref(slug: string, fecha?: string): string {
     const base = ROUTES.GROUPS.PUBLIC_PROFILE(encodeURIComponent(slug));
     return isIsoDate(fecha) ? `${base}?${new URLSearchParams({ fecha })}` : base;
+}
+
+/** "Ver otros grupos libres el <fecha>": the date, and the group that said no so it is not offered again. */
+export function dateSearchHref(fecha: string, excludeGroupId?: number): string {
+    const q = new URLSearchParams({ fecha });
+    if (excludeGroupId) q.set("excluir", String(excludeGroupId));
+    return `${ROUTES.GROUPS.SEARCH}?${q.toString()}`;
+}
+
+/**
+ * Drops one group from a fetched page. The API paginates, so the filter runs after the fetch: the
+ * count is exact only when the group was on this page (one less); otherwise it may still include
+ * it on another page, and `exact: false` lets the summary say "hasta N" instead of claiming more.
+ */
+export function leaveOutGroup<T extends { id: number }>(
+    result: { items: T[]; totalCount: number },
+    groupId: number | undefined
+): { items: T[]; totalCount: number; exact: boolean } {
+    if (!groupId) return { items: result.items, totalCount: result.totalCount, exact: true };
+    const items = result.items.filter((item) => item.id !== groupId);
+    const found = items.length !== result.items.length;
+    return { items, totalCount: found ? result.totalCount - 1 : result.totalCount, exact: found };
 }

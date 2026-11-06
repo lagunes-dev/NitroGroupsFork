@@ -171,6 +171,7 @@ describe("RequestThread search context", () => {
         renderThread("Client");
 
         const link = await screen.findByRole("link", { name: /Ver otros grupos libres el/ });
-        expect(link).toHaveAttribute("href", "/groups?fecha=2026-12-05");
+        // The rejecting group travels too, so the search does not offer it as free again (T41).
+        expect(link).toHaveAttribute("href", `/groups?fecha=2026-12-05&excluir=${request.groupId}`);
     });
 });
