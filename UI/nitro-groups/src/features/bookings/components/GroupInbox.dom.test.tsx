@@ -120,3 +120,17 @@ describe("S26 · la bandeja bloquea un día", () => {
         expect(inbox.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 });
+
+describe("S26 · la bandeja no ofrece un clic muerto", () => {
+    it("offers to lift the block when the day it opens on is already blocked", async () => {
+        // El día del pedido pendiente ya está bloqueado: la bandeja tiene que ofrecer deshacerlo,
+        // no volver a bloquear lo que ya está bloqueado.
+        const { start, end } = bounds(waiting.eventDate);
+        schedules.getGroupSchedules.mockResolvedValue([{ id: "busy_31", title: "No disponible", start, end, isAvailable: false }]);
+        renderInbox();
+
+        const lift = await screen.findByRole("button", { name: /^Desbloquear el día/ });
+        expect(lift).toBeEnabled();
+        expect(screen.queryByRole("button", { name: /^Bloquear el día/ })).toBeNull();
+    });
+});
