@@ -108,15 +108,23 @@ function overlapMinutes(aStart: string, aHours: number, bStart: string, bHours: 
     return Math.max(0, end - start);
 }
 
+/** ", tu pedido es 21:00–00:00, el otro toque acaba 23:00": la salida, solo con las dos ventanas conocidas. */
+function wayOutLabel(other: ClashingGig, own?: OwnGigWindow): string {
+    const ownWindow = windowLabel(own?.startTime, own?.durationHours);
+    const otherWindow = windowLabel(other.startTime, other.durationHours);
+    if (!ownWindow || !otherWindow) return "";
+    return ` · tu pedido es ${ownWindow}, el otro toque acaba ${otherWindow.split("–")[1]}`;
+}
+
 /** " · se pisan 2 h" o " · no se pisan, pero hay traslado": lo que el manager calcularía a mano. */
 function overlapLabel(other: ClashingGig, own?: OwnGigWindow): string | null {
     if (!own?.startTime || !own.durationHours) return null;
     if (!other.startTime || !other.durationHours) return null;
     const shared = overlapMinutes(own.startTime, own.durationHours, other.startTime, other.durationHours);
-    if (shared === 0) return " · no se pisan, pero hay traslado";
+    if (shared === 0) return ` · no se pisan, pero hay traslado${wayOutLabel(other, own)}`;
     const hours = shared / 60;
     const text = Number.isInteger(hours) ? `${hours} h` : `${hours.toFixed(1).replace(".", ",")} h`;
-    return ` · se pisan ${text}`;
+    return ` · se pisan ${text}${wayOutLabel(other, own)}`;
 }
 
 export function clashLabel(dateClash: unknown, own?: OwnGigWindow): string {

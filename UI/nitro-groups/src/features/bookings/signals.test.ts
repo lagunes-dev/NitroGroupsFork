@@ -130,14 +130,26 @@ describe("clashLabel con horas", () => {
 
     it("says the window of the other gig and how much the two overlap", () => {
         expect(clashLabel({ clashes: true, withGig: otherGig }, { startTime: "21:00:00", durationHours: 3 })).toBe(
-            "Ese día ya tienes un toque: Boda 20:00–23:00 en Hacienda San Gabriel, Tlaquepaque · se pisan 2 h"
+            "Ese día ya tienes un toque: Boda 20:00–23:00 en Hacienda San Gabriel, Tlaquepaque · se pisan 2 h · tu pedido es 21:00–00:00, el otro toque acaba 23:00"
         );
     });
 
     it("says when they do not overlap but the day is still taken", () => {
         expect(clashLabel({ clashes: true, withGig: otherGig }, { startTime: "09:00:00", durationHours: 1 })).toBe(
-            "Ese día ya tienes un toque: Boda 20:00–23:00 en Hacienda San Gabriel, Tlaquepaque · no se pisan, pero hay traslado"
+            "Ese día ya tienes un toque: Boda 20:00–23:00 en Hacienda San Gabriel, Tlaquepaque · no se pisan, pero hay traslado · tu pedido es 09:00–10:00, el otro toque acaba 23:00"
         );
+    });
+
+    it("closes with the way out when the request window crosses midnight", () => {
+        const late = { ...otherGig, startTime: "22:00:00", durationHours: 4 };
+        expect(clashLabel({ clashes: true, withGig: late }, { startTime: "21:00:00", durationHours: 3 })).toBe(
+            "Ese día ya tienes un toque: Boda 22:00–02:00 en Hacienda San Gabriel, Tlaquepaque · se pisan 2 h · tu pedido es 21:00–00:00, el otro toque acaba 02:00"
+        );
+    });
+
+    it("never invents the way out when a window is unknown", () => {
+        expect(clashLabel({ clashes: true, withGig: otherGig }, { startTime: "21:00:00" })).not.toMatch(/tu pedido es/);
+        expect(clashLabel({ clashes: true, withGig: { ...otherGig, durationHours: null } }, { startTime: "21:00:00", durationHours: 3 })).not.toMatch(/acaba/);
     });
 
     it("falls back to what it knows when the request has no hours", () => {

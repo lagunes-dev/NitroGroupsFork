@@ -115,13 +115,45 @@ describe("RequestThread deal", () => {
         deposit: { amount: 4000, receivedAt: "2026-11-05T18:00:00Z" },
     };
 
-    it("repeats the balance and the next step for the client who is closing the deal", async () => {
+    it("gives the client's accepted thread a balance block before the spec list", async () => {
         mocks.get.mockResolvedValue(accepted);
         renderThread("Client");
 
-        expect(await screen.findByText("Saldo")).toBeInTheDocument();
-        expect(screen.getByText("Falta pagar $14,000")).toBeInTheDocument();
+        const balance = await screen.findByText("Falta pagar $14,000");
+        // Layout cannot be measured in jsdom: the size class and the DOM order are the decision.
+        expect(balance).toHaveClass("text-2xl");
+        expect(screen.getByText("para el 5 de diciembre")).toBeInTheDocument();
+        expect(screen.getByText("Próximo paso")).toBeInTheDocument();
         expect(screen.getByText("Acuerda el saldo con el grupo para el día del evento.")).toBeInTheDocument();
+
+        const block = balance.closest("section") as HTMLElement;
+        const specs = document.querySelector("dl") as HTMLElement;
+        expect(block.compareDocumentPosition(specs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(block).toContainElement(screen.getByText("Próximo paso"));
+    });
+
+    it("does not repeat the balance as a row of the spec list", async () => {
+        mocks.get.mockResolvedValue(accepted);
+        renderThread("Client");
+
+        await screen.findByText("Falta pagar $14,000");
+        expect(screen.queryByText("Saldo")).toBeNull();
+        expect(document.querySelector("dl")).not.toHaveTextContent("Falta pagar");
+    });
+
+    it("draws no balance block while the deposit is pending or for the group", async () => {
+        mocks.get.mockResolvedValue({ ...accepted, deposit: { amount: 4000, receivedAt: null } });
+        const { unmount } = renderThread("Client");
+        expect(await screen.findByText("Acuerda el anticipo con el grupo para cerrar la fecha.")).toBeInTheDocument();
+        expect(screen.queryByText("Próximo paso")).toBeNull();
+        unmount();
+
+        mocks.get.mockResolvedValue(accepted);
+        mocks.signals.mockRejectedValue(new Error("boom"));
+        renderThread("Group");
+        expect(await screen.findByText("Buscamos banda para la entrada y el vals.")).toBeInTheDocument();
+        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText("Próximo paso")).toBeNull();
     });
 
     it("calls an empty budget what the list calls it, never zero pesos", async () => {

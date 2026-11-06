@@ -124,3 +124,30 @@ export function nextStepLabel(
             return null;
     }
 }
+
+/** What the client's accepted thread opens with: the balance, what it is for and the next step. */
+export interface BalanceBlock {
+    balance: string;
+    /** "para el 19 de noviembre"; null when the date cannot be read. */
+    purpose: string | null;
+    nextStep: string;
+}
+
+/**
+ * The block is only drawn when there is a balance still owed to state: a pending deposit, a missing
+ * budget, a settled deal or the group's view leave the thread as it was.
+ */
+export function balanceBlock(
+    request: DealRequest & { eventDate?: string | null },
+    viewer: EventRequestParty
+): BalanceBlock | null {
+    const remaining = remainingAmount(request);
+    const balance = balanceLabel(request, viewer);
+    const nextStep = nextStepLabel(request, viewer);
+    if (!balance || !nextStep || remaining === null || remaining <= 0) return null;
+
+    const day = request.eventDate ? formatEventDate(request.eventDate) : null;
+    // "jueves, 19 de noviembre de 2026" -> "19 de noviembre": the thread header already says the rest.
+    const short = day?.replace(/^[^,]+,\s*/, "").replace(/ de \d{4}$/, "");
+    return { balance, purpose: short ? `para el ${short}` : null, nextStep };
+}

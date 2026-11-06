@@ -7,7 +7,7 @@ import { ROUTES } from "@/config/routes";
 import { eventTypeLabel } from "@/lib/eventTypeLabel";
 import { formatEventDate } from "@/lib/format";
 import { apiErrorMessage, bookingsService } from "../bookings.service";
-import { balanceLabel, budgetLabel, clientDepositLabel, nextStepLabel, sentLabel } from "../deposit";
+import { balanceBlock, budgetLabel, clientDepositLabel, nextStepLabel, sentLabel } from "../deposit";
 import { availableActions, shortTime, statusLabel } from "../status";
 import { threadItems, type ThreadItem } from "../thread";
 import type { EventRequest, EventRequestParty } from "../types";
@@ -74,6 +74,7 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
     const actions = availableActions(r, viewer);
     const failed = [accept, decline, cancel, send].find((m) => m.isError);
     const busy = [accept, decline, cancel, send].some((m) => m.isPending);
+    const deal = balanceBlock(r, viewer);
     const title = viewer === "Client" ? r.groupName : r.clientName;
 
     return (
@@ -106,6 +107,16 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                 </div>
             )}
 
+            {/* S8: lo que el cliente debe y lo que sigue, antes de la ficha: es lo que viene a buscar. */}
+            {deal && (
+                <section className="md:col-span-12 rounded-xl bg-fondo-2 p-5" aria-label="Saldo y próximo paso">
+                    <p className="text-2xl font-semibold tabular text-tinta">{deal.balance}</p>
+                    {deal.purpose && <p className="mt-1 text-tinta-2">{deal.purpose}</p>}
+                    <p className="mt-4 text-sm text-tinta-2">Próximo paso</p>
+                    <p className="mt-1 text-tinta">{deal.nextStep}</p>
+                </section>
+            )}
+
             <dl className="md:col-span-4 grid grid-cols-2 md:grid-cols-1 gap-6 content-start">
                 <Detail label="Evento" value={eventTypeLabel(r.eventType)} />
                 <Detail label="Lugar" value={r.locationText} />
@@ -115,11 +126,10 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                 <Detail label="Solicitud enviada" value={sentLabel(r)?.replace(/^Solicitud enviada el /, "") ?? null} />
                 <Detail label="Presupuesto" value={budgetLabel(r)} />
                 <Detail label="Anticipo" value={clientDepositLabel(r, viewer)?.replace(/^Anticipo /, "") ?? null} />
-                <Detail label="Saldo" value={balanceLabel(r, viewer)} />
             </dl>
 
-            {/* El próximo paso que el cliente ya ve en la lista: acá es donde cierra el trato. */}
-            {nextStepLabel(r, viewer) && (
+            {/* Sin saldo que decir no hay bloque: el próximo paso sigue como párrafo suelto. */}
+            {!deal && nextStepLabel(r, viewer) && (
                 <p className="md:col-span-12 text-tinta">{nextStepLabel(r, viewer)}</p>
             )}
 

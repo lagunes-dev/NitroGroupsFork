@@ -35,6 +35,20 @@ describe("RequestList", () => {
         expect(screen.getByText("Acuerda el saldo con el grupo para el día del evento.")).toBeInTheDocument();
     });
 
+    it("makes the balance the only white figure of the row and the original budget a muted 15px", () => {
+        render(<RequestList requests={[accepted]} viewer="Client" />);
+        // jsdom measures no pixels: the colour and size classes are the decision.
+        expect(screen.getByText("Falta pagar $14,000")).toHaveClass("text-tinta");
+        const price = screen.getByText("$18,000");
+        expect(price).toHaveClass("text-tinta-2", "text-[15px]");
+        expect(price).not.toHaveClass("text-tinta");
+    });
+
+    it("keeps the price white when there is no balance to compete with it", () => {
+        render(<RequestList requests={[{ ...accepted, deposit: null }]} viewer="Client" />);
+        expect(screen.getByText("$18,000")).toHaveClass("text-tinta");
+    });
+
     it("says since when the client is waiting, without echoing the status chip", () => {
         render(<RequestList requests={[{ ...accepted, status: "Pending", deposit: null }]} viewer="Client" />);
         expect(screen.getByText("Solicitud enviada el jueves, 1 de octubre de 2026")).toBeInTheDocument();

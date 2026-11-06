@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alreadyBookedLabel } from "./alreadyBooked";
+import { alreadyBooked } from "./alreadyBooked";
 import type { EventRequest } from "@/features/bookings/types";
 
 const base = {
@@ -24,21 +24,24 @@ const base = {
     responseMessage: null,
 };
 
-describe("alreadyBookedLabel", () => {
-    it("explains why the group that already plays for you that day is not in the list", () => {
-        expect(alreadyBookedLabel([base as EventRequest], "2026-11-19")).toBe(
-            "Versátil Rock y Pop ya toca para ti el jueves, 19 de noviembre de 2026, por eso no aparece en la lista."
-        );
+describe("alreadyBooked", () => {
+    it("returns the pieces of the note: group, its profile, the day and the request", () => {
+        expect(alreadyBooked([base as EventRequest], "2026-11-19")).toEqual({
+            groupName: "Versátil Rock y Pop",
+            groupSlug: "versatil-rock-y-pop",
+            requestId: 8,
+            day: "jueves, 19 de noviembre de 2026",
+        });
     });
 
     it("stays quiet when the request is not accepted or not that day", () => {
-        expect(alreadyBookedLabel([{ ...base, status: "Pending" } as EventRequest], "2026-11-19")).toBeNull();
-        expect(alreadyBookedLabel([base as EventRequest], "2026-11-20")).toBeNull();
+        expect(alreadyBooked([{ ...base, status: "Pending" } as EventRequest], "2026-11-19")).toBeNull();
+        expect(alreadyBooked([base as EventRequest], "2026-11-20")).toBeNull();
     });
 
     it("stays quiet without a date, without a session or without requests", () => {
-        expect(alreadyBookedLabel([base as EventRequest], null)).toBeNull();
-        expect(alreadyBookedLabel(null, "2026-11-19")).toBeNull();
-        expect(alreadyBookedLabel([], "2026-11-19")).toBeNull();
+        expect(alreadyBooked([base as EventRequest], null)).toBeNull();
+        expect(alreadyBooked(null, "2026-11-19")).toBeNull();
+        expect(alreadyBooked([], "2026-11-19")).toBeNull();
     });
 });

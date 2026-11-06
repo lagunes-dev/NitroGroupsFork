@@ -32,14 +32,14 @@ export function RequestList({ requests, viewer }: { requests: EventRequest[]; vi
                             </Link>
                             {what && <p className="text-tinta-2">{what}</p>}
                             {deposit && <p className="relative text-sm text-tinta-2">{deposit}</p>}
-                            {/* Lo que debo pesa como el precio: es la cifra que decide si entro (ronda 5). */}
+                            {/* Lo que debo es la única cifra blanca de la fila: el presupuesto original baja a gris (ronda 6). */}
                             {balance && <p className="relative tabular text-lg text-tinta">{balance}</p>}
                             {nextStep && <p className="relative text-base text-tinta">{nextStep}</p>}
                             {sent && <p className="relative text-sm text-tinta-2">{sent}</p>}
                             {viewer === "Group" && r.isSelfBooked && <span className="block text-sm text-tinta-2">Cargada por el grupo</span>}
                         </div>
                         <p className="tabular md:col-span-2">
-                            <span className={price ? "block text-tinta" : "block text-tinta-2"}>{price ?? "Sin presupuesto"}</span>
+                            <span className={balance ? "block text-[15px] text-tinta-2" : price ? "block text-tinta" : "block text-tinta-2"}>{price ?? "Sin presupuesto"}</span>
                             <span className="block text-sm text-tinta-2">{r.durationHours} h de música</span>
                         </p>
                         <div className="md:col-span-3 md:justify-self-end">
