@@ -92,19 +92,24 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 - [x] T56 (S6, S12) Antes de responder a un toque, una línea dice que la respuesta se guarda al tocar y se puede cambiar, y Confirmo y No puedo se separan más en el celular. Sin diálogo y sin "Deshacer": el API no puede volver a "sin responder".
 - [ ] T57 (datos) Titulares de los músicos demo para que "Titular 0 de 120" no parezca un perfil vacío.
 
-## Estrategia de entrega (pendiente de aplicar, L58)
+## Estrategia de entrega (L58)
 
-La rama `feat/membership-ux` acumula **293 commits, 994 archivos y 84.496 líneas** sobre `origin/master`: es la entrega de tres olas y trece sesiones, no un PR. Un revisor humano no puede leer eso, y el arnés ya lo marcó al commitear.
+**Ya existe un plan y hay que extenderlo, no inventar otro.** `odd/tasks/mvp-arquitectura.md` registra la estrategia que el usuario eligió antes ("Stacked a develop", "En tu fork"): **12 PRs encadenados** en `lagunes-dev/NitroGroupsFork`, ramas `stack/01-limpieza` … `stack/12-panel-reglas`, con `size:exception` pedido en 11 de ellas porque cada una supera las 400 líneas por motivos estructurales (migraciones generadas, módulo nuevo completo, reescritura de pantallas).
 
-Decisión de forma (el contenido no cambia): entregar en **PRs encadenados por ola**, cada uno con su propia revisión, en este orden:
+**Medición de hoy**: ese plan cubre hasta el commit `fb399da` (posición **100 de 294** de la rama). Desde el commit siguiente (`1a17d54`, "docs(odd): registra la entrega en 12 PRs encadenadas") hay **194 commits y 47.011 líneas** que ninguna de las 12 PRs cubre: el pulido de UI, la ola de UX de membresías, la Ola 1 de usabilidad, la Ola 2a de perfil de músico, la Ola 2b de agenda de gigs, la Ola 3 de directorio/logística/reseñas y los arreglos de las rondas 6-8.
 
-1. `fix/signup-password-policy-error` — ya pusheada, PR independiente.
-2. `feat/ui-polish` — ya pusheada, PR independiente.
-3. `feat/membership-ux` partida en tramos: **Ola 1** (usabilidad), **Ola 2a** (perfil de músico), **Ola 2b** (agenda de gigs), **Ola 3** (directorio, logística y reseñas) y **T41-T57** (los arreglos de las rondas 6-8).
+**Tramos medidos para extender el plan** (posiciones en la rama y líneas autoradas, sin lock files):
 
-Antes del próximo commit hay que mapear los límites exactos: qué commit cierra cada ola, para poder cortar la rama en tramos revisables con `git format-patch` o ramas hijas. Ese mapeo es el siguiente paso y necesita releer el historial por tramos, porque los asuntos de commit no llevan el nombre de la ola.
+| Tramo | Commits | Hasta | Líneas |
+|---|---|---|---|
+| Pulido de UI | #101-#151 | `2ae3435` | 54.015 (incluye la base previa) |
+| UX de membresías | #152-#168 | `9fab418` | 1.425 |
+| Ola 2a (perfil de músico) | #169-#188 | `e96f997` | 3.909 |
+| Ola 2b (agenda de gigs) | #189-#206 | `656bba4` | 5.277 |
+| Ola 3 (directorio, logística, reseñas) | #207-#281 | `3aafd5c` | 18.406 |
+| Arreglos de las rondas 6-8 | #282-#294 | `8c016ae` | 3.092 |
 
-Nada de esto autoriza pushear ni abrir PRs: el push y el PR siguen siendo decisiones del usuario.
+**Lo que falta decidir y no decido solo**: cómo se entrega ese tramo de 194 commits. Pushear y abrir PRs siguen siendo decisiones del usuario.
 
 ## Log
 
