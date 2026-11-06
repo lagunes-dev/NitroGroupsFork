@@ -17,7 +17,9 @@ import { groupAvailabilityService as schedulesService, type CreateBusyScheduleRe
 import esLocale from "@fullcalendar/core/locales/es";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { todayInMexico } from "@/lib/format";
 import { formatRangeLabel } from "./formatRange";
+import { BlockDayControl } from "./BlockDayControl";
 
 export type GroupCalendarMode = "public" | "private";
 
@@ -242,6 +244,13 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
           )}
         </ul>
       </div>
+
+      {/*
+        S26: un día también se bloquea desde la agenda, sin arrastrar sobre la rejilla. Va aquí arriba,
+        antes del calendario, porque un arrastre no se puede hacer con el teclado. Solo en la vista
+        privada: la agenda pública del grupo no se edita.
+      */}
+      {isPrivate && <BlockDayControl groupId={groupId} initialDay={todayInMexico()} className="mt-8" />}
 
       {mutationFailed && (
         <Alert variant="destructive" className="mt-6">
