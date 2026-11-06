@@ -38,6 +38,7 @@ public class EventRequestConfiguration : IEntityTypeConfiguration<EventRequest>
         builder.Property(e => e.CallTime).HasColumnName("call_time");
         builder.Property(e => e.DepositAmount).HasColumnName("deposit_amount").HasPrecision(12, 2);
         builder.Property(e => e.DepositReceivedAt).HasColumnName("deposit_received_at");
+        builder.Property(e => e.BalanceReceivedAt).HasColumnName("balance_received_at");
 
         builder.Property(e => e.CreatedAt).HasDefaultValueSql("now()").HasColumnName("created_at");
         builder.Property(e => e.CreatedBy).HasColumnName("created_by");

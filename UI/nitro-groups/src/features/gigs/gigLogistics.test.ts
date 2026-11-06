@@ -11,7 +11,7 @@ import {
     type LogisticsForm,
 } from "./gigLogistics";
 
-const FORM: LogisticsForm = { callTime: "", setlist: "", depositAmount: "", depositReceived: false, pay: {} };
+const FORM: LogisticsForm = { callTime: "", setlist: "", depositAmount: "", depositReceived: false, balanceReceived: false, pay: {}, paid: {} };
 
 describe("parseAmount", () => {
     it("reads empty, valid and invalid text apart", () => {
@@ -37,7 +37,27 @@ describe("initialLogisticsForm", () => {
             deposit: { amount: 3000, receivedAt: "2026-11-04T18:00:00Z" },
             attendees: [{ userId: 5, fullName: "Mateo", status: "Confirmed", pay: 2000 }, { userId: 6, fullName: "Ana", status: null, pay: null }],
         });
-        expect(form).toEqual({ callTime: "17:30", setlist: "Intro", depositAmount: "3000", depositReceived: true, pay: { "5": "2000", "6": "" } });
+        expect(form).toEqual({
+            callTime: "17:30",
+            setlist: "Intro",
+            depositAmount: "3000",
+            depositReceived: true,
+            balanceReceived: false,
+            pay: { "5": "2000", "6": "" },
+            paid: { "5": false, "6": false },
+        });
+    });
+
+    it("starts the balance and each musician as recorded when the row says so (T48)", () => {
+        const form = initialLogisticsForm({
+            balanceReceivedAt: "2026-12-13T15:00:00Z",
+            attendees: [
+                { userId: 5, fullName: "Mateo", pay: 2000, paidAt: "2026-12-13T16:00:00Z" },
+                { userId: 6, fullName: "Ana", pay: 1500, paidAt: null },
+            ],
+        });
+        expect(form.balanceReceived).toBe(true);
+        expect(form.paid).toEqual({ "5": true, "6": false });
     });
 
     it("starts empty for a row without logistics or with malformed values", () => {
@@ -75,16 +95,24 @@ describe("validateLogistics", () => {
 
 describe("buildDetailsBody", () => {
     it("sends what the manager filled in", () => {
-        expect(buildDetailsBody({ callTime: "17:30", setlist: "Intro", depositAmount: "3000", depositReceived: true, pay: {} })).toEqual({
+        expect(
+            buildDetailsBody({ ...FORM, callTime: "17:30", setlist: "Intro", depositAmount: "3000", depositReceived: true })
+        ).toEqual({
             callTime: "17:30",
             setlist: "Intro",
             depositAmount: 3000,
             depositReceived: true,
+            balanceReceived: false,
         });
     });
 
     it("omits an empty call time and deposit, keeps the setlist so it can be cleared", () => {
-        expect(buildDetailsBody(FORM)).toEqual({ setlist: "", depositReceived: false });
+        expect(buildDetailsBody(FORM)).toEqual({ setlist: "", depositReceived: false, balanceReceived: false });
+    });
+
+    it("sends the balance like the deposit: true records it, false clears it (T48)", () => {
+        expect(buildDetailsBody({ ...FORM, balanceReceived: true }).balanceReceived).toBe(true);
+        expect(buildDetailsBody({ ...FORM, balanceReceived: false }).balanceReceived).toBe(false);
     });
 });
 
@@ -97,6 +125,15 @@ describe("buildPayBody", () => {
 
     it("drops rows that are negative or not numbers instead of sending them", () => {
         expect(buildPayBody({ "5": "-1", "6": "abc", "7": "10" })).toEqual({ payments: [{ userId: 7, amount: 10 }] });
+    });
+
+    it("carries each musician's paid state only for the rows that go out (T48)", () => {
+        expect(buildPayBody({ "5": "2000", "6": "1500", "7": "" }, { "5": true, "6": false, "7": true })).toEqual({
+            payments: [
+                { userId: 5, amount: 2000, paid: true },
+                { userId: 6, amount: 1500, paid: false },
+            ],
+        });
     });
 
     it("sends an empty set when nobody has a value", () => {
@@ -114,6 +151,15 @@ describe("attendeePayLines", () => {
                 { userId: 8, fullName: "Eva", pay: -3 },
             ])
         ).toEqual(["Mateo Músico $2,000", "Luis $0"]);
+    });
+
+    it("marks the ones already paid, in words (T48)", () => {
+        expect(
+            attendeePayLines([
+                { userId: 5, fullName: "Mateo", pay: 2000, paidAt: "2026-12-13T16:00:00Z" },
+                { userId: 6, fullName: "Ana", pay: 1500, paidAt: null },
+            ])
+        ).toEqual(["Mateo $2,000 pagado", "Ana $1,500"]);
     });
 
     it("copes with a missing list", () => {

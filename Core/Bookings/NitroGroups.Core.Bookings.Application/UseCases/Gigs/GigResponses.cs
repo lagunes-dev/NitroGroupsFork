@@ -28,7 +28,7 @@ public static class GigResponses
         IReadOnlyCollection<EventRequest> gigs,
         IReadOnlyDictionary<long, GroupMembershipSummary> memberships,
         IReadOnlyDictionary<long, GigAttendanceStatus> attendance,
-        IReadOnlyDictionary<long, decimal> myPay)
+        IReadOnlyDictionary<long, (decimal Amount, DateTime? PaidAt)> myPay)
         => gigs.Select(gig =>
         {
             var membership = memberships.GetValueOrDefault(gig.GroupId);
@@ -38,7 +38,8 @@ public static class GigResponses
                 membership?.Slug ?? string.Empty,
                 membership?.Role,
                 attendance.TryGetValue(gig.Id, out var status) ? status : null,
-                myPay.TryGetValue(gig.Id, out var amount) ? amount : null);
+                myPay.TryGetValue(gig.Id, out var mine) ? mine.Amount : null,
+                myPay.TryGetValue(gig.Id, out var paid) ? paid.PaidAt : null);
         }).ToList();
 
     public static GigResponse Build(
@@ -47,9 +48,10 @@ public static class GigResponses
         string groupSlug,
         GroupMemberRole? role,
         GigAttendanceStatus? attendance,
-        decimal? myPay = null)
+        decimal? myPay = null,
+        DateTime? myPayPaidAt = null)
     {
-        var row = new GigResponse { MyPay = myPay };
+        var row = new GigResponse { MyPay = myPay, MyPayPaidAt = myPayPaidAt };
         Fill(row, gig, groupName, groupSlug, role, attendance);
         return row;
     }

@@ -76,6 +76,34 @@ describe("GigCard", () => {
         expect(disclosure).toHaveTextContent(/Intro\s*Valses/);
     });
 
+    it("tells the musician whether he was paid, next to his pay (T48)", () => {
+        const { unmount } = render(
+            <GigCard
+                gig={toGigView({ ...row, myPay: 2000, myPayPaidAt: "2026-12-13T15:00:00Z" })}
+                saving={false}
+                failed={false}
+                onAnswer={vi.fn()}
+                onRetry={vi.fn()}
+                {...quiet}
+            />
+        );
+        expect(screen.getByText("Tu pago: $2,000")).toBeInTheDocument();
+        expect(screen.getByText(/pagado el 13 de diciembre de 2026/)).toBeInTheDocument();
+        expect(screen.queryByText(/pendiente/)).toBeNull();
+        unmount();
+
+        render(<GigCard gig={toGigView({ ...row, myPay: 2000 })} saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} {...quiet} />);
+        expect(screen.getByText("Tu pago: $2,000")).toBeInTheDocument();
+        expect(screen.getByText(/· pendiente/)).toBeInTheDocument();
+        expect(screen.queryByText(/pagado/)).toBeNull();
+    });
+
+    it("keeps 'Tu pago sin definir' for a gig with no pay loaded, paid or not (T48)", () => {
+        render(<GigCard gig={toGigView({ ...row, myPayPaidAt: "2026-12-13T15:00:00Z" })} saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} {...quiet} />);
+        expect(screen.getByText("Tu pago sin definir")).toBeInTheDocument();
+        expect(screen.queryByText(/pagado|pendiente/)).toBeNull();
+    });
+
     it("says which logistics the manager has not loaded yet, instead of hiding them", () => {
         render(<GigCard gig={toGigView(row)} saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} {...quiet} />);
         expect(screen.getByText(/Llegada sin definir/)).toBeInTheDocument();

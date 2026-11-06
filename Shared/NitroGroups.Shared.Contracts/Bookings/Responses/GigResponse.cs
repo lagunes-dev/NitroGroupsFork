@@ -36,5 +36,8 @@ namespace NitroGroups.Shared.Contracts.Bookings.Responses
     {
         /// <summary>Lo que se le paga al llamante por este toque; nunca el pago de otra persona.</summary>
         public decimal? MyPay { get; set; }
+
+        /// <summary>Cuándo el manager registró que le pagaron; null mientras no.</summary>
+        public DateTime? MyPayPaidAt { get; set; }
     }
 }

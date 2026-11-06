@@ -100,7 +100,11 @@ export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, 
                         )}
                     </p>
                     {gig.payLabel ? (
-                        <p className="tabular text-tinta-2">{gig.payLabel}</p>
+                        <p className="tabular text-tinta-2">
+                            {gig.payLabel}
+                            {/* T48: the manager records the payment; the musician can finally tell. */}
+                            {gig.paidLabel && <span> · {gig.paidLabel}</span>}
+                        </p>
                     ) : (
                         !skipped && <p className="tabular text-tinta-2 italic">{PAY_PENDING}</p>
                     )}

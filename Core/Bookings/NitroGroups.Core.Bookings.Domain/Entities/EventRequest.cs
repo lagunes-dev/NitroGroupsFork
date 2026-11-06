@@ -50,6 +50,9 @@ public class EventRequest : AuditableModel
     /// <summary>Cuándo se recibió el anticipo; null mientras no se haya recibido.</summary>
     public DateTime? DepositReceivedAt { get; private set; }
 
+    /// <summary>Cuándo se recibió el saldo; null mientras no se haya recibido.</summary>
+    public DateTime? BalanceReceivedAt { get; private set; }
+
     public List<EventRequestMessage> Messages { get; set; } = [];
 
     /// <summary>Respuestas de asistencia de los miembros del grupo (una por usuario).</summary>
@@ -140,6 +143,10 @@ public class EventRequest : AuditableModel
     /// </summary>
     public void SetDepositReceived(bool received, DateTime nowUtc)
         => DepositReceivedAt = received ? DepositReceivedAt ?? nowUtc : null;
+
+    /// <summary>Igual que el anticipo: fija la fecha si estaba vacía, o la limpia.</summary>
+    public void SetBalanceReceived(bool received, DateTime nowUtc)
+        => BalanceReceivedAt = received ? BalanceReceivedAt ?? nowUtc : null;
 
     /// <summary>Agrega un mensaje de una de las partes y avisa a la otra.</summary>
     public EventRequestMessage PostMessage(long senderUserId, EventRequestParty senderParty, string body, DateTime nowUtc)

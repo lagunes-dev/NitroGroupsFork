@@ -175,3 +175,42 @@ describe("RequestThread search context", () => {
         expect(link).toHaveAttribute("href", `/groups?fecha=2026-12-05&excluir=${request.groupId}`);
     });
 });
+
+describe("RequestThread balance received (T48)", () => {
+    const accepted: EventRequest = {
+        ...request,
+        status: "Accepted",
+        deposit: { amount: 4000, receivedAt: "2026-11-05T18:00:00Z" },
+    };
+
+    it("replaces the debt with the fact in the client's balance block", async () => {
+        mocks.get.mockResolvedValue({ ...accepted, balanceReceivedAt: "2026-12-13T15:00:00Z" });
+
+        renderThread("Client");
+
+        const block = await screen.findByRole("region", { name: "Saldo y próximo paso" });
+        expect(block).toHaveTextContent("Saldo recibido el 13 de diciembre de 2026");
+        expect(block).toHaveTextContent("No queda nada por pagar.");
+        expect(block).not.toHaveTextContent(/Falta pagar|Acuerda el saldo/);
+    });
+
+    it("keeps the debt block until the balance is recorded", async () => {
+        mocks.get.mockResolvedValue(accepted);
+
+        renderThread("Client");
+
+        const block = await screen.findByRole("region", { name: "Saldo y próximo paso" });
+        expect(block).toHaveTextContent("Falta pagar $14,000");
+    });
+
+    it("does not show the group's view any balance", async () => {
+        mocks.get.mockResolvedValue({ ...accepted, balanceReceivedAt: "2026-12-13T15:00:00Z" });
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Group");
+
+        await screen.findByRole("region", { name: "Conversación" });
+        expect(screen.queryByText(/Saldo recibido/)).toBeNull();
+        expect(screen.queryByRole("region", { name: "Saldo y próximo paso" })).toBeNull();
+    });
+});

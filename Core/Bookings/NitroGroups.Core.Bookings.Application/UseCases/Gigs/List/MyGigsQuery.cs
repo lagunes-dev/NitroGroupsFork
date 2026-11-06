@@ -40,6 +40,6 @@ public sealed class GetMyGigsQueryHandler(
             gigs,
             memberships.ToDictionary(membership => membership.GroupId),
             attendance.ToDictionary(row => row.EventRequestId, row => row.Status),
-            pay.ToDictionary(row => row.EventRequestId, row => row.Amount));
+            pay.ToDictionary(row => row.EventRequestId, row => (row.Amount, row.PaidAt)));
     }
 }

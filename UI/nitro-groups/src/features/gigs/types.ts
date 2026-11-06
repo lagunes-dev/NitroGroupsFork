@@ -30,6 +30,8 @@ export interface GigPayload {
     setlist?: string | null;
     /** What the caller is paid for this gig. Only ever the caller's own amount; informational. */
     myPay?: number | string | null;
+    /** ISO timestamp the manager recorded when the caller was paid; null until then. */
+    myPayPaidAt?: string | null;
 }
 
 /** A member and their answer, as the manager view lists them. Never carries an email. */
@@ -39,10 +41,14 @@ export interface AttendeePayload {
     status?: string | null;
     /** What this member is paid for the gig. Manager view only; informational. */
     pay?: number | string | null;
+    /** ISO timestamp the manager recorded when this member was paid; null until then. */
+    paidAt?: string | null;
 }
 
 /** Manager row: the same gig plus who answered. */
 export interface GroupGigPayload extends GigPayload {
     attendees?: AttendeePayload[] | null;
     deposit?: DepositPayload | null;
+    /** ISO timestamp the manager recorded when the client's balance arrived; null until then. */
+    balanceReceivedAt?: string | null;
 }

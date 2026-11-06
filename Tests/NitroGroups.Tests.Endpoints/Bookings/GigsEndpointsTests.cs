@@ -87,7 +87,7 @@ public class GigsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
         var gig = Assert.Single(json.RootElement.EnumerateArray());
         // El orden de las propiedades de un objeto JSON no importa; el conjunto sí.
         Assert.Equal(
-            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "callTime", "setlist", "myPay" }.Order(StringComparer.Ordinal),
+            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "callTime", "setlist", "myPay", "myPayPaidAt" }.Order(StringComparer.Ordinal),
             gig.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
         Assert.Equal(5, gig.GetProperty("id").GetInt64());
         Assert.Equal(10, gig.GetProperty("groupId").GetInt64());
@@ -122,6 +122,26 @@ public class GigsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
         Assert.Equal(JsonValueKind.Null, rows[1].GetProperty("callTime").ValueKind);
         Assert.Equal(JsonValueKind.Null, rows[1].GetProperty("setlist").ValueKind);
         Assert.Equal(JsonValueKind.Null, rows[1].GetProperty("myPay").ValueKind);
+    }
+
+    // T48 (S18): el músico ve cuándo le pagaron; null mientras no.
+    [Fact]
+    public async Task MisToques_DevuelveCuandoMePagaron_ConNuloMientrasNo()
+    {
+        var paid = Gig();
+        paid.MyPay = 1200m;
+        paid.MyPayPaidAt = new DateTime(2026, 12, 13, 15, 0, 0, DateTimeKind.Utc);
+        var pending = Gig();
+        pending.MyPay = 900m;
+        _mediator.SendQueryAsync<GetMyGigsQuery, List<GigResponse>>(Arg.Any<GetMyGigsQuery>())
+            .Returns([paid, pending]);
+
+        var response = await _client.GetAsync("api/me/gigs");
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var rows = json.RootElement.EnumerateArray().ToList();
+        Assert.Equal("2026-12-13T15:00:00Z", rows[0].GetProperty("myPayPaidAt").GetString());
+        Assert.Equal(JsonValueKind.Null, rows[1].GetProperty("myPayPaidAt").ValueKind);
     }
 
     [Fact]

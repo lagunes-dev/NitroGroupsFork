@@ -10,6 +10,8 @@ import {
     buildDetailsBody,
     buildPayBody,
     initialLogisticsForm,
+    parseAmount,
+    recordedStateLabel,
     setlistCounter,
     validateLogistics,
     type LogisticsErrors,
@@ -44,7 +46,7 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
     const save = useMutation({
         mutationFn: async (input: LogisticsForm) => {
             await gigsService.saveDetails(groupId, rowId, buildDetailsBody(input));
-            await gigsService.savePay(groupId, rowId, buildPayBody(input.pay));
+            await gigsService.savePay(groupId, rowId, buildPayBody(input.pay, input.paid));
         },
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: groupGigsKey(groupId) });
@@ -65,6 +67,8 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
     };
 
     const setPay = (userId: string, value: string) => setForm((f) => ({ ...f, pay: { ...f.pay, [userId]: value } }));
+    const setPaid = (userId: string, value: boolean) => setForm((f) => ({ ...f, paid: { ...f.paid, [userId]: value } }));
+    const balanceState = recordedStateLabel(form.balanceReceived, row.balanceReceivedAt, { done: "Saldo recibido", pending: "Saldo pendiente" });
 
     return (
         <form
@@ -108,6 +112,20 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                         />
                         Anticipo recibido
                     </label>
+                    {/* T48: the balance is recorded like the deposit: a fact with its date, never a charge. */}
+                    <label className="flex min-h-11 w-fit cursor-pointer items-center gap-3 text-tinta">
+                        <input
+                            type="checkbox"
+                            className="size-6 accent-acento"
+                            checked={form.balanceReceived}
+                            aria-describedby={`${idPrefix}-balance-state`}
+                            onChange={(event) => setForm((f) => ({ ...f, balanceReceived: event.target.checked }))}
+                        />
+                        Saldo recibido
+                    </label>
+                    <p id={`${idPrefix}-balance-state`} className="text-sm text-tinta-2">
+                        {balanceState}
+                    </p>
                 </div>
             </div>
 
@@ -130,13 +148,15 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                         <thead className="sr-only">
                             <tr>
                                 <th scope="col">Músico</th>
-                                <th scope="col">Pago (MXN)</th>
+                                <th scope="col">Pago (MXN) y si ya se pagó</th>
                             </tr>
                         </thead>
                         <tbody>
                             {attendees.map((attendee) => {
                                 const key = String(Number(attendee.userId));
                                 const name = (attendee.fullName ?? "").trim() || "músico sin nombre";
+                                const hasPay = parseAmount(form.pay[key] ?? "").kind === "ok";
+                                const paidState = recordedStateLabel(form.paid[key] ?? false, attendee.paidAt, { done: "Pagado", pending: "Pendiente de pago" });
                                 return (
                                     <tr key={key} className="align-top [&+&]:shadow-[inset_0_1px_0_var(--fondo-3)]">
                                         <th scope="row" className="py-3 pr-4 font-normal text-tinta sm:w-1/2">
@@ -155,6 +175,26 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                                                 error={errors.pay[key]}
                                                 onChange={(event) => setPay(key, event.target.value)}
                                             />
+                                            {hasPay ? (
+                                                <div className="mt-2">
+                                                    <label className="flex min-h-11 w-fit cursor-pointer items-center gap-3 text-tinta">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="size-6 accent-acento"
+                                                            aria-label={`Pagado a ${name}`}
+                                                            aria-describedby={`${idPrefix}-paid-state-${key}`}
+                                                            checked={form.paid[key] ?? false}
+                                                            onChange={(event) => setPaid(key, event.target.checked)}
+                                                        />
+                                                        Pagado
+                                                    </label>
+                                                    <p id={`${idPrefix}-paid-state-${key}`} className="text-sm text-tinta-2">
+                                                        {paidState}
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <p className="mt-2 flex min-h-11 items-center text-sm text-tinta-2">Sin pago definido</p>
+                                            )}
                                         </td>
                                     </tr>
                                 );

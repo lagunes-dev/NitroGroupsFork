@@ -37,8 +37,11 @@ public class GigLogisticsHandlersIntegrationTests : IClassFixture<IntegrationTes
         => PayBodyAsync(context, gigId, new SetGigPayBody { Payments = payments.Select(p => new GigPayItemBody { UserId = p.UserId, Amount = p.Amount }).ToList() });
 
     private Task<BookingResult<GroupGigResponse>> PayBodyAsync(BookingsDbContext context, long gigId, SetGigPayBody body, long groupId = GroupId)
-        => new SetGigPayCommandHandler(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users)
+        => new SetGigPayCommandHandler(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users, _scenario.Time)
             .Handle(new SetGigPayCommand(groupId, gigId, ManagerId, body), CancellationToken.None);
+
+    private Task<BookingResult<GroupGigResponse>> PayPaidAsync(BookingsDbContext context, long gigId, params (long UserId, decimal Amount, bool? Paid)[] payments)
+        => PayBodyAsync(context, gigId, new SetGigPayBody { Payments = payments.Select(p => new GigPayItemBody { UserId = p.UserId, Amount = p.Amount, Paid = p.Paid }).ToList() });
 
     private Task<List<GroupGigResponse>> GroupGigsAsync(BookingsDbContext context)
         => new GetGroupGigsQueryHandler(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users, _scenario.Time)
@@ -354,5 +357,169 @@ public class GigLogisticsHandlersIntegrationTests : IClassFixture<IntegrationTes
         Assert.Equal(Now.UtcDateTime, result.Value.Deposit.ReceivedAt);
         var properties = typeof(EventRequestResponse).GetProperties().Select(p => p.Name);
         Assert.DoesNotContain(properties, name => name.Contains("Setlist") || name.Contains("CallTime") || name.Contains("Pay"));
+    }
+
+    // T48 (S18): saldo recibido y pagado como dato.
+    [Fact]
+    public async Task Saldo_TrueFijaLaFechaAhora_FalseLaLimpiaYOmitidoLaDeja()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context);
+        Assert.Null(Assert.Single(await GroupGigsAsync(context)).BalanceReceivedAt);
+
+        var first = await DetailsAsync(context, gig.Id, new UpdateGigDetailsBody { BalanceReceived = true });
+        Assert.True(first.IsSuccess, first.Error);
+        Assert.Equal(Now.UtcDateTime, first.Value!.BalanceReceivedAt);
+        Assert.Equal(Now.UtcDateTime, Assert.Single(await GroupGigsAsync(context)).BalanceReceivedAt);
+
+        // Enviarlo otra vez no mueve la fecha original.
+        _scenario.Time = new FixedTimeProvider(Now.AddDays(1));
+        await DetailsAsync(context, gig.Id, new UpdateGigDetailsBody { BalanceReceived = true });
+        Assert.Equal(Now.UtcDateTime, Assert.Single(await GroupGigsAsync(context)).BalanceReceivedAt);
+
+        // Omitido no la toca (y tocar otro campo tampoco).
+        await DetailsAsync(context, gig.Id, new UpdateGigDetailsBody { Setlist = "Cielito lindo" });
+        Assert.Equal(Now.UtcDateTime, Assert.Single(await GroupGigsAsync(context)).BalanceReceivedAt);
+
+        await DetailsAsync(context, gig.Id, new UpdateGigDetailsBody { BalanceReceived = false });
+        Assert.Null(Assert.Single(await GroupGigsAsync(context)).BalanceReceivedAt);
+    }
+
+    [Fact]
+    public async Task Saldo_NoMueveElAnticipoNiViceversa()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context);
+
+        await DetailsAsync(context, gig.Id, new UpdateGigDetailsBody { DepositReceived = true });
+        var row = Assert.Single(await GroupGigsAsync(context));
+        Assert.Equal(Now.UtcDateTime, row.Deposit.ReceivedAt);
+        Assert.Null(row.BalanceReceivedAt);
+
+        await DetailsAsync(context, gig.Id, new UpdateGigDetailsBody { BalanceReceived = true });
+        await DetailsAsync(context, gig.Id, new UpdateGigDetailsBody { DepositReceived = false });
+        row = Assert.Single(await GroupGigsAsync(context));
+        Assert.Null(row.Deposit.ReceivedAt);
+        Assert.Equal(Now.UtcDateTime, row.BalanceReceivedAt);
+    }
+
+    [Fact]
+    public async Task Saldo_ToqueDeOtroGrupoOSinAceptar_Returns404YNoGuarda()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var ajeno = await SeedGigAsync(context, groupId: OtherGroupId);
+        var pendiente = await SeedAsync(context);
+
+        var other = await DetailsAsync(context, ajeno.Id, new UpdateGigDetailsBody { BalanceReceived = true });
+        var pending = await DetailsAsync(context, pendiente.Id, new UpdateGigDetailsBody { BalanceReceived = true });
+
+        Assert.Equal(BookingErrorKind.NotFound, other.ErrorKind);
+        Assert.Equal(BookingErrorKind.NotFound, pending.ErrorKind);
+        Assert.Null((await _fixture.CreateBookingsUnitOfWork(context).EventRequests.GetByIdAsync(ajeno.Id))!.BalanceReceivedAt);
+        Assert.Null((await _fixture.CreateBookingsUnitOfWork(context).EventRequests.GetByIdAsync(pendiente.Id))!.BalanceReceivedAt);
+    }
+
+    [Fact]
+    public async Task Pagado_ReemplazarElConjuntoDosVeces_ConservaLaFechaOriginalYRespetaTrueFalseYOmitido()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context);
+        await AnswerAsync(context, gig.Id, MemberId, "Confirmed");
+        await AnswerAsync(context, gig.Id, OtherMemberId, "Confirmed");
+        DateTime? PaidAt(GroupGigResponse row, long userId) => row.Attendees.Single(a => a.UserId == userId).PaidAt;
+
+        // 1) Primer reemplazo: solo MemberId queda pagado, a las 12:00.
+        var first = await PayPaidAsync(context, gig.Id, (MemberId, 1200m, true), (OtherMemberId, 900m, null));
+        Assert.True(first.IsSuccess, first.Error);
+        Assert.Equal(Now.UtcDateTime, PaidAt(first.Value!, MemberId));
+        Assert.Null(PaidAt(first.Value!, OtherMemberId));
+
+        // 2) Segundo reemplazo, otro día, sin "paid": cambia el monto y la fecha sobrevive.
+        _scenario.Time = new FixedTimeProvider(Now.AddDays(1));
+        var second = await PayPaidAsync(context, gig.Id, (MemberId, 1300m, null), (OtherMemberId, 950m, null));
+        Assert.True(second.IsSuccess, second.Error);
+        var afterSecond = Assert.Single(await GroupGigsAsync(context));
+        Assert.Equal(1300m, afterSecond.Attendees.Single(a => a.UserId == MemberId).Pay);
+        Assert.Equal(Now.UtcDateTime, PaidAt(afterSecond, MemberId));
+        Assert.Null(PaidAt(afterSecond, OtherMemberId));
+
+        // 3) "paid: true" de nuevo no mueve la fecha original; el otro se paga hoy (día siguiente).
+        var third = await PayPaidAsync(context, gig.Id, (MemberId, 1300m, true), (OtherMemberId, 950m, true));
+        Assert.True(third.IsSuccess, third.Error);
+        Assert.Equal(Now.UtcDateTime, PaidAt(third.Value!, MemberId));
+        Assert.Equal(Now.AddDays(1).UtcDateTime, PaidAt(third.Value!, OtherMemberId));
+
+        // 4) "paid: false" la limpia solo a quien lo recibe.
+        var fourth = await PayPaidAsync(context, gig.Id, (MemberId, 1300m, false), (OtherMemberId, 950m, null));
+        Assert.True(fourth.IsSuccess, fourth.Error);
+        var afterFourth = Assert.Single(await GroupGigsAsync(context));
+        Assert.Null(PaidAt(afterFourth, MemberId));
+        Assert.Equal(Now.AddDays(1).UtcDateTime, PaidAt(afterFourth, OtherMemberId));
+    }
+
+    [Fact]
+    public async Task Pagado_QuienSaleDelConjuntoPierdeLaFecha_YAlVolverNoLaRecupera()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context);
+        await AnswerAsync(context, gig.Id, MemberId, "Confirmed");
+        await PayPaidAsync(context, gig.Id, (MemberId, 1200m, true));
+
+        await PayPaidAsync(context, gig.Id); // sale del conjunto
+        await PayPaidAsync(context, gig.Id, (MemberId, 1500m, null)); // vuelve sin "paid"
+
+        var attendee = Assert.Single(Assert.Single(await GroupGigsAsync(context)).Attendees);
+        Assert.Equal(1500m, attendee.Pay);
+        Assert.Null(attendee.PaidAt);
+    }
+
+    [Fact]
+    public async Task Pagado_NoTocaAlQueNoEstaEnLaLista_NiValidaMontos()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context);
+        await AnswerAsync(context, gig.Id, MemberId, "Confirmed");
+
+        // Pagado en cero y sin relación con el presupuesto: la app solo registra el dato.
+        var result = await PayPaidAsync(context, gig.Id, (MemberId, 0m, true));
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(Now.UtcDateTime, result.Value!.Attendees.Single().PaidAt);
+    }
+
+    [Fact]
+    public async Task MisToques_MuestraCuandoMePagaron_YNuncaCuandoLePagaronAOtro()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context);
+        await PayPaidAsync(context, gig.Id, (MemberId, 1200m, true), (OtherMemberId, 987m, null));
+
+        var mine = Assert.Single(await MyGigsAsync(context, MemberId));
+        var theirs = Assert.Single(await MyGigsAsync(context, OtherMemberId));
+        var unpaid = Assert.Single(await MyGigsAsync(context, ManagerId));
+
+        Assert.Equal(Now.UtcDateTime, mine.MyPayPaidAt);
+        Assert.Null(theirs.MyPayPaidAt);
+        Assert.Equal(987m, theirs.MyPay);
+        Assert.Null(unpaid.MyPayPaidAt);
+        Assert.Null(unpaid.MyPay);
+    }
+
+    [Fact]
+    public async Task Cliente_VeElSaldoRecibido_PeroNiElPagoNiLaFechaDePagoDeLosMusicos()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context);
+        await DetailsAsync(context, gig.Id, new UpdateGigDetailsBody { BalanceReceived = true });
+        await PayPaidAsync(context, gig.Id, (MemberId, 1200m, true));
+
+        var result = await new GetEventRequestByIdQueryHandler(
+                _fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users, _scenario.Time)
+            .Handle(new GetEventRequestByIdQuery(gig.Id, ClientId, false), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(Now.UtcDateTime, result.Value!.BalanceReceivedAt);
+        var properties = typeof(EventRequestResponse).GetProperties().Select(p => p.Name);
+        Assert.DoesNotContain(properties, name => name.Contains("Paid") || name.Contains("Pay") || name.Contains("Setlist"));
     }
 }

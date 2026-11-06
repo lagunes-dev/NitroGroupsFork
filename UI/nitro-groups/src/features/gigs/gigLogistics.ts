@@ -1,3 +1,4 @@
+import { receivedDate } from "@/features/bookings/deposit";
 import { formatPrice } from "@/lib/format";
 import { gigTimeLabel } from "./viewModel";
 import type { GroupGigPayload } from "./types";
@@ -11,8 +12,12 @@ export interface LogisticsForm {
     setlist: string;
     depositAmount: string;
     depositReceived: boolean;
+    /** T48: the balance arrived; recorded as a fact, exactly like the deposit. */
+    balanceReceived: boolean;
     /** Pay by user id, as typed. */
     pay: Record<string, string>;
+    /** T48: whether each musician was paid, by user id. */
+    paid: Record<string, boolean>;
 }
 
 export type ParsedAmount = { kind: "empty" } | { kind: "ok"; value: number } | { kind: "invalid" };
@@ -32,24 +37,55 @@ function amountText(value: unknown): string {
     return typeof number === "number" && Number.isFinite(number) && number >= 0 ? String(number) : "";
 }
 
+/** A recorded date is any non-empty timestamp: the API sends null until the manager records it. */
+function isRecorded(value: unknown): boolean {
+    return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * The state of a "recorded as a fact" checkbox, in words (T48): what the saved row says and what the
+ * manager is about to change. `savedAt` is the timestamp the API sent; `noun` is "Saldo" or "Pago".
+ */
+export function recordedStateLabel(
+    checked: boolean,
+    savedAt: string | null | undefined,
+    words: { done: string; pending: string }
+): string {
+    const saved = isRecorded(savedAt);
+    if (checked && saved) {
+        const date = receivedDate(savedAt as string);
+        return date ? `${words.done} el ${date}` : words.done;
+    }
+    if (checked) return "Se registrará al guardar";
+    return saved ? "Se quitará al guardar" : words.pending;
+}
+
 function userKey(userId: unknown): string | null {
     const id = typeof userId === "string" && userId.trim() ? Number(userId) : userId;
     return typeof id === "number" && Number.isInteger(id) ? String(id) : null;
 }
 
 /** The form as the row last saved it. */
-export function initialLogisticsForm(row: Pick<GroupGigPayload, "callTime" | "setlist" | "deposit" | "attendees">): LogisticsForm {
+export function initialLogisticsForm(
+    row: Pick<GroupGigPayload, "callTime" | "setlist" | "deposit" | "attendees" | "balanceReceivedAt">
+): LogisticsForm {
     const pay: Record<string, string> = {};
+    const paid: Record<string, boolean> = {};
     for (const attendee of row.attendees ?? []) {
         const key = userKey(attendee.userId);
-        if (key) pay[key] = amountText(attendee.pay);
+        if (key) {
+            pay[key] = amountText(attendee.pay);
+            paid[key] = isRecorded(attendee.paidAt);
+        }
     }
     return {
         callTime: gigTimeLabel(row.callTime) ?? "",
         setlist: typeof row.setlist === "string" ? row.setlist : "",
         depositAmount: amountText(row.deposit?.amount),
         depositReceived: Boolean(row.deposit?.receivedAt),
+        balanceReceived: isRecorded(row.balanceReceivedAt),
         pay,
+        paid,
     };
 }
 
@@ -86,6 +122,7 @@ export interface DetailsBody {
     setlist: string;
     depositAmount?: number;
     depositReceived: boolean;
+    balanceReceived: boolean;
 }
 
 /** Body of `PUT groups/{groupId}/gigs/{id}/details`. Empty call time and deposit are left out: the API updates only what is sent. */
@@ -96,19 +133,25 @@ export function buildDetailsBody(form: LogisticsForm): DetailsBody {
         setlist: form.setlist,
         ...(deposit.kind === "ok" ? { depositAmount: deposit.value } : {}),
         depositReceived: form.depositReceived,
+        balanceReceived: form.balanceReceived,
     };
 }
 
 export interface PayBody {
-    payments: { userId: number; amount: number }[];
+    payments: { userId: number; amount: number; paid?: boolean }[];
 }
 
-/** Body of `PUT groups/{groupId}/gigs/{id}/pay`: only rows with a valid value; the call replaces the whole set. */
-export function buildPayBody(pay: Record<string, string>): PayBody {
+/**
+ * Body of `PUT groups/{groupId}/gigs/{id}/pay`: only rows with a valid value; the call replaces the
+ * whole set. A row carries `paid` when the form knows it (T48): true keeps or records the date,
+ * false clears it, and a row without it leaves what the API already has.
+ */
+export function buildPayBody(pay: Record<string, string>, paid: Record<string, boolean> = {}): PayBody {
     const payments: PayBody["payments"] = [];
     for (const [userId, text] of Object.entries(pay)) {
         const amount = parseAmount(text);
-        if (amount.kind === "ok") payments.push({ userId: Number(userId), amount: amount.value });
+        if (amount.kind !== "ok") continue;
+        payments.push({ userId: Number(userId), amount: amount.value, ...(userId in paid ? { paid: paid[userId] } : {}) });
     }
     return { payments };
 }
@@ -119,7 +162,7 @@ export function attendeePayLines(attendees: GroupGigPayload["attendees"]): strin
     for (const attendee of attendees ?? []) {
         const text = amountText(attendee.pay);
         const name = (attendee.fullName ?? "").trim();
-        if (text && name) lines.push(`${name} ${formatPrice(Number(text))}`);
+        if (text && name) lines.push(`${name} ${formatPrice(Number(text))}${isRecorded(attendee.paidAt) ? " pagado" : ""}`);
     }
     return lines;
 }

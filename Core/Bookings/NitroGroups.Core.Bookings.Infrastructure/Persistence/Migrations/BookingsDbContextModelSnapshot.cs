@@ -32,6 +32,10 @@ namespace NitroGroups.Core.Bookings.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<DateTime?>("BalanceReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("balance_received_at");
+
                     b.Property<decimal?>("Budget")
                         .HasPrecision(12, 2)
                         .HasColumnType("numeric(12,2)")
@@ -426,6 +430,10 @@ namespace NitroGroups.Core.Bookings.Infrastructure.Persistence.Migrations
                     b.Property<long>("EventRequestId")
                         .HasColumnType("bigint")
                         .HasColumnName("event_request_id");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")

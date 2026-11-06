@@ -163,3 +163,29 @@ describe("toGigView logistics", () => {
         expect(toGigView({ ...ROW, myPay: "1500.00" as unknown as number }).payLabel).toBe("Tu pago: $1,500");
     });
 });
+
+describe("toGigView paidLabel (T48)", () => {
+    it("says when the musician was paid, in Mexico's calendar", () => {
+        expect(toGigView({ ...ROW, myPay: 2000, myPayPaidAt: "2026-12-13T15:00:00Z" }).paidLabel).toBe("pagado el 13 de diciembre de 2026");
+        expect(toGigView({ ...ROW, myPay: 2000, myPayPaidAt: "2026-12-14T03:30:00Z" }).paidLabel).toBe("pagado el 13 de diciembre de 2026");
+    });
+
+    it("says pending while the pay exists and was not recorded as paid", () => {
+        expect(toGigView({ ...ROW, myPay: 2000 }).paidLabel).toBe("pendiente");
+        expect(toGigView({ ...ROW, myPay: 0, myPayPaidAt: null }).paidLabel).toBe("pendiente");
+    });
+
+    it("never invents a date it cannot read", () => {
+        expect(toGigView({ ...ROW, myPay: 2000, myPayPaidAt: "ayer" }).paidLabel).toBe("pagado");
+    });
+
+    it("has nothing to say when no pay is loaded: that stays 'Tu pago sin definir'", () => {
+        expect(toGigView(ROW).paidLabel).toBeNull();
+        expect(toGigView({ ...ROW, myPay: null, myPayPaidAt: "2026-12-13T15:00:00Z" }).paidLabel).toBeNull();
+        expect(toGigView({ ...ROW, myPay: -5 }).paidLabel).toBeNull();
+    });
+
+    it("keeps the pay label exactly as it was", () => {
+        expect(toGigView({ ...ROW, myPay: 2000, myPayPaidAt: "2026-12-13T15:00:00Z" }).payLabel).toBe("Tu pago: $2,000");
+    });
+});

@@ -211,7 +211,7 @@ public class EventRequestsEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
         var item = json.RootElement[0];
 
         // El campo nuevo entra al final: los de siempre no se movieron ni se perdieron.
-        Assert.Equal([.. LegacyKeys, "dateClash"], item.EnumerateObject().Select(property => property.Name));
+        Assert.Equal([.. LegacyKeys, "balanceReceivedAt", "dateClash"], item.EnumerateObject().Select(property => property.Name));
 
         var clash = item.GetProperty("dateClash");
         Assert.True(clash.GetProperty("clashes").GetBoolean());
@@ -237,7 +237,7 @@ public class EventRequestsEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
 
         // Sin choque el hecho es null, y un null no viaja: la fila queda como siempre.
         Assert.False(item.TryGetProperty("dateClash", out _));
-        Assert.Equal(LegacyKeys, item.EnumerateObject().Select(property => property.Name));
+        Assert.Equal([.. LegacyKeys, "balanceReceivedAt"], item.EnumerateObject().Select(property => property.Name));
     }
 
     // T29: el cliente nunca ve si el grupo está ocupado.
@@ -256,7 +256,29 @@ public class EventRequestsEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
         // El contrato del cliente no cambia en absoluto: ni el campo ni el objeto.
         Assert.False(item.TryGetProperty("dateClash", out _));
         Assert.DoesNotContain("dateClash", await response.Content.ReadAsStringAsync());
-        Assert.Equal(LegacyKeys, item.EnumerateObject().Select(property => property.Name));
+        // T48: lo único nuevo es el saldo recibido, al final de los campos de siempre.
+        Assert.Equal([.. LegacyKeys, "balanceReceivedAt"], item.EnumerateObject().Select(property => property.Name));
+    }
+
+    // T48 (S18): el cliente ve cuándo se recibió su saldo, y nunca lo que se le paga a los músicos.
+    [Fact]
+    public async Task Mias_ElClienteVeElSaldoRecibido_PeroNuncaElPagoNiLaFechaDePagoDeLosMusicos()
+    {
+        var received = Row();
+        received.BalanceReceivedAt = new DateTime(2026, 12, 13, 15, 0, 0, DateTimeKind.Utc);
+        _mediator.SendQueryAsync<GetMyEventRequestsQuery, List<EventRequestResponse>>(Arg.Any<GetMyEventRequestsQuery>())
+            .Returns([received, Row()]);
+
+        var response = await _client.GetAsync("api/event-requests/mine");
+
+        var body = await response.Content.ReadAsStringAsync();
+        using var json = JsonDocument.Parse(body);
+        Assert.Equal("2026-12-13T15:00:00Z", json.RootElement[0].GetProperty("balanceReceivedAt").GetString());
+        Assert.Equal(JsonValueKind.Null, json.RootElement[1].GetProperty("balanceReceivedAt").ValueKind);
+        Assert.DoesNotContain("paidAt", body);
+        Assert.DoesNotContain("myPay", body);
+        Assert.DoesNotContain("setlist", body);
+        Assert.DoesNotContain("attendees", body);
     }
 
     [Fact]

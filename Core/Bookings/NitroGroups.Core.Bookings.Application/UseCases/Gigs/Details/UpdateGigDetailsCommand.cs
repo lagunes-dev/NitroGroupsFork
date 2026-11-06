@@ -48,6 +48,8 @@ public sealed class UpdateGigDetailsCommandHandler(
             gig.SetDepositAmount(body.DepositAmount);
         if (body.HasDepositReceived && body.DepositReceived is { } received)
             gig.SetDepositReceived(received, time.GetUtcNow().UtcDateTime);
+        if (body.HasBalanceReceived && body.BalanceReceived is { } balanceReceived)
+            gig.SetBalanceReceived(balanceReceived, time.GetUtcNow().UtcDateTime);
 
         await unitOfWork.CompleteAsync();
 

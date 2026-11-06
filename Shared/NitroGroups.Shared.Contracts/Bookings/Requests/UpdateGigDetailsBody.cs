@@ -13,6 +13,7 @@ namespace NitroGroups.Shared.Contracts.Bookings.Requests
         private TimeOnly? _callTime;
         private decimal? _depositAmount;
         private bool? _depositReceived;
+        private bool? _balanceReceived;
 
         /// <summary>Lista de canciones en texto libre (máximo 4000 caracteres).</summary>
         public string? Setlist
@@ -42,9 +43,17 @@ namespace NitroGroups.Shared.Contracts.Bookings.Requests
             set { _depositReceived = value; HasDepositReceived = true; }
         }
 
+        /// <summary>Igual que <c>DepositReceived</c>, para el saldo: <c>true</c> fija la fecha en este momento; <c>false</c> la limpia.</summary>
+        public bool? BalanceReceived
+        {
+            get => _balanceReceived;
+            set { _balanceReceived = value; HasBalanceReceived = true; }
+        }
+
         [JsonIgnore] public bool HasSetlist { get; private set; }
         [JsonIgnore] public bool HasCallTime { get; private set; }
         [JsonIgnore] public bool HasDepositAmount { get; private set; }
         [JsonIgnore] public bool HasDepositReceived { get; private set; }
+        [JsonIgnore] public bool HasBalanceReceived { get; private set; }
     }
 }

@@ -9,6 +9,9 @@ namespace NitroGroups.Shared.Contracts.Bookings.Responses
         public GigDepositResponse Deposit { get; set; } = new();
 
         public List<GigAttendeeResponse> Attendees { get; set; } = [];
+
+        /// <summary>Cuándo se recibió el saldo del cliente; null mientras no.</summary>
+        public DateTime? BalanceReceivedAt { get; set; }
     }
 
     /// <summary>Una respuesta de asistencia, con el nombre del miembro y sin su email.</summary>
@@ -22,5 +25,8 @@ namespace NitroGroups.Shared.Contracts.Bookings.Responses
 
         /// <summary>Lo que se le paga a este miembro por el toque, o null si no tiene pago.</summary>
         public decimal? Pay { get; set; }
+
+        /// <summary>Cuándo el manager registró que se le pagó; null mientras no.</summary>
+        public DateTime? PaidAt { get; set; }
     }
 }

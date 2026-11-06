@@ -9,10 +9,10 @@ export interface DepositPayload {
 }
 
 /** "4 de noviembre de 2026" in Mexico time; null when the timestamp cannot be read. */
-function receivedDate(value: string): string | null {
+export function receivedDate(value: string): string | null {
     const moment = new Date(value);
     if (Number.isNaN(moment.getTime())) return null;
-    // `formatEventDate` writes the weekday first ("miércoles, 4 de ..."); the deposit line does not need it.
+    // `formatEventDate` writes the weekday first ("miércoles, 4 de ..."); the money lines do not need it.
     return formatEventDate(todayInMexico(moment))?.replace(/^[^,]+,\s*/, "") ?? null;
 }
 
@@ -59,7 +59,19 @@ export function budgetLabel(request: { budget?: number | null; currency?: string
 }
 
 /** The slice of a request the deal copy needs; the currency falls back to pesos. */
-type DealRequest = { status: EventRequestStatus; budget?: number | null; deposit?: unknown; currency?: string };
+type DealRequest = {
+    status: EventRequestStatus;
+    budget?: number | null;
+    deposit?: unknown;
+    currency?: string;
+    /** ISO timestamp the group recorded when the balance arrived; null or missing until then. */
+    balanceReceivedAt?: string | null;
+};
+
+/** Whether the group recorded that the balance arrived (T48): a fact, the app never charges it. */
+function isBalanceReceived(request: Pick<DealRequest, "balanceReceivedAt">): boolean {
+    return typeof request.balanceReceivedAt === "string" && request.balanceReceivedAt.trim().length > 0;
+}
 
 /** What is still owed, in pesos. Null when the numbers cannot be stated honestly. */
 function remainingAmount(request: { budget?: number | null; deposit?: unknown }): number | null {
@@ -71,6 +83,7 @@ function remainingAmount(request: { budget?: number | null; deposit?: unknown })
 }
 
 /**
+ * "Saldo recibido el 13 de diciembre de 2026" once the group recorded it; otherwise
  * "Falta pagar $14,000" for the client of an accepted event whose deposit already landed. Null while
  * the deposit is pending, for the group's view and when there is no budget to compare against: the app
  * records the deposit, it never charges anything.
@@ -80,6 +93,11 @@ export function balanceLabel(
     viewer: EventRequestParty
 ): string | null {
     if (viewer !== "Client" || request.status !== "Accepted") return null;
+    // T48: what the group recorded wins over what we can compute from the deposit and the budget.
+    if (isBalanceReceived(request)) {
+        const date = receivedDate(request.balanceReceivedAt as string);
+        return date ? `Saldo recibido el ${date}` : "Saldo recibido";
+    }
     const remaining = remainingAmount(request);
     if (remaining === null) return null;
     if (remaining <= 0) return "Sin saldo pendiente";
@@ -116,6 +134,7 @@ export function nextStepLabel(
         case "Cancelled":
             return "Este evento se canceló.";
         case "Accepted": {
+            if (isBalanceReceived(request)) return "No queda nada por pagar.";
             const remaining = remainingAmount(request);
             if (remaining === null) return "Acuerda el anticipo con el grupo para cerrar la fecha.";
             return remaining <= 0 ? "No queda nada por pagar." : "Acuerda el saldo con el grupo para el día del evento.";
@@ -134,17 +153,23 @@ export interface BalanceBlock {
 }
 
 /**
- * The block is only drawn when there is a balance still owed to state: a pending deposit, a missing
- * budget, a settled deal or the group's view leave the thread as it was.
+ * The block is only drawn when there is a balance to state: still owed, or recorded as received. A
+ * pending deposit, a missing budget, a deposit that covers it all or the group's view leave the
+ * thread as it was.
  */
 export function balanceBlock(
     request: DealRequest & { eventDate?: string | null },
     viewer: EventRequestParty
 ): BalanceBlock | null {
-    const remaining = remainingAmount(request);
     const balance = balanceLabel(request, viewer);
     const nextStep = nextStepLabel(request, viewer);
-    if (!balance || !nextStep || remaining === null || remaining <= 0) return null;
+    if (!balance || !nextStep) return null;
+    // Recorded as received: the fact and the settled step, with no "para el ..." that belongs to a debt.
+    if (viewer === "Client" && request.status === "Accepted" && isBalanceReceived(request)) {
+        return { balance, purpose: null, nextStep };
+    }
+    const remaining = remainingAmount(request);
+    if (remaining === null || remaining <= 0) return null;
 
     const day = request.eventDate ? formatEventDate(request.eventDate) : null;
     // "jueves, 19 de noviembre de 2026" -> "19 de noviembre": the thread header already says the rest.
