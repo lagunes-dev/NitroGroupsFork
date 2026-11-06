@@ -29,7 +29,7 @@ describe("TeamSection", () => {
         const [first, second] = within(list).getAllByRole("listitem");
         expect(within(first).getByRole("link", { name: "Ver el perfil de Olga Ortiz" })).toHaveAttribute("href", "/musicians/10");
         expect(within(first).getByText("Rol: Dueño")).toBeInTheDocument();
-        expect(within(first).getByText("Se unió el domingo, 4 de octubre de 2026")).toBeInTheDocument();
+        expect(within(first).getByText("Se unió el 4 de octubre de 2026")).toBeInTheDocument();
         expect(within(second).getByText("Rol: Miembro")).toBeInTheDocument();
     });
 
@@ -44,6 +44,22 @@ describe("TeamSection", () => {
         const [first, second] = within(list).getAllByRole("listitem");
         expect(within(first).getByText("Bajo · Guadalajara, Jalisco")).toBeInTheDocument();
         expect(within(second).queryByText(/·/)).toBeNull();
+    });
+
+    it("keeps the role next to the name and the join date on a single line", async () => {
+        team.mockResolvedValue(rows);
+        renderSection();
+
+        const list = await screen.findByRole("list", { name: "2 músicos en el equipo" });
+        const [first] = within(list).getAllByRole("listitem");
+
+        // Medido a 390 px: con el rol en su propio renglón y la fecha partida, cada fila medía 162 px.
+        const role = within(first).getByText("Rol: Dueño");
+        expect(role.parentElement).toContainElement(within(first).getByRole("link", { name: "Ver el perfil de Olga Ortiz" }));
+
+        // La fecha de ingreso no necesita el día de la semana y no se parte: un solo renglón.
+        const joined = within(first).getByText("Se unió el 4 de octubre de 2026");
+        expect(joined.closest("p")).toHaveClass("truncate");
     });
 
     it("offers the invite search when the team is empty", async () => {
@@ -89,7 +105,7 @@ describe("TeamSection", () => {
         }
     });
 
-    it("keeps the craft on one line and the join date beside the role", async () => {
+    it("keeps the craft on one line, the role beside the name and the join date on one line", async () => {
         team.mockResolvedValue([
             { ...rows[0], instruments: "Guitarra eléctrica, acordeón y coros", city: "San Pedro Tlaquepaque, Jalisco" },
         ]);
@@ -100,8 +116,11 @@ describe("TeamSection", () => {
         const craft = within(member).getByText("Guitarra eléctrica, acordeón y coros · San Pedro Tlaquepaque, Jalisco");
         expect(craft).toHaveClass("truncate");
         expect(craft).toHaveAttribute("title", "Guitarra eléctrica, acordeón y coros · San Pedro Tlaquepaque, Jalisco");
-        // La fecha y el rol comparten renglón: una línea menos por miembro.
-        expect(within(member).getByText(/Se unió el/).closest("p")).toBe(within(member).getByText("Rol: Dueño").closest("p"));
+        // Medido a 390 px: el rol en su propio renglón y la fecha partida en dos hacían la fila de 162 px.
+        const role = within(member).getByText("Rol: Dueño");
+        const name = within(member).getByRole("link", { name: "Ver el perfil de Olga Ortiz" });
+        expect(role.parentElement).toContainElement(name);
+        expect(within(member).getByText(/Se unió el/).closest("p")).toHaveClass("truncate");
     });
 
     it("marks the section busy while it loads", () => {

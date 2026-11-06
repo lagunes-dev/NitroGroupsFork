@@ -63,7 +63,9 @@ export function orderTeam(rows: GroupTeamMember[]): GroupTeamMember[] {
 function toMemberView(row: GroupTeamMember): TeamMemberView {
     const role = normalizeRole(row.role);
     const time = joinTime(row.joinedAt);
-    const date = time === null ? null : formatEventDate(new Date(time).toISOString().slice(0, 10));
+    // Sin el día de la semana: en una fecha de ingreso no informa nada y partía el renglón en dos líneas.
+    const date =
+        time === null ? null : formatEventDate(new Date(time).toISOString().slice(0, 10))?.replace(/^[^,]+,\s*/, "") ?? null;
 
     return {
         userId: row.userId,

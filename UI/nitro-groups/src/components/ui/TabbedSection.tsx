@@ -87,6 +87,11 @@ export default function TabbedSection({ children, label, className, activeKey, o
     setEdges((previous) => (previous.start === next.start && previous.end === next.end ? previous : next));
   }, []);
 
+  // Las pestañas llegan después de montar (los datos del panel se cargan después), y eso cambia el
+  // `scrollWidth` sin cambiar el tamaño de la barra: medir solo al montar y al redimensionar la dejaba
+  // sin señal justo cuando "Mi perfil" ya estaba fuera de la pantalla (medido en el navegador a 390 px).
+  // Por eso se vuelve a medir cuando cambia el conjunto de pestañas y se observa cada una.
+  const tabSignature = tabs.map((tab) => tab.tabKey).join("|");
   useEffect(() => {
     const bar = barRef.current;
     if (!bar) return;
@@ -95,12 +100,13 @@ export default function TabbedSection({ children, label, className, activeKey, o
     window.addEventListener("resize", measure);
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => measure());
     observer?.observe(bar);
+    for (const child of Array.from(bar.children)) observer?.observe(child);
     return () => {
       bar.removeEventListener("scroll", measure);
       window.removeEventListener("resize", measure);
       observer?.disconnect();
     };
-  }, [measure]);
+  }, [measure, tabSignature]);
 
   // La pestaña elegida se trae a la vista: si "Mi perfil" arranca fuera de la pantalla, la señal no
   // sirve de nada (ronda 6, Mateo midió el arranque en x=445). Se mueve la barra, nunca la página.

@@ -114,3 +114,36 @@ describe("TabbedSection", () => {
         expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", agenda.id);
     });
 });
+
+describe("TabbedSection when the tabs arrive after mounting", () => {
+    /** The dashboard adds its tabs as the data lands: the bar mounts with fewer than it ends up with. */
+    function Growing({ withMore }: { withMore: boolean }) {
+        return (
+            <TabbedSection label="Mi panel">
+                <TabItem title="Mi agenda" tabKey="agenda">
+                    <p>La agenda</p>
+                </TabItem>
+                <TabItem title="Mis grupos" tabKey="grupos">
+                    <p>Los grupos</p>
+                </TabItem>
+                {withMore ? (
+                    <TabItem title="Mi perfil" shortTitle="Perfil" tabKey="mi-perfil">
+                        <p>El perfil</p>
+                    </TabItem>
+                ) : null}
+            </TabbedSection>
+        );
+    }
+
+    it("re-measures when a tab is added, without waiting for a resize or a scroll", () => {
+        const { container, rerender } = render(<Growing withMore={false} />);
+        const bar = screen.getByRole("tablist");
+        expect(container.querySelector('[data-edge="end"]')).toBeNull();
+
+        // Medida en el navegador real: la barra no cambia de tamaño, solo crece su contenido.
+        measure(bar, { clientWidth: 390, scrollWidth: 520 });
+        rerender(<Growing withMore />);
+
+        expect(container.querySelector('[data-edge="end"]')).not.toBeNull();
+    });
+});

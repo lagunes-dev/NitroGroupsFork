@@ -21,7 +21,7 @@ describe("toTeamView", () => {
                 roleLabel: "Dueño",
                 profileHref: "/musicians/10",
                 profilePictureUrl: "https://x/y.png",
-                joinedLabel: "Se unió el domingo, 4 de octubre de 2026",
+                joinedLabel: "Se unió el 4 de octubre de 2026",
                 joinedAt: "2026-10-04T18:00:00Z",
                 craftLabel: null,
             },
