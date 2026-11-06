@@ -1,4 +1,4 @@
-import { Check, CircleHelp, X, type LucideIcon } from "lucide-react";
+import { Check, CircleHelp, Minus, X, type LucideIcon } from "lucide-react";
 import type { GigAnswer } from "./types";
 
 /** Chip tone. The colour never travels alone: the chip always carries an icon and a word. */
@@ -28,4 +28,20 @@ export function attendanceAppearance(value: unknown): AttendanceAppearance {
     const raw = typeof value === "string" ? value.trim() : "";
     if (!raw) return UNANSWERED;
     return KNOWN[raw as GigAnswer] ?? { status: null, text: raw, tone: "muted", icon: CircleHelp };
+}
+
+const PAST_UNANSWERED: AttendanceAppearance = { status: null, text: "No respondiste", tone: "muted", icon: Minus };
+
+/**
+ * How the chip of a gig whose date already passed reads. Nobody answered is "No respondiste": a
+ * fact about the answer, not a pending task and not a claim about attendance, which the app does not
+ * know. Answered and unknown states are returned untouched.
+ */
+export function pastAppearance(appearance: AttendanceAppearance): AttendanceAppearance {
+    return appearance === UNANSWERED ? PAST_UNANSWERED : appearance;
+}
+
+/** True when nobody answered (an answer this version does not know is not "unanswered"). */
+export function isUnanswered(appearance: AttendanceAppearance): boolean {
+    return appearance === UNANSWERED;
 }

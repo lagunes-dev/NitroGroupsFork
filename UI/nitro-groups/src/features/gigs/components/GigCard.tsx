@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { Badge, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import type { AttendanceTone } from "../attendance";
+import { isUnanswered, pastAppearance, type AttendanceTone } from "../attendance";
 import type { GigNoticeKind } from "../notices";
 import type { GigAnswer } from "../types";
 import {
+    ANSWER_SAVES_LINE,
     confirmButtonName,
     declineButtonName,
     scheduleLabel,
@@ -111,11 +112,11 @@ export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, 
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                    <AttendanceChip attendance={gig.attendance} />
+                    <AttendanceChip attendance={past ? pastAppearance(gig.attendance) : gig.attendance} />
                     {past ? (
                         <p className="text-sm text-tinta-2">{PAST_GIG_LINE}</p>
                     ) : (
-                        <div className="flex gap-2">
+                        <div className="flex gap-4 sm:gap-2">
                             <Button
                                 size="sm"
                                 className={cn(answerButton, saving && "pointer-events-none opacity-45")}
@@ -145,6 +146,9 @@ export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, 
                 </div>
             </div>
 
+            {!past && isUnanswered(gig.attendance) && (
+                <p className="text-sm text-tinta-2">{ANSWER_SAVES_LINE}</p>
+            )}
             {!past && declined && <p className="text-sm text-tinta-2">{DECLINED_NEXT_STEP}</p>}
             {!past && answered === "Confirmed" && <p className="text-sm text-tinta-2">{CONFIRMED_NEXT_STEP}</p>}
 

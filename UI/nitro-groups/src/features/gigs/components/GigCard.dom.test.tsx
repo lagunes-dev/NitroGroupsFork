@@ -406,4 +406,54 @@ describe("GigCard of a future gig the musician confirmed (T46)", () => {
         expect(confirm.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(section).not.toContainElement(confirm);
     });
+
+    it("says 'No respondiste' on a past gig never answered, and not 'Sin responder' (T55)", () => {
+        render(<GigCard gig={toGigView(row)} past saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} {...quiet} />);
+        expect(screen.getByText("No respondiste")).toBeInTheDocument();
+        expect(screen.queryByText("Sin responder")).toBeNull();
+        expect(screen.getByText("Este toque ya pasó")).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /Confirmar el/ })).toBeNull();
+    });
+
+    it("keeps 'Sin responder' on a future gig and the answered chips on a past one (T55)", () => {
+        const { unmount } = render(<GigCard gig={toGigView(row)} saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} {...quiet} />);
+        expect(screen.getByText("Sin responder")).toBeInTheDocument();
+        unmount();
+        render(<GigCard gig={toGigView({ ...row, attendance: "Confirmed" })} past saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} {...quiet} />);
+        expect(screen.getByText("Confirmado")).toBeInTheDocument();
+    });
+
+    it("says before answering that the tap saves and can be changed (T56)", () => {
+        render(<GigCard gig={toGigView(row)} saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} {...quiet} />);
+        expect(screen.getByText("Tu respuesta se guarda al tocar y puedes cambiarla.")).toBeInTheDocument();
+        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(screen.queryByText(/Deshacer/)).toBeNull();
+    });
+
+    it("swaps that line for the next step once answered, never showing both (T56)", () => {
+        for (const attendance of ["Confirmed", "Declined"]) {
+            const { unmount } = render(
+                <GigCard gig={toGigView({ ...row, attendance })} saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} {...quiet} />
+            );
+            expect(screen.queryByText(/se guarda al tocar/)).toBeNull();
+            expect(screen.getAllByText(/puedes cambiar|la fecha queda libre/).length).toBe(1);
+            unmount();
+        }
+    });
+
+    it("does not show the save line on a past gig (T56)", () => {
+        render(<GigCard gig={toGigView(row)} past saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} {...quiet} />);
+        expect(screen.queryByText(/se guarda al tocar/)).toBeNull();
+    });
+
+    it("separates the two answers with a wider gap on phones and keeps both at 44 px (T56)", () => {
+        render(<GigCard gig={toGigView(row)} saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} {...quiet} />);
+        const confirm = screen.getByRole("button", { name: /Confirmar el/ });
+        const decline = screen.getByRole("button", { name: /Avisar que no puedo el/ });
+        // jsdom has no layout: assert the classes that produce 16 px gap and 44 px height.
+        const tokens = (confirm.parentElement?.className ?? "").split(/\s+/);
+        expect(tokens).toContain("gap-4");
+        expect(tokens).not.toContain("gap-2");
+        for (const button of [confirm, decline]) expect(button.className).toContain("h-11");
+    });
 });

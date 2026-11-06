@@ -18,6 +18,8 @@ export const PAY_PENDING = "Tu pago sin definir";
 
 /** A gig whose date is behind us: it asks for nothing and says what it is. */
 export const PAST_GIG_LINE = "Este toque ya pasó";
+/** Before the first answer: the tap saves it, and it can be changed. The app sends nothing else. */
+export const ANSWER_SAVES_LINE = "Tu respuesta se guarda al tocar y puedes cambiarla.";
 /** What a declined future gig says next, in one line: nothing else is owed. */
 export const DECLINED_NEXT_STEP = "El grupo ya lo sabe · la fecha queda libre";
 /** What a confirmed future gig says next: the app records the answer, it sends nothing else. */
