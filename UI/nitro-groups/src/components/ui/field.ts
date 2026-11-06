@@ -4,7 +4,7 @@
  * `fieldClass` all start from it, so no field in the app can drift from the others.
  */
 export const fieldClass =
-    "block h-12 w-full min-w-0 rounded-[8px] bg-fondo-2 px-4 text-base text-tinta shadow-[inset_0_0_0_1px_var(--linea)] outline-none transition-[box-shadow] duration-300 ease-[var(--ease-out)] motion-reduce:transition-none placeholder:text-tinta-2 hover:shadow-[inset_0_0_0_1px_var(--linea-fuerte)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acento disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:shadow-[inset_0_0_0_1px_var(--error),inset_0_-2px_0_var(--error)]";
+    "block h-12 w-full min-w-0 rounded-[8px] bg-fondo-2 px-4 text-base text-tinta shadow-[inset_0_0_0_1px_var(--linea)] transition-[box-shadow] duration-300 ease-[var(--ease-out)] motion-reduce:transition-none placeholder:text-tinta-2 hover:shadow-[inset_0_0_0_1px_var(--linea-fuerte)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acento disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:shadow-[inset_0_0_0_1px_var(--error),inset_0_-2px_0_var(--error)]";
 
 /** Left padding of a field whose leading icon sits inside the padding box (16px edge + 18px icon + 10px gap). */
 export const fieldIconPadding = "pl-11";
