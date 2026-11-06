@@ -32,6 +32,42 @@ SET setlist             = COALESCE(r.setlist, 'Set 1: rock en español · Set 2:
 WHERE r.message = '[demo] Evento de fin de año de la empresa.'
   AND r.status = 1;
 
+-- Fecha límite del anticipo y del saldo (S24): el ejemplo de la spec dice "Saldo: falta pagar
+-- $14,000 · para el 15 de noviembre", así que el saldo del evento corporativo vence ese día.
+UPDATE bookings.event_requests r
+SET deposit_due_date = COALESCE(r.deposit_due_date, DATE '2026-11-10'),
+    balance_due_date = COALESCE(r.balance_due_date, DATE '2026-11-15')
+WHERE r.message = '[demo] Evento de fin de año de la empresa.'
+  AND r.status = 1;
+
+-- La línea del saldo del cliente (S24) solo existe cuando el anticipo YA se recibió: el saldo se
+-- calcula contra un anticipo que entró. Los dos estados conviven: el corporativo con el anticipo
+-- pendiente y este con el anticipo recibido y el saldo con fecha límite.
+INSERT INTO bookings.event_requests (
+    group_id, client_user_id, event_date, start_time, duration_hours, event_type,
+    location_text, guest_count, budget, currency, message, status, is_self_booked,
+    responded_at, created_by, created_at)
+SELECT g.id, c.id, DATE '2026-12-19', TIME '20:00', 3, 'Wedding',
+       'Casa de campo, Zapopan', 90, 12000.00, 'MXN',
+       '[demo] Boda en el jardín: queremos que se baile toda la noche.',
+       1, false, TIMESTAMPTZ '2026-11-04 18:00+00', c.id, TIMESTAMPTZ '2026-11-03 18:00+00'
+FROM groups.music_groups g
+JOIN users.users c ON c.email = 'cliente.demo@example.com'
+WHERE g.slug = 'versatil-rock-y-pop'
+  AND NOT EXISTS (
+    SELECT 1 FROM bookings.event_requests r
+    WHERE r.group_id = g.id AND r.client_user_id = c.id
+      AND r.message = '[demo] Boda en el jardín: queremos que se baile toda la noche.'
+  );
+
+UPDATE bookings.event_requests r
+SET deposit_amount      = COALESCE(r.deposit_amount, 3000.00),
+    deposit_received_at = COALESCE(r.deposit_received_at, TIMESTAMPTZ '2026-11-05 18:00+00'),
+    deposit_due_date    = COALESCE(r.deposit_due_date, DATE '2026-11-10'),
+    balance_due_date    = COALESCE(r.balance_due_date, DATE '2026-11-15')
+WHERE r.message = '[demo] Boda en el jardín: queremos que se baile toda la noche.'
+  AND r.status = 1;
+
 -- ------------------------------------------------------------- compañeros (S22) ------
 -- Tres miembros activos del grupo confirman el toque. Miguel es la cuenta del miembro, así que su
 -- agenda es la que tiene que mostrar "Con quién tocás" con María y Luis.
