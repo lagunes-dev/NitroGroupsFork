@@ -281,6 +281,34 @@ public class EventRequestsEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
         Assert.DoesNotContain("attendees", body);
     }
 
+    // T59 (S22): el cliente nunca ve con quién toca el grupo ni el teléfono de su manager, ni en la
+    // lista ni en el detalle: el contrato del cliente no cambia en absoluto.
+    [Fact]
+    public async Task Mias_ElClienteNoLlevaTelefonoDelManagerNiCompaneros_EnLaListaNiEnElDetalle()
+    {
+        _mediator.SendQueryAsync<GetMyEventRequestsQuery, List<EventRequestResponse>>(Arg.Any<GetMyEventRequestsQuery>())
+            .Returns([Row()]);
+        _mediator.SendQueryAsync<GetEventRequestByIdQuery, BookingResult<EventRequestResponse>>(Arg.Any<GetEventRequestByIdQuery>())
+            .Returns(BookingResult<EventRequestResponse>.Success(Row()));
+
+        var list = await _client.GetAsync("api/event-requests/mine");
+        var detail = await _client.GetAsync("api/event-requests/7");
+
+        var listBody = await list.Content.ReadAsStringAsync();
+        var detailBody = await detail.Content.ReadAsStringAsync();
+        foreach (var body in new[] { listBody, detailBody })
+        {
+            Assert.DoesNotContain("managerPhone", body);
+            Assert.DoesNotContain("teammates", body);
+        }
+
+        using var listJson = JsonDocument.Parse(listBody);
+        Assert.Equal([.. LegacyKeys, "balanceReceivedAt"], listJson.RootElement[0].EnumerateObject().Select(property => property.Name));
+        using var detailJson = JsonDocument.Parse(detailBody);
+        Assert.DoesNotContain("managerPhone", detailJson.RootElement.EnumerateObject().Select(property => property.Name));
+        Assert.DoesNotContain("teammates", detailJson.RootElement.EnumerateObject().Select(property => property.Name));
+    }
+
     [Fact]
     public async Task Mias_UsaElUsuarioDelToken()
     {

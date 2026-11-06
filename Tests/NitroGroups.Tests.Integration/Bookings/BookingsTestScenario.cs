@@ -3,6 +3,7 @@ using NitroGroups.Core.Bookings.Domain.Entities;
 using NitroGroups.Core.Bookings.Infrastructure.Persistence;
 using NitroGroups.Shared.Contracts.Groups.Responses;
 using NitroGroups.Shared.Contracts.Modules;
+using NitroGroups.Shared.Contracts.Users.Responses;
 using NitroGroups.Shared.Domain.DomainEvents.Groups.Enums;
 using NitroGroups.Shared.Domain.DomainEvents.Users.Enums;
 using NSubstitute;
@@ -38,8 +39,14 @@ internal sealed class BookingsTestScenario
     public ISchedulesModuleApi Schedules { get; } = Substitute.For<ISchedulesModuleApi>();
     public TimeProvider Time { get; set; } = new FixedTimeProvider(Now);
 
-    public static readonly GroupSummary Vargas = new(GroupId, "los-vargas", "Los Vargas", "grupo@vargas.mx", ManagerId, true, null, BasePrice: 12_000m);
+    public static readonly GroupSummary Vargas = new(GroupId, "los-vargas", "Los Vargas", "grupo@vargas.mx", ManagerId, true, null, BasePrice: 12_000m, Phone: "33 1234 5678");
     public static readonly GroupSummary Otro = new(OtherGroupId, "otro", "Otro Grupo", "otro@grupo.mx", 999, true, null);
+
+    /// <summary>
+    /// Lo que el contrato de Groups devuelve por grupo. Cambiable por test: el teléfono del manager
+    /// (S22) es parte de ese resumen y hay grupos sin teléfono cargado.
+    /// </summary>
+    public Dictionary<long, GroupSummary> GroupsById { get; } = new() { [GroupId] = Vargas, [OtherGroupId] = Otro };
 
     public Dictionary<long, UserSummary> AllUsers { get; } = new()
     {
@@ -75,14 +82,24 @@ internal sealed class BookingsTestScenario
     public void SetMemberships(long userId, params GroupMembershipSummary[] memberships)
         => Memberships[userId] = [.. memberships];
 
+    /// <summary>
+    /// Perfil de músico que expone el módulo Users (<see cref="IUsersModuleApi.GetMusicianSummariesAsync"/>):
+    /// de ahí salen los instrumentos de los compañeros del toque, nunca de una tabla de Users.
+    /// </summary>
+    public Dictionary<long, OpenMusicianSummary> Musicians { get; } = new()
+    {
+        [ManagerId] = new() { UserId = ManagerId, FullName = "Pedro Vargas", Instruments = "voz" },
+        [MemberId] = new() { UserId = MemberId, FullName = "Mateo Ruiz", Instruments = "guitarra, requinto" },
+        [OtherMemberId] = new() { UserId = OtherMemberId, FullName = "Sofía Nava", Instruments = "violín" },
+    };
+
     public BookingsTestScenario()
     {
-        var groups = new Dictionary<long, GroupSummary> { [GroupId] = Vargas, [OtherGroupId] = Otro };
         Groups.GetGroupAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
-            .Returns(ci => groups.GetValueOrDefault(ci.ArgAt<long>(0)));
+            .Returns(ci => GroupsById.GetValueOrDefault(ci.ArgAt<long>(0)));
         Groups.GetGroupsAsync(Arg.Any<IEnumerable<long>>(), Arg.Any<CancellationToken>())
             .Returns(ci => (IReadOnlyDictionary<long, GroupSummary>)ci.ArgAt<IEnumerable<long>>(0)
-                .Distinct().Where(groups.ContainsKey).ToDictionary(id => id, id => groups[id]));
+                .Distinct().Where(GroupsById.ContainsKey).ToDictionary(id => id, id => GroupsById[id]));
         Groups.CanManageGroupAsync(GroupId, ManagerId, Arg.Any<CancellationToken>()).Returns(true);
         Groups.GetManagerUserIdsAsync(GroupId, Arg.Any<CancellationToken>()).Returns([ManagerId]);
         Groups.GetUserGroupMembershipsAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
@@ -95,6 +112,22 @@ internal sealed class BookingsTestScenario
         Users.GetUsersAsync(Arg.Any<IEnumerable<long>>(), Arg.Any<CancellationToken>())
             .Returns(ci => (IReadOnlyDictionary<long, UserSummary>)ci.ArgAt<IEnumerable<long>>(0)
                 .Distinct().Where(AllUsers.ContainsKey).ToDictionary(id => id, id => AllUsers[id]));
+        Groups.GetActiveMemberRolesAsync(Arg.Any<long>(), Arg.Any<IEnumerable<long>>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var groupId = ci.ArgAt<long>(0);
+                var roleById = (IReadOnlyDictionary<long, string>)ci.ArgAt<IEnumerable<long>>(1)
+                    .Distinct()
+                    .Select(id => (Id: id, Role: Memberships.GetValueOrDefault(id)?
+                        .FirstOrDefault(membership => membership.GroupId == groupId)?.Role))
+                    .Where(row => row.Role is not null)
+                    .ToDictionary(row => row.Id, row => row.Role!.Value.ToString());
+                return roleById;
+            });
+
+        Users.GetMusicianSummariesAsync(Arg.Any<IEnumerable<long>>(), Arg.Any<CancellationToken>())
+            .Returns(ci => (IReadOnlyDictionary<long, OpenMusicianSummary>)ci.ArgAt<IEnumerable<long>>(0)
+                .Distinct().Where(Musicians.ContainsKey).ToDictionary(id => id, id => Musicians[id]));
 
         Schedules.GetUnavailableGroupIdsAsync(Arg.Any<IReadOnlyCollection<long>>(), Arg.Any<DateTimeOffset>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
             .Returns(new HashSet<long>());

@@ -39,5 +39,37 @@ namespace NitroGroups.Shared.Contracts.Bookings.Responses
 
         /// <summary>Cuándo el manager registró que le pagaron; null mientras no.</summary>
         public DateTime? MyPayPaidAt { get; set; }
+
+        /// <summary>
+        /// Teléfono de contacto del grupo, para escribirle al manager (S22). Null cuando el grupo no
+        /// lo cargó. Solo existe en esta vista: la fila del manager, la del cliente y el perfil
+        /// público nunca lo llevan.
+        /// </summary>
+        public string? ManagerPhone { get; set; }
+
+        /// <summary>
+        /// Quiénes tocan este toque (S22): los miembros que confirmaron, el llamante incluido si
+        /// confirmó. Ni quien rechazó ni quien todavía no respondió. Vacía cuando nadie confirmó.
+        /// </summary>
+        public List<GigTeammateResponse> Teammates { get; set; } = [];
+    }
+
+    /// <summary>
+    /// Un compañero confirmado en un toque, con su nombre y sus instrumentos. Los dos datos salen
+    /// del módulo Users y nunca incluyen un correo.
+    /// </summary>
+    public class GigTeammateResponse
+    {
+        public long UserId { get; set; }
+
+        /// <summary>Nombre completo, o vacío si Users no lo tiene; el correo no es un respaldo.</summary>
+        public string FullName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Rol en el grupo, como texto: "Owner", "Manager" o "Member". Null cuando el módulo Groups
+        /// no lo tiene (una respuesta de alguien que ya no es miembro activo): la fila muestra el
+        /// nombre solo.
+        /// </summary>
+        public string? Role { get; set; }
     }
 }

@@ -551,3 +551,89 @@ describe("GigCard of a future gig the musician confirmed (T46)", () => {
         for (const button of [confirm, decline]) expect(button.className).toContain("h-11");
     });
 });
+
+describe("GigCard teammates and manager phone (S22)", () => {
+    const props = { saving: false, failed: false, onAnswer: vi.fn(), onRetry: vi.fn(), ...quiet };
+    const withPeople = {
+        ...row,
+        attendance: "Confirmed",
+        managerPhone: "33 1234 5678",
+        teammates: [
+            { userId: 400, fullName: "Mateo Músico", role: "Member" },
+            { userId: 500, fullName: "Luis Percusión", role: "Manager" },
+        ],
+    };
+
+    it("says who plays the gig with name and group role", () => {
+        render(<GigCard gig={toGigView(withPeople)} {...props} />);
+
+        expect(screen.getByText("Con quién tocás")).toBeInTheDocument();
+        expect(screen.getByText("Mateo Músico · Miembro")).toBeInTheDocument();
+        expect(screen.getByText("Luis Percusión · Manager")).toBeInTheDocument();
+    });
+
+    it("names a teammate whose role did not arrive without inventing one", () => {
+        render(<GigCard gig={toGigView({ ...row, teammates: [{ fullName: "Mateo Músico" }] as never })} {...props} />);
+
+        expect(screen.getByText("Mateo Músico")).toBeInTheDocument();
+    });
+
+    it("offers the manager as a tel: link named after the group, tall enough for a thumb", () => {
+        render(<GigCard gig={toGigView(withPeople)} {...props} />);
+
+        const call = screen.getByRole("link", { name: "Llamar a Versátil Rock y Pop" });
+        expect(call).toHaveAttribute("href", "tel:3312345678");
+        // 44 px de alto y su propio renglón a 390 px.
+        expect(call).toHaveClass("min-h-11", "w-full");
+    });
+
+    it("draws nothing when there are no teammates and no phone", () => {
+        render(<GigCard gig={toGigView(row)} {...props} />);
+
+        expect(screen.queryByText("Con quién tocás")).toBeNull();
+        expect(screen.queryByRole("link", { name: /^Llamar a/ })).toBeNull();
+    });
+
+    it("draws the phone alone when nobody has confirmed yet", () => {
+        render(<GigCard gig={toGigView({ ...row, managerPhone: "33 1234 5678" })} {...props} />);
+
+        // Sin compañeros confirmados no hay bloque de quiénes tocan, pero el contacto sigue ahí.
+        expect(screen.queryByText("Con quién tocás")).toBeNull();
+        expect(screen.getByRole("link", { name: "Llamar a Versátil Rock y Pop" })).toHaveAttribute("href", "tel:3312345678");
+    });
+
+    it("draws nobody and no phone on a past gig: it keeps exactly what it already showed", () => {
+        render(<GigCard gig={toGigView(withPeople)} past {...props} />);
+
+        expect(screen.queryByText("Con quién tocás")).toBeNull();
+        expect(screen.queryByRole("link", { name: /^Llamar a/ })).toBeNull();
+        // Lo de siempre sigue ahí.
+        expect(screen.getByText("Este toque ya pasó")).toBeInTheDocument();
+        expect(screen.getByText(/19 de noviembre/i)).toBeInTheDocument();
+    });
+
+    it("never draws an empty name or an empty label", () => {
+        render(<GigCard gig={toGigView({ ...row, managerPhone: "   ", teammates: [{ fullName: "  " }] as never })} {...props} />);
+
+        expect(screen.queryByText("Con quién tocás")).toBeNull();
+        expect(screen.queryByRole("link", { name: /^Llamar a/ })).toBeNull();
+    });
+
+    it("survives a broken payload without losing the rest of the card", () => {
+        render(<GigCard gig={toGigView({ ...row, teammates: { nope: true } as never, managerPhone: 42 as never })} {...props} />);
+
+        expect(screen.getByText(/19 de noviembre/i)).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Confirmar el/ })).toBeInTheDocument();
+        expect(screen.queryByText("Con quién tocás")).toBeNull();
+    });
+
+    it("names every teammate in one compact row, stacked at 390 px", () => {
+        render(<GigCard gig={toGigView(withPeople)} {...props} />);
+
+        const list = screen.getByRole("list", { name: "Con quién tocás" });
+        expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+        // Se apila en el celular y se pone en fila cuando hay ancho, sin partidas raras.
+        expect(list.className).toContain("flex-col");
+        expect(list.className).toContain("sm:flex-row");
+    });
+});

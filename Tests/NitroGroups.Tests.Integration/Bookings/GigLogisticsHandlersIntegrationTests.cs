@@ -48,7 +48,7 @@ public class GigLogisticsHandlersIntegrationTests : IClassFixture<IntegrationTes
             .Handle(new GetGroupGigsQuery(GroupId, ManagerId), CancellationToken.None);
 
     private Task<List<GigResponse>> MyGigsAsync(BookingsDbContext context, long userId)
-        => new GetMyGigsQueryHandler(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Time)
+        => new GetMyGigsQueryHandler(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users, _scenario.Time)
             .Handle(new GetMyGigsQuery(userId), CancellationToken.None);
 
     private Task AnswerAsync(BookingsDbContext context, long gigId, long userId, string status)

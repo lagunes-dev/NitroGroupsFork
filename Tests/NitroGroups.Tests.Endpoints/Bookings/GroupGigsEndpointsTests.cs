@@ -96,6 +96,36 @@ public class GroupGigsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
         Assert.Equal("Confirmed", attendee.GetProperty("status").GetString());
     }
 
+    // T59 (S22): el teléfono del manager y los compañeros del toque viajan SOLO en la agenda del
+    // músico. La fila del manager conserva exactamente el conjunto de siempre.
+    [Fact]
+    public async Task Manager_LaFilaDelPanelNoLlevaTelefonoNiCompaneros()
+    {
+        _mediator.SendQueryAsync<GetGroupGigsQuery, List<GroupGigResponse>>(Arg.Any<GetGroupGigsQuery>())
+            .Returns([
+                new GroupGigResponse
+                {
+                    Id = 5, GroupId = 10, GroupName = "Los Vargas", GroupSlug = "los-vargas",
+                    EventDate = new DateOnly(2026, 12, 12), StartTime = new TimeOnly(20, 0), DurationHours = 5,
+                    EventType = "Boda", LocationText = "Salón Los Arcos, CDMX", Role = "Manager",
+                    Attendees = [new GigAttendeeResponse { UserId = 400, FullName = "Mateo Ruiz", Status = "Confirmed" }]
+                }
+            ]);
+
+        var response = await _client.GetAsync("api/groups/10/gigs");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("managerPhone", body);
+        Assert.DoesNotContain("teammates", body);
+        Assert.DoesNotContain("@", body);
+        using var json = JsonDocument.Parse(body);
+        var gig = Assert.Single(json.RootElement.EnumerateArray());
+        Assert.Equal(
+            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "attendees", "setlist", "callTime", "deposit", "balanceReceivedAt" }.Order(StringComparer.Ordinal),
+            gig.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
+    }
+
     [Fact]
     public async Task SinToques_DevuelveListaVacia()
     {

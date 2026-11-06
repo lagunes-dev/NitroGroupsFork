@@ -1,6 +1,8 @@
 "use client";
 
+import { useId } from "react";
 import Link from "next/link";
+import { Phone } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { isUnanswered, pastAppearance, type AttendanceTone } from "../attendance";
@@ -17,6 +19,7 @@ import {
     PAST_GIG_LINE,
     PAY_PENDING,
     SETLIST_PENDING,
+    TEAMMATES_HEADING,
     type GigView,
 } from "../viewModel";
 import { NoticeActions } from "./GigNotices";
@@ -154,6 +157,9 @@ export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, 
             {!past && declined && <p className="text-sm text-tinta-2">{DECLINED_NEXT_STEP}</p>}
             {!past && answered === "Confirmed" && <p className="text-sm text-tinta-2">{CONFIRMED_NEXT_STEP}</p>}
 
+            {/* S22: con quién toca y el teléfono del manager, solo para el miembro activo del grupo. */}
+            {!past && <TeammatesBlock gig={gig} />}
+
             {/* Los avisos van en su propio bloque: cada uno es una acción con altura de 44 px. */}
             <NoticeActions slots={slots} notifying={notifying} onNotify={onNotify} />
 
@@ -183,6 +189,50 @@ export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, 
                 </p>
             )}
         </li>
+    );
+}
+
+/**
+ * S22: the compact block that says who plays this gig with the musician —name and the role they
+ * hold in the group—, and how to phone the group's manager. Nothing is drawn when there is nobody
+ * confirmed and no phone; a past gig keeps exactly what it already showed, so the card never
+ * offers this block there.
+ */
+function TeammatesBlock({ gig }: { gig: GigView }) {
+    const headingId = useId();
+    const { players, managerContact } = gig;
+    if (players.length === 0 && !managerContact) return null;
+
+    return (
+        <div className="flex flex-col gap-2 rounded-[8px] border border-linea bg-fondo-2 p-3">
+            {players.length > 0 && (
+                <>
+                    <p id={headingId} className="text-sm font-semibold text-tinta">
+                        {TEAMMATES_HEADING}
+                    </p>
+                    {/* Un compañero por renglón en el celular; en fila cuando hay ancho. */}
+                    <ul
+                        aria-labelledby={headingId}
+                        className="flex flex-col gap-1 text-sm text-tinta-2 sm:flex-row sm:flex-wrap sm:gap-x-4"
+                    >
+                        {players.map((player, index) => (
+                            <li key={`${player.name}-${index}`}>
+                                {player.roleLabel ? `${player.name} · ${player.roleLabel}` : player.name}
+                            </li>
+                        ))}
+                    </ul>
+                </>
+            )}
+            {managerContact && (
+                <a
+                    href={managerContact.href}
+                    className="flex min-h-11 w-full items-center justify-start gap-2 rounded-[8px] border border-linea bg-fondo px-3 text-sm font-medium text-tinta sm:w-fit"
+                >
+                    <Phone aria-hidden className="size-4 shrink-0" />
+                    {managerContact.label}
+                </a>
+            )}
+        </div>
     );
 }
 

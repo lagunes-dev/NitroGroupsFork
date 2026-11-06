@@ -209,3 +209,59 @@ describe("toGigView unpaidNotice (S21)", () => {
         expect(toGigView({ ...ROW, myPay: 1500 }).notices.map((slot) => slot.kind)).not.toContain("Unpaid");
     });
 });
+
+describe("toGigView teammates and manager phone (S22)", () => {
+    const conGente: GigPayload = {
+        ...ROW,
+        managerPhone: "33 1234 5678",
+        teammates: [
+            { userId: 400, fullName: "Mateo Músico", role: "Manager" },
+            { userId: 500, fullName: "Luis Percusión", role: "Member" },
+        ],
+    };
+
+    it("turns the confirmed teammates into name and group role", () => {
+        expect(toGigView(conGente).players).toEqual([
+            { name: "Mateo Músico", roleLabel: "Manager" },
+            { name: "Luis Percusión", roleLabel: "Miembro" },
+        ]);
+    });
+
+    it("turns the manager phone into a tel: link labelled with the group", () => {
+        expect(toGigView(conGente).managerContact).toEqual({ href: "tel:3312345678", label: "Llamar a Mariachi Sol de Jalisco" });
+        expect(toGigView({ ...ROW, managerPhone: "+52 (33) 1234-5678" }).managerContact?.href).toBe("tel:+523312345678");
+    });
+
+    it("draws no contact when the group has no phone loaded", () => {
+        for (const managerPhone of [null, undefined, "", "   ", "sin telefono"]) {
+            expect(toGigView({ ...ROW, managerPhone }).managerContact).toBeNull();
+        }
+    });
+
+    it("draws nobody when the payload has no teammates or a broken one", () => {
+        expect(toGigView(ROW).players).toEqual([]);
+        expect(toGigView({ ...ROW, teammates: "Mateo" as never }).players).toEqual([]);
+        expect(toGigView({ ...ROW, teammates: [null, 3, { fullName: "  " }] as never }).players).toEqual([]);
+    });
+
+    it("keeps a teammate whose role did not arrive, with the name only", () => {
+        expect(toGigView({ ...ROW, teammates: [{ userId: 1, fullName: "Mateo Músico" }] }).players).toEqual([
+            { name: "Mateo Músico", roleLabel: null },
+        ]);
+        // El rol llega como entero en la serialización vieja: se rotula igual.
+        expect(toGigView({ ...ROW, teammates: [{ fullName: "Mateo Músico", role: 2 }] }).players).toEqual([
+            { name: "Mateo Músico", roleLabel: "Manager" },
+        ]);
+        // Un rol que no es ninguno de los tres no inventa una etiqueta.
+        expect(toGigView({ ...ROW, teammates: [{ fullName: "Mateo Músico", role: "Dueño del mundo" }] }).players).toEqual([
+            { name: "Mateo Músico", roleLabel: null },
+        ]);
+    });
+
+    it("keeps the rest of the row exactly as before", () => {
+        const view = toGigView(conGente);
+        expect(view.dateLabel).toBe("domingo 15 de noviembre de 2026");
+        expect(view.payLabel).toBeNull();
+        expect(view.setlist).toBeNull();
+    });
+});
