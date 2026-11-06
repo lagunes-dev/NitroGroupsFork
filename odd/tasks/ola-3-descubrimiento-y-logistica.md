@@ -125,38 +125,35 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 
 **Lo que falta decidir y no decido solo**: cómo se entrega ese tramo de 194 commits. Pushear y abrir PRs siguen siendo decisiones del usuario.
 
-## Plan de entrega en 5 PRs (T64, S27)
+## Plan de entrega en 6 PRs (T64, S27)
 
 Extiende el plan de `odd/tasks/mvp-arquitectura.md` (12 PRs, hasta `fb399da`, posición 100 de la rama).
-Las cinco ramas se encadenan: cada una tiene como base el tip de la anterior y se mergean en ese orden.
-**Ninguna está pusheada ni tiene PR abierto**: el push y el PR son decisión del usuario.
+Las seis ramas **ya existen en el repo local**, encadenadas: cada una tiene como base el tip de la
+anterior y se mergean en ese orden. **Ninguna está pusheada ni tiene PR abierto**: el push y el PR son
+decisión del usuario (la rama local va 89 commits adelante de su upstream).
 
 | PR | Rama | Base → tip | Commits | Archivos | Líneas autoradas | Tema |
 |---|---|---|---|---|---|---|
-| #13 | `stack/13-ux-membresias` | `fb399da` → `9fab418` | #101–#168 | 238 | 17.102 | pulido de UI + UX de membresías |
-| #14 | `stack/14-ola-2a-perfil-musico` | `9fab418` → `e96f997` | #169–#188 | 67 | 3.689 | perfil de músico |
-| #15 | `stack/15-ola-2b-agenda-gigs` | `e96f997` → `656bba4` | #189–#206 | 90 | 4.130 | agenda de gigs |
-| #16 | `stack/16-ola-3-descubrimiento` | `656bba4` → `3aafd5c` | #207–#281 | 265 | 15.294 | directorio, logística y reseñas |
-| #17 | `stack/17-rondas-6-8` | `3aafd5c` → `195bd47` | #282–#309 | 94 | 4.707 | arreglos de las rondas 6-8 + T59–T63 |
+| #13 | `stack/13-pulido-ui` | `fb399da` → `2ae3435` | 51 | 214 | 15.709 | pulido de UI (#101–#151) |
+| #14 | `stack/14-ux-membresias` | `2ae3435` → `9fab418` | 17 | 48 | 1.541 | UX de membresías (#152–#168) |
+| #15 | `stack/15-ola-2a-perfil-musico` | `9fab418` → `e96f997` | 20 | 67 | 3.689 | perfil de músico (#169–#188) |
+| #16 | `stack/16-ola-2b-agenda-gigs` | `e96f997` → `656bba4` | 18 | 90 | 4.130 | agenda de gigs (#189–#206) |
+| #17 | `stack/17-ola-3-descubrimiento` | `656bba4` → `3aafd5c` | 75 | 265 | 15.294 | directorio, logística y reseñas (#207–#281) |
+| #18 | `stack/18-rondas-6-8` | `3aafd5c` → `HEAD` | 33 | 96 | 4.868 | arreglos de las rondas 6-8 y T59–T63 (#282–#314) |
 
-Medición final: **309 commits** y **80.628 líneas autoradas** sobre `origin/master`, repartidas en las
-17 PRs (12 del plan viejo + 5 de este). El tramo #17 creció hasta `195bd47` con T59, T60, T61 y T63.
+**Total extendido: 214 commits y 45.231 líneas autoradas** sobre las 12 PRs del plan viejo.
+Medición: posiciones en `git rev-list --reverse origin/master..HEAD`; líneas con `git diff --numstat
+<base> <tip>` **excluyendo** lock files, `*.Designer.cs` y los snapshots de migración, que son generados.
 
-Cómo se midió: posiciones en `git rev-list --reverse origin/master..HEAD`, líneas autoradas con
-`git diff --numstat <base> <tip>` **excluyendo** lock files, `*.Designer.cs` y los snapshots de migración,
-que son generados.
+Orden de lectura: el de la tabla, porque están encadenadas. Cada PR se lee como un tramo de producto
+cerrado. **Las seis superan las 400 líneas**, igual que 11 de las 12 anteriores: cada una pide
+`size:exception` con su motivo medido (migraciones generadas, módulos completos, reescritura de
+pantallas). No se pueden partir más sin romper el encadenado ni la coherencia del tramo.
 
-Orden de lectura: es el de la tabla, porque están encadenadas. Cada PR se lee como un tramo de producto
-cerrado (membresías → perfil → agenda → ola 3 → arreglos) y no como una capa técnica transversal.
-
-**Las cinco superan las 400 líneas**, igual que 11 de las 12 anteriores: cada una pide `size:exception`
-con su motivo medido (migraciones generadas, módulos completos, reescritura de pantallas). No se pueden
-partir sin romper el encadenado ni la coherencia del tramo.
-
-**Decisión que arrastra este plan**: el pulido de UI (#101–#151) no tiene PR propia en el plan viejo,
-porque la PR #12 termina en `fb399da` (#100). Para respetar la decisión de 5 PRs, viaja dentro de la #13,
-que por eso es la más grande de las cinco. Si el usuario prefiere una PR aparte para el pulido, son 6 y se
-parte justo en `2ae3435`.
+**Por qué 6 y no 5**: la primera versión metía el pulido de UI dentro de la PR de membresías y daba una
+sola PR de 17.102 líneas donde el pulido —la época en que se arreglaron T31, T34 y T45, justo donde están
+las lecciones de "tests verdes y roto en pantalla"— tapaba la parte con decisiones de producto reales.
+Separado en `2ae3435`, cada PR tiene un foco revisable y un motivo propio para la excepción de tamaño.
 
 ## Log
 
@@ -264,3 +261,10 @@ Regla del usuario: solo escribe una reseña el cliente de un evento aceptado cuy
   (2) **La bandeja ofrece el día del pedido pendiente que el manager está mirando**, con respaldo en hoy y el campo para corregirlo: es la acción probable y no agrega un paso. Se agregó el test que faltaba: si ese día ya está bloqueado, el control ofrece "Desbloquear" y no un segundo bloqueo (`ade4337`).
   (3) **Pulido de UI: separado en su propia PR** cuando se prepare la entrega (6 cortes en vez de 5, partiendo en `2ae3435`). No cambia código.
   (4) **No se construye un interruptor aparte para el teléfono: el campo vacío es el interruptor.** Pero al aplicarlo apareció una fricción real que sí había que arreglar: **el editor del grupo no tenía campo de teléfono** (`GroupProfileEdit.tsx` no lo renderizaba, aunque el guardado ya enviaba `phone`), así que nadie podía cargarlo ni vaciarlo y la mitad de S22 dependía de un dato que ningún manager podía escribir. `696b64e` lo agrega junto a la Ciudad, con `type="tel"`, `maxLength 20` y su frase propia ("Lo ven solo los integrantes activos de tu grupo, en sus toques. Si lo dejás vacío, nadie lo ve."), asociada por `aria-describedby`. Medido a 390 px como manager: el campo aparece con el número del grupo (8110000003) y sin desborde. Front 839 tests en 80 archivos, `tsc` limpio, eslint 0 errores.
+
+- L71 (cierre de las cuatro pendientes, con el criterio profesional que pidió el usuario, verbatim): "en todas necesito que paliques lo mas profesional". Aplicado:
+  (1) **Entrega en 6 PRs**: el pulido de UI sale a su propia rama (`stack/13-pulido-ui`) y las membresías quedan en la suya; las seis ramas están creadas en local, encadenadas y medidas (214 commits, 45.231 líneas autoradas), sin pushear. Una PR de 17.102 líneas donde el pulido tapa las decisiones de membresías no es revisable; dos PRs con un foco cada una, sí.
+  (2) **Teléfono sin interruptor aparte**: el campo vacío es el interruptor, y ahora el campo existe (`696b64e`) con la regla escrita al lado. Un booleano extra crea un estado que se contradice con el dato ("cargué el número pero no lo muestro") y una pregunta nueva al manager.
+  (3) **"No me pagaron" se mantiene como está**: reclamar un pago de un toque al que avisaste que no podías ir produce un dato incoherente y un aviso inútil para el manager. La coherencia entre el front y el back se paga en el mismo turno (criterio de L61).
+  (4) **Limpieza del foco que había quedado a medias (L52)**: `components/ui/field.ts` y `Select.tsx` ya no llevan `outline-none`. Esa clase no apagaba nada —el anillo se declara sin capa en `globals.css` y gana— así que solo prometía algo que no podía cumplir. Los 3 tests de `focusRing` y los de `components/ui` siguen en verde.
+  (5) **Lo que nunca se había medido, medido**: la agenda del manager con la fecha límite del anticipo muestra "Anticipo $4,000 · pendiente · para el 10 de noviembre" y "Anticipo $3,000 · recibido el 5 de noviembre de 2026", la insignia envuelve en dos líneas de 24 px y no hay desborde horizontal a 390 px.
