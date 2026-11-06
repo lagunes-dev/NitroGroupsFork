@@ -14,7 +14,7 @@ public sealed record PostGigNoticeCommand(long GroupId, long GigId, long? Caller
     : ICommand<BookingResult<GigNoticeResponse>>;
 
 /// <summary>
-/// S12: el músico avisa que al toque le falta la llegada, el pago o el setlist. El cuerpo lleva el
+/// S12: el músico avisa que al toque le falta la llegada, el pago o el setlist, o (S17) que llega tarde o no encuentra el lugar. El cuerpo lleva el
 /// tipo y nada más. Se guarda uno por (toque, músico, tipo) y día: apretar dos veces responde lo
 /// mismo que la primera vez en vez de error, y el manager no recibe ruido.
 /// </summary>
@@ -25,9 +25,10 @@ public sealed class PostGigNoticeCommandHandler(
     IGigNoticeRepository notices,
     TimeProvider time) : ICommandHandler<PostGigNoticeCommand, BookingResult<GigNoticeResponse>>
 {
-    internal const string InvalidKindMessage = "El aviso tiene que ser de llegada, pago o setlist.";
+    internal const string InvalidKindMessage = "El aviso tiene que ser de llegada, pago, setlist, llegada tarde o lugar.";
     internal const string NotFoundMessage = UpdateGigDetailsCommandHandler.NotFoundMessage;
     internal const string NotMemberMessage = "Solo un miembro activo del grupo puede avisar del toque.";
+    internal const string GigAlreadyPassedMessage = "Ese toque ya pasó: ya no se puede avisar que llegas tarde o que no encuentras el lugar.";
     internal const string NotAcceptedMessage = "Solo se puede avisar de un toque aceptado.";
 
     public async Task<BookingResult<GigNoticeResponse>> Handle(PostGigNoticeCommand command, CancellationToken cancellationToken)
@@ -50,7 +51,12 @@ public sealed class PostGigNoticeCommandHandler(
         if (gig.Status != EventRequestStatus.Accepted)
             return Failure(BookingErrorKind.Conflict, NotAcceptedMessage);
 
+        // "Llego tarde" / "No encuentro el lugar" solo valen hasta el día del toque, contado en hora de
+        // México igual que "uno por día": el toque de hoy todavía no pasó, el de ayer sí.
         var sentOn = MexicoTime.Today(time);
+        if (GigNoticeKinds.IsDayOfGig(kind) && gig.EventDate < sentOn)
+            return Failure(BookingErrorKind.Conflict, GigAlreadyPassedMessage);
+
         var existing = await notices.FindByDayAsync(gig.Id, callerUserId, kind, sentOn, cancellationToken);
         var userMap = await users.GetUsersAsync([callerUserId], cancellationToken);
         if (existing is not null)

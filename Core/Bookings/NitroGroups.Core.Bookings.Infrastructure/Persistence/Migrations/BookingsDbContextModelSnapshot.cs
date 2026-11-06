@@ -387,7 +387,7 @@ namespace NitroGroups.Core.Bookings.Infrastructure.Persistence.Migrations
 
                     b.ToTable("gig_notices", "bookings", t =>
                         {
-                            t.HasCheckConstraint("ck_gig_notices_kind_range", "kind between 1 and 3");
+                            t.HasCheckConstraint("ck_gig_notices_kind_range", "kind between 1 and 5");
                         });
                 });
 

@@ -10,7 +10,7 @@ public class GigNoticeConfiguration : IEntityTypeConfiguration<GigNotice>
     {
         builder.ToTable("gig_notices", table => table.HasCheckConstraint(
             "ck_gig_notices_kind_range",
-            $"kind between {(int)GigNoticeKind.CallTime} and {(int)GigNoticeKind.Setlist}"));
+            $"kind between {(int)GigNoticeKind.CallTime} and {(int)GigNoticeKind.CannotFindVenue}"));
 
         builder.HasKey(notice => notice.Id);
         builder.Property(notice => notice.Id).HasColumnName("id");

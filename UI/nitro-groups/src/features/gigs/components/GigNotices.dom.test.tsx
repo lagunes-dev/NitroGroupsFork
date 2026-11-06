@@ -20,6 +20,21 @@ describe("NoticeLines", () => {
         ]);
     });
 
+    it("lists late and cannot-find-venue with the musician's name (S17)", () => {
+        render(
+            <NoticeLines
+                notices={[
+                    { id: 2, gigId: 5, fullName: "Mateo Ruiz", kind: "CannotFindVenue" },
+                    { id: 1, gigId: 5, fullName: "Mateo Ruiz", kind: "Late" },
+                ]}
+            />
+        );
+        expect(screen.getAllByRole("listitem").map((line) => line.textContent)).toEqual([
+            "Mateo Ruiz avisa que no encuentra el lugar",
+            "Mateo Ruiz avisa que llega tarde",
+        ]);
+    });
+
     it("names the musician even when the API did not send one", () => {
         render(<NoticeLines notices={[{ id: 1, gigId: 5, fullName: "  ", kind: "CallTime" }]} />);
         expect(screen.getByText("Un músico del grupo avisa que falta la llegada")).toBeInTheDocument();

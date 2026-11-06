@@ -6,16 +6,33 @@
  * The three kinds are the whole vocabulary. There is no free text anywhere in this path, so the
  * copy lives here and only here.
  */
-export type GigNoticeKind = "CallTime" | "Pay" | "Setlist";
+export type GigNoticeKind = "CallTime" | "Pay" | "Setlist" | "Late" | "CannotFindVenue";
 
-/** The three kinds, in the order the card shows the missing slots. */
-export const NOTICE_KINDS: readonly GigNoticeKind[] = ["CallTime", "Pay", "Setlist"];
+/**
+ * The five kinds, in the order the card shows them: the missing slots first, then the two day-of
+ * notices "Llego tarde" and "No encuentro el lugar" (S17).
+ */
+export const NOTICE_KINDS: readonly GigNoticeKind[] = ["CallTime", "Pay", "Setlist", "Late", "CannotFindVenue"];
 
-/** The article each kind takes, so every sentence reads naturally in Spanish. */
-const MISSING: Record<GigNoticeKind, string> = {
+/** The kinds that report something missing from the gig. The other two are always on offer. */
+type MissingKind = "CallTime" | "Pay" | "Setlist";
+
+/** The article each missing slot takes, so every sentence reads naturally in Spanish. */
+const MISSING: Record<MissingKind, string> = {
     CallTime: "la llegada",
     Pay: "el pago",
     Setlist: "el setlist",
+};
+
+/** True for the notices that say something is missing from the gig; false for "Late" / "CannotFindVenue". */
+export function isMissingNotice(kind: GigNoticeKind): kind is MissingKind {
+    return kind in MISSING;
+}
+
+/** The two day-of notices: the verb phrase for the musician ("llego tarde") and for the manager's line. */
+const DAY_OF: Record<"Late" | "CannotFindVenue", { action: string; sent: string; manager: string }> = {
+    Late: { action: "llego tarde", sent: "llegas tarde", manager: "llega tarde" },
+    CannotFindVenue: { action: "no encuentro el lugar", sent: "no encuentras el lugar", manager: "no encuentra el lugar" },
 };
 
 const FALLBACK_MUSICIAN = "Un músico del grupo";
@@ -26,15 +43,15 @@ export interface NoticePayload {
     gigId?: number | string | null;
     userId?: number | string | null;
     fullName?: string | null;
-    /** "CallTime", "Pay" or "Setlist"; anything else is ignored instead of printed. */
+    /** "CallTime", "Pay", "Setlist", "Late" or "CannotFindVenue"; anything else is ignored instead of printed. */
     kind?: string | null;
     /** `YYYY-MM-DD` in Mexico: the day the notice was sent. */
     sentOn?: string | null;
 }
 
-/** Only the three kinds of the contract count; an unknown literal is not a notice we can show. */
+/** Only the five kinds of the contract count; an unknown literal is not a notice we can show. */
 export function isNoticeKind(value: unknown): value is GigNoticeKind {
-    return value === "CallTime" || value === "Pay" || value === "Setlist";
+    return typeof value === "string" && (NOTICE_KINDS as readonly string[]).includes(value);
 }
 
 /** Visible label of the one-tap action: the same two quiet words in every slot. */
@@ -46,20 +63,29 @@ export const NOTICE_ACTION_LABEL = "Avisar que falta";
  */
 export const NOTICE_LIST_LABEL = "Avisarle al grupo lo que falta";
 
+/** The same block when it only holds the day-of notices: nothing is "missing", so it does not say so. */
+export const NOTICE_LIST_LABEL_DAY_OF = "Avisarle al grupo";
+
+/** Heading of the block: the honest one for the slots it actually holds. */
+export function noticeListLabel(kinds: readonly GigNoticeKind[]): string {
+    return kinds.some(isMissingNotice) ? NOTICE_LIST_LABEL : NOTICE_LIST_LABEL_DAY_OF;
+}
+
 /** Visible and accessible name of that action, unique per slot: "Avisar que falta el pago". */
 export function noticeActionName(kind: GigNoticeKind): string {
-    return `${NOTICE_ACTION_LABEL} ${MISSING[kind]}`;
+    return isMissingNotice(kind) ? `${NOTICE_ACTION_LABEL} ${MISSING[kind]}` : `Avisar que ${DAY_OF[kind].action}`;
 }
 
 /** What the slot says once it was sent today: "Avisaste hoy que falta el pago". */
 export function noticeSentLabel(kind: GigNoticeKind): string {
-    return `Avisaste hoy que falta ${MISSING[kind]}`;
+    return isMissingNotice(kind) ? `Avisaste hoy que falta ${MISSING[kind]}` : `Avisaste hoy que ${DAY_OF[kind].sent}`;
 }
 
-/** The manager's line: "Mateo avisa que falta el pago". */
+/** The manager's line: "Mateo avisa que falta el pago", "Mateo avisa que llega tarde". */
 export function noticeManagerLine(fullName: unknown, kind: GigNoticeKind): string {
     const name = typeof fullName === "string" ? fullName.trim() : "";
-    return `${name || FALLBACK_MUSICIAN} avisa que falta ${MISSING[kind]}`;
+    const what = isMissingNotice(kind) ? `falta ${MISSING[kind]}` : DAY_OF[kind].manager;
+    return `${name || FALLBACK_MUSICIAN} avisa que ${what}`;
 }
 
 /** One slot of the card that is missing and can be reported. */
@@ -77,8 +103,9 @@ interface NoticeSources {
 }
 
 /**
- * The slots the card can report: only the ones that are missing, in screen order, with today's
- * notices already marked so the same button is not offered twice.
+ * The slots the card can report: the ones that are missing, in screen order, then the two day-of
+ * notices, which are always on offer (the card hides all of them for a declined or past gig). Today's
+ * notices come already marked so the same button is not offered twice.
  */
 export function noticeSlots(gig: NoticeSources, sentToday: readonly unknown[] = []): NoticeSlot[] {
     const sent = new Set(sentToday.filter(isNoticeKind));
@@ -86,6 +113,7 @@ export function noticeSlots(gig: NoticeSources, sentToday: readonly unknown[] = 
     if (!gig.callTimeLabel) slots.push({ kind: "CallTime", sent: sent.has("CallTime") });
     if (!gig.payLabel) slots.push({ kind: "Pay", sent: sent.has("Pay") });
     if (!gig.setlist) slots.push({ kind: "Setlist", sent: sent.has("Setlist") });
+    slots.push({ kind: "Late", sent: sent.has("Late") }, { kind: "CannotFindVenue", sent: sent.has("CannotFindVenue") });
     return slots;
 }
 

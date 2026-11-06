@@ -85,4 +85,45 @@ public class GigNoticesPostgresTests(IntegrationTestFixture fixture) : IClassFix
 
         await Assert.ThrowsAsync<DbUpdateException>(() => ctx.SaveChangesAsync());
     }
+
+    [PostgresFact]
+    public async Task LaTablaAdmiteLlegoTardeYNoEncuentroElLugar_YSigueRechazandoElSeisYElCero()
+    {
+        await using var db = await PostgresTestDatabase.CreateAsync();
+        await using var ctx = Context(db.ConnectionString);
+        await ctx.Database.MigrateAsync();
+        var gigId = await SeedAcceptedAsync(ctx);
+
+        ctx.GigNotices.AddRange(Notice(gigId, (GigNoticeKind)4), Notice(gigId, (GigNoticeKind)5));
+        await ctx.SaveChangesAsync();
+
+        await using var check = Context(db.ConnectionString);
+        Assert.Equal([4, 5], (await check.GigNotices.OrderBy(n => n.Kind).ToListAsync()).Select(n => (int)n.Kind));
+
+        foreach (var invalid in new[] { 0, 6 })
+        {
+            await using var bad = Context(db.ConnectionString);
+            bad.GigNotices.Add(Notice(gigId, (GigNoticeKind)invalid, Today.AddDays(1)));
+            await Assert.ThrowsAsync<DbUpdateException>(() => bad.SaveChangesAsync());
+        }
+    }
+
+    [PostgresFact]
+    public async Task LosTiposNuevos_TambienSeDedupanPorDiaYSiAdmitenOtroDia()
+    {
+        await using var db = await PostgresTestDatabase.CreateAsync();
+        await using var ctx = Context(db.ConnectionString);
+        await ctx.Database.MigrateAsync();
+        var gigId = await SeedAcceptedAsync(ctx);
+        ctx.GigNotices.Add(Notice(gigId, (GigNoticeKind)4));
+        await ctx.SaveChangesAsync();
+
+        await using var dup = Context(db.ConnectionString);
+        dup.GigNotices.Add(Notice(gigId, (GigNoticeKind)4));
+        await Assert.ThrowsAsync<DbUpdateException>(() => dup.SaveChangesAsync());
+
+        await using var nextDay = Context(db.ConnectionString);
+        nextDay.GigNotices.Add(Notice(gigId, (GigNoticeKind)4, Today.AddDays(1)));
+        await nextDay.SaveChangesAsync();
+    }
 }

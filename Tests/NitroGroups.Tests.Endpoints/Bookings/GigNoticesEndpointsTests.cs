@@ -111,7 +111,7 @@ public class GigNoticesEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
     {
         PostGigNoticeCommand? sent = null;
         _mediator.SendCommandAsync<PostGigNoticeCommand, BookingResult<GigNoticeResponse>>(Arg.Do<PostGigNoticeCommand>(c => sent = c))
-            .Returns(BookingResult<GigNoticeResponse>.Failure(BookingErrorKind.Validation, "El aviso tiene que ser de llegada, pago o setlist."));
+            .Returns(BookingResult<GigNoticeResponse>.Failure(BookingErrorKind.Validation, "El aviso tiene que ser de llegada, pago, setlist, llegada tarde o lugar."));
 
         var response = await _client.PostAsync(PostUrl, null);
 
@@ -231,5 +231,72 @@ public class GigNoticesEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("[]", await response.Content.ReadAsStringAsync());
+    }
+
+    // T47 / S17: los dos tipos nuevos viajan con su literal estable y los mismos códigos de error.
+
+    [Theory]
+    [InlineData("Late")]
+    [InlineData("CannotFindVenue")]
+    public async Task AvisoNuevo_Aceptado_Returns201ConElTipo(string kind)
+    {
+        PostGigNoticeCommand? sent = null;
+        _mediator.SendCommandAsync<PostGigNoticeCommand, BookingResult<GigNoticeResponse>>(Arg.Do<PostGigNoticeCommand>(c => sent = c))
+            .Returns(BookingResult<GigNoticeResponse>.Success(Row(kind)));
+
+        var response = await _client.SendAsync(Post(PostUrl, $"{{\"kind\":\"{kind}\"}}"));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(kind, sent!.Body.Kind);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(kind, json.RootElement.GetProperty("kind").GetString());
+    }
+
+    [Fact]
+    public async Task AvisoNuevoRepetido_MismoDia_RespondeIgualQueElPrimero()
+    {
+        const string url = "api/groups/10/gigs/9003/notices";
+        _mediator.SendCommandAsync<PostGigNoticeCommand, BookingResult<GigNoticeResponse>>(Arg.Is<PostGigNoticeCommand>(command => command.GigId == 9003))
+            .Returns(BookingResult<GigNoticeResponse>.Success(Row("Late")));
+
+        var first = await _client.SendAsync(Post(url, "{\"kind\":\"Late\"}"));
+        var second = await _client.SendAsync(Post(url, "{\"kind\":\"Late\"}"));
+
+        Assert.Equal(first.StatusCode, second.StatusCode);
+        Assert.Equal(await first.Content.ReadAsStringAsync(), await second.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task AvisoNuevo_ToquePasado_Returns409ConElMensajeEnEspanol()
+    {
+        _mediator.SendCommandAsync<PostGigNoticeCommand, BookingResult<GigNoticeResponse>>(Arg.Any<PostGigNoticeCommand>())
+            .Returns(BookingResult<GigNoticeResponse>.Failure(BookingErrorKind.Conflict, "Ese toque ya pasó: ya no se puede avisar que llegas tarde o que no encuentras el lugar."));
+
+        var response = await _client.SendAsync(Post(PostUrl, "{\"kind\":\"CannotFindVenue\"}"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("ya pasó", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task AvisoNuevo_NoMiembro_Returns403()
+    {
+        _mediator.SendCommandAsync<PostGigNoticeCommand, BookingResult<GigNoticeResponse>>(Arg.Any<PostGigNoticeCommand>())
+            .Returns(BookingResult<GigNoticeResponse>.Failure(BookingErrorKind.Forbidden, "Solo un miembro activo del grupo puede avisar del toque."));
+
+        var response = await _client.SendAsync(Post(PostUrl, "{\"kind\":\"Late\"}"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AvisoDeTipoDesconocido_SigueSiendo400()
+    {
+        _mediator.SendCommandAsync<PostGigNoticeCommand, BookingResult<GigNoticeResponse>>(Arg.Any<PostGigNoticeCommand>())
+            .Returns(BookingResult<GigNoticeResponse>.Failure(BookingErrorKind.Validation, "El aviso tiene que ser de llegada, pago, setlist, llegada tarde o lugar."));
+
+        var response = await _client.SendAsync(Post(PostUrl, "{\"kind\":\"late\"}"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }

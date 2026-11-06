@@ -18,7 +18,7 @@ namespace NitroGroups.Shared.Contracts.Bookings.Responses
         /// <summary>Nombre del músico, para que el manager no tenga que adivinar quién avisó.</summary>
         public string FullName { get; set; } = string.Empty;
 
-        /// <summary>"CallTime", "Pay" o "Setlist".</summary>
+        /// <summary>"CallTime", "Pay", "Setlist", "Late" o "CannotFindVenue".</summary>
         public string Kind { get; set; } = string.Empty;
 
         /// <summary>El día del aviso en México (`YYYY-MM-DD`).</summary>

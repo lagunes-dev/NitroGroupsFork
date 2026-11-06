@@ -11,8 +11,8 @@ import {
 } from "./notices";
 
 describe("isNoticeKind", () => {
-    it("accepts only the three kinds of the contract", () => {
-        expect(NOTICE_KINDS).toEqual(["CallTime", "Pay", "Setlist"]);
+    it("accepts only the five kinds of the contract", () => {
+        expect(NOTICE_KINDS).toEqual(["CallTime", "Pay", "Setlist", "Late", "CannotFindVenue"]);
         for (const kind of NOTICE_KINDS) expect(isNoticeKind(kind)).toBe(true);
         for (const other of ["Chat", "pay", "", null, undefined, 1, {}]) expect(isNoticeKind(other), String(other)).toBe(false);
     });
@@ -24,7 +24,12 @@ describe("the one-tap action", () => {
         expect(noticeActionName("CallTime")).toBe("Avisar que falta la llegada");
         expect(noticeActionName("Pay")).toBe("Avisar que falta el pago");
         expect(noticeActionName("Setlist")).toBe("Avisar que falta el setlist");
-        expect(new Set(NOTICE_KINDS.map(noticeActionName)).size).toBe(3);
+        expect(new Set(NOTICE_KINDS.map(noticeActionName)).size).toBe(5);
+    });
+
+    it("names the two day-of notices in their own words, not as something missing (S17)", () => {
+        expect(noticeActionName("Late")).toBe("Avisar que llego tarde");
+        expect(noticeActionName("CannotFindVenue")).toBe("Avisar que no encuentro el lugar");
     });
 });
 
@@ -33,6 +38,8 @@ describe("noticeSentLabel", () => {
         expect(noticeSentLabel("CallTime")).toBe("Avisaste hoy que falta la llegada");
         expect(noticeSentLabel("Pay")).toBe("Avisaste hoy que falta el pago");
         expect(noticeSentLabel("Setlist")).toBe("Avisaste hoy que falta el setlist");
+        expect(noticeSentLabel("Late")).toBe("Avisaste hoy que llegas tarde");
+        expect(noticeSentLabel("CannotFindVenue")).toBe("Avisaste hoy que no encuentras el lugar");
     });
 });
 
@@ -41,6 +48,8 @@ describe("noticeManagerLine", () => {
         expect(noticeManagerLine("Mateo Ruiz", "Pay")).toBe("Mateo Ruiz avisa que falta el pago");
         expect(noticeManagerLine("Mateo", "CallTime")).toBe("Mateo avisa que falta la llegada");
         expect(noticeManagerLine("Sofía Nava", "Setlist")).toBe("Sofía Nava avisa que falta el setlist");
+        expect(noticeManagerLine("Mateo", "Late")).toBe("Mateo avisa que llega tarde");
+        expect(noticeManagerLine("Mateo", "CannotFindVenue")).toBe("Mateo avisa que no encuentra el lugar");
     });
 
     it("never leaves a line without a subject", () => {
@@ -50,18 +59,27 @@ describe("noticeManagerLine", () => {
 
 describe("noticeSlots", () => {
     const MISSING = { callTimeLabel: null, setlist: null, payLabel: null };
+    const DAY_OF = [
+        { kind: "Late", sent: false },
+        { kind: "CannotFindVenue", sent: false },
+    ];
 
-    it("offers only the slots that are missing", () => {
+    it("offers the slots that are missing, and always the two day-of notices after them", () => {
         expect(noticeSlots(MISSING, [])).toEqual([
             { kind: "CallTime", sent: false },
             { kind: "Pay", sent: false },
             { kind: "Setlist", sent: false },
+            ...DAY_OF,
         ]);
         expect(noticeSlots({ ...MISSING, payLabel: "Tu pago: $2,000" }, [])).toEqual([
             { kind: "CallTime", sent: false },
             { kind: "Setlist", sent: false },
+            ...DAY_OF,
         ]);
-        expect(noticeSlots({ callTimeLabel: "Llegada 17:30", setlist: "Intro", payLabel: "Tu pago: $0" }, [])).toEqual([]);
+    });
+
+    it("still offers the two day-of notices when the call time, the setlist and the pay are loaded", () => {
+        expect(noticeSlots({ callTimeLabel: "Llegada 17:30", setlist: "Intro", payLabel: "Tu pago: $0" }, [])).toEqual(DAY_OF);
     });
 
     it("marks what was already sent today so the row does not offer it again", () => {
@@ -69,11 +87,17 @@ describe("noticeSlots", () => {
             { kind: "CallTime", sent: false },
             { kind: "Pay", sent: true },
             { kind: "Setlist", sent: false },
+            ...DAY_OF,
         ]);
         expect(noticeSlots(MISSING, ["Pay", "Chat", 3 as unknown as string])).toEqual([
             { kind: "CallTime", sent: false },
             { kind: "Pay", sent: true },
             { kind: "Setlist", sent: false },
+            ...DAY_OF,
+        ]);
+        expect(noticeSlots({ callTimeLabel: "x", setlist: "x", payLabel: "x" }, ["Late"])).toEqual([
+            { kind: "Late", sent: true },
+            { kind: "CannotFindVenue", sent: false },
         ]);
     });
 });

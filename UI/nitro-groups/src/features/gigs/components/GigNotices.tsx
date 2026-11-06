@@ -5,9 +5,9 @@ import { BellRing, Check } from "lucide-react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import {
-    NOTICE_LIST_LABEL,
     isNoticeKind,
     noticeActionName,
+    noticeListLabel,
     noticeManagerLine,
     noticeSentLabel,
     type GigNoticeKind,
@@ -61,7 +61,7 @@ export function NoticeAction({ kind, sent, notifying, onNotify }: NoticeActionPr
 
 /**
  * The notices of one gig, in their own block under the logistics text: one row per slot that is
- * still missing. Each row names its slot, so three actions in a column never read the same.
+ * still missing, then the two day-of notices. Each row names its slot, so three actions in a column never read the same.
  */
 export function NoticeActions({
     slots,
@@ -74,13 +74,14 @@ export function NoticeActions({
 }) {
     const headingId = useId();
     if (slots.length === 0) return null;
+    const heading = noticeListLabel(slots.map((slot) => slot.kind));
 
     // Own block: a rule, a visible heading and extra air above, so a thumb aimed at "Confirmo" or
     // "No puedo" never lands on a notice (T46, 390 px).
     return (
         <div className="mt-3 border-t border-linea pt-4">
             <p id={headingId} className="text-sm font-semibold text-tinta">
-                {NOTICE_LIST_LABEL}
+                {heading}
             </p>
             <ul aria-labelledby={headingId} className="mt-3 flex flex-col gap-2">
                 {slots.map((slot) => (

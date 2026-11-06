@@ -53,8 +53,9 @@ export interface GigView {
     /** "Tu pago: $2,000", or null when no amount was set for the caller. */
     payLabel: string | null;
     /**
-     * The slots the musician can report as missing, with the ones already reported today marked.
-     * Empty when the manager loaded all three.
+     * What the musician can report: the slots that are missing, then "Llego tarde" and "No encuentro
+     * el lugar", with the ones already reported today marked. The card hides all of them for a
+     * declined or past gig.
      */
     notices: NoticeSlot[];
 }

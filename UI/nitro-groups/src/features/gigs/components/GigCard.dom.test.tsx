@@ -206,10 +206,10 @@ describe("GigCard notices", () => {
             <GigCard gig={toGigView(row)} saving={false} failed={false} onAnswer={vi.fn()} onRetry={vi.fn()} notifying={null} notifyFailed={false} onNotify={vi.fn()} />
         );
 
-        // Los tres avisos viven en un bloque propio, no dentro de la frase que dice qué falta.
+        // Los avisos viven en un bloque propio, no dentro de la frase que dice qué falta.
         const block = screen.getByRole("list", { name: "Avisarle al grupo lo que falta" });
         const actions = within(block).getAllByRole("button");
-        expect(actions).toHaveLength(3);
+        expect(actions).toHaveLength(5);
         for (const action of actions) {
             // 44 px de alto, su propio renglón a 390 px y una superficie con borde: se lee como acción.
             expect(action).toHaveClass("min-h-11", "w-full");
@@ -228,6 +228,65 @@ describe("GigCard notices", () => {
         const sent = screen.getByText("Avisaste hoy que falta el pago");
         expect(sent).toHaveClass("min-h-11");
         expect(sent.closest("li")).not.toBeNull();
+    });
+});
+
+describe("GigCard day-of notices (S17)", () => {
+    const props = { saving: false, failed: false, onAnswer: vi.fn(), onRetry: vi.fn(), ...quiet };
+    const complete = { ...row, callTime: "17:30:00", myPay: 2000, setlist: "Intro" };
+
+    it("offers late and cannot-find-venue on a future gig with everything loaded", async () => {
+        const onNotify = vi.fn();
+        render(<GigCard gig={toGigView(complete)} {...props} onNotify={onNotify} />);
+
+        const late = screen.getByRole("button", { name: "Avisar que llego tarde" });
+        const lost = screen.getByRole("button", { name: "Avisar que no encuentro el lugar" });
+        expect(screen.queryByRole("button", { name: /^Avisar que falta/ })).toBeNull();
+        for (const action of [late, lost]) expect(action).toHaveClass("min-h-11", "w-full");
+
+        await userEvent.click(late);
+        await userEvent.click(lost);
+        expect(onNotify.mock.calls).toEqual([["Late"], ["CannotFindVenue"]]);
+    });
+
+    it("keeps the heading honest: no 'lo que falta' when only the two day-of notices are there", () => {
+        render(<GigCard gig={toGigView(complete)} {...props} />);
+
+        expect(screen.getByText("Avisarle al grupo")).toBeInTheDocument();
+        expect(screen.getByRole("list", { name: "Avisarle al grupo" })).toBeInTheDocument();
+        expect(screen.queryByText(/lo que falta/)).toBeNull();
+    });
+
+    it("keeps the old heading when a missing-slot notice is present", () => {
+        render(<GigCard gig={toGigView({ ...complete, setlist: null })} {...props} />);
+
+        expect(screen.getByRole("list", { name: "Avisarle al grupo lo que falta" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Avisar que llego tarde" })).toBeInTheDocument();
+    });
+
+    it("says it was sent today and offers nothing again for that kind", () => {
+        render(<GigCard gig={toGigView(complete, ["Late"])} {...props} />);
+
+        const sent = screen.getByText("Avisaste hoy que llegas tarde");
+        expect(sent).toHaveClass("min-h-11");
+        expect(screen.queryByRole("button", { name: "Avisar que llego tarde" })).toBeNull();
+        expect(screen.getByRole("button", { name: "Avisar que no encuentro el lugar" })).toBeInTheDocument();
+    });
+
+    it("never shows them on a declined gig", () => {
+        render(<GigCard gig={toGigView({ ...complete, attendance: "Declined" })} {...props} />);
+
+        expect(screen.queryByRole("button", { name: "Avisar que llego tarde" })).toBeNull();
+        expect(screen.queryByRole("button", { name: "Avisar que no encuentro el lugar" })).toBeNull();
+        expect(screen.queryByText("Avisarle al grupo")).toBeNull();
+    });
+
+    it("never shows them on a past gig", () => {
+        render(<GigCard gig={toGigView(complete)} past {...props} />);
+
+        expect(screen.queryByRole("button", { name: "Avisar que llego tarde" })).toBeNull();
+        expect(screen.queryByRole("button", { name: "Avisar que no encuentro el lugar" })).toBeNull();
+        expect(screen.queryByText("Avisarle al grupo")).toBeNull();
     });
 });
 

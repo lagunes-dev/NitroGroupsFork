@@ -122,7 +122,7 @@ public class GigNoticesIntegrationTests : IClassFixture<IntegrationTestFixture>
         var result = await SendAsync(context, gig.Id, kind);
 
         Assert.Equal(BookingErrorKind.Validation, result.ErrorKind);
-        Assert.Equal("El aviso tiene que ser de llegada, pago o setlist.", result.Error);
+        Assert.Equal("El aviso tiene que ser de llegada, pago, setlist, llegada tarde o lugar.", result.Error);
         Assert.Equal(0, await CountAsync(context));
     }
 
@@ -256,5 +256,122 @@ public class GigNoticesIntegrationTests : IClassFixture<IntegrationTestFixture>
 
         Assert.Equal(["Setlist"], mine.Select(row => row.Kind));
         Assert.Equal(new DateOnly(2026, 11, 4), Assert.Single(mine).SentOn);
+    }
+
+    // T47 / S17: "Llego tarde" y "No encuentro el lugar" solo valen para un toque que no ya pasó.
+
+    [Theory]
+    [InlineData("Late")]
+    [InlineData("CannotFindVenue")]
+    public async Task AvisoDeLlegadaOLugar_ToqueAceptadoFuturo_SeGuardaConElDiaEnMexico(string kind)
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context);
+
+        var result = await SendAsync(context, gig.Id, kind);
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal((gig.Id, MemberId, kind, "Mateo Ruiz"), (
+            result.Value!.GigId, result.Value.UserId, result.Value.Kind, result.Value.FullName));
+        Assert.Equal(new DateOnly(2026, 11, 3), result.Value.SentOn);
+        Assert.Equal(1, await CountAsync(context));
+    }
+
+    [Fact]
+    public async Task AvisoDeLlegadaOLugar_ToqueDeHoyEnMexico_SeGuarda()
+    {
+        // Hoy son las 12:00 en CDMX (18:00 UTC): el toque de esta noche todavía no pasó.
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context, eventDate: new DateOnly(2026, 11, 3));
+
+        var result = await SendAsync(context, gig.Id, "Late");
+
+        Assert.True(result.IsSuccess, result.Error);
+    }
+
+    [Fact]
+    public async Task AvisoDeLlegadaOLugar_MadrugadaUtcQueSigueSiendoElMismoDiaEnMexico_ElToqueDeEseDiaNoPaso()
+    {
+        // 04:00 UTC del 4/11 son las 22:00 del 3/11 en México: el toque del 3 sigue vigente.
+        _scenario.Time = new FixedTimeProvider(new DateTimeOffset(2026, 11, 4, 4, 0, 0, TimeSpan.Zero));
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context, eventDate: new DateOnly(2026, 11, 3));
+
+        var result = await SendAsync(context, gig.Id, "CannotFindVenue");
+
+        Assert.True(result.IsSuccess, result.Error);
+    }
+
+    [Theory]
+    [InlineData("Late")]
+    [InlineData("CannotFindVenue")]
+    public async Task AvisoDeLlegadaOLugar_ToquePasado_Returns409YNoGuarda(string kind)
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context, eventDate: new DateOnly(2026, 11, 2));
+
+        var result = await SendAsync(context, gig.Id, kind);
+
+        Assert.Equal(BookingErrorKind.Conflict, result.ErrorKind);
+        Assert.Equal("Ese toque ya pasó: ya no se puede avisar que llegas tarde o que no encuentras el lugar.", result.Error);
+        Assert.Equal(0, await CountAsync(context));
+    }
+
+    [Fact]
+    public async Task AvisoDeFaltante_ToquePasado_SigueGuardandose()
+    {
+        // Las reglas nuevas son solo de los dos tipos nuevos: los tres de siempre no cambian.
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context, eventDate: new DateOnly(2026, 11, 2));
+
+        var result = await SendAsync(context, gig.Id, "Pay");
+
+        Assert.True(result.IsSuccess, result.Error);
+    }
+
+    [Theory]
+    [InlineData("Late")]
+    [InlineData("CannotFindVenue")]
+    public async Task AvisoDeLlegadaOLugar_RepetidoElMismoDia_NoGuardaOtraFila(string kind)
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context);
+
+        var first = await SendAsync(context, gig.Id, kind);
+        var second = await SendAsync(context, gig.Id, kind);
+
+        Assert.Equal(first.Value!.Id, second.Value!.Id);
+        Assert.Equal(1, await CountAsync(context));
+    }
+
+    [Theory]
+    [InlineData("Late")]
+    [InlineData("CannotFindVenue")]
+    public async Task AvisoDeLlegadaOLugar_NoMiembro_Returns403_ToqueSinAceptar_Returns409(string kind)
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context);
+        var pending = await SeedAsync(context);
+
+        var outsider = await SendAsync(context, gig.Id, kind, userId: OutsiderId);
+        var notAccepted = await SendAsync(context, pending.Id, kind);
+
+        Assert.Equal(BookingErrorKind.Forbidden, outsider.ErrorKind);
+        Assert.Equal(BookingErrorKind.Conflict, notAccepted.ErrorKind);
+        Assert.Equal("Solo se puede avisar de un toque aceptado.", notAccepted.Error);
+        Assert.Equal(0, await CountAsync(context));
+    }
+
+    [Fact]
+    public async Task LasLecturas_DevuelvenLosCincoTiposComoLosDemas()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context);
+
+        foreach (var kind in new[] { "Late", "CannotFindVenue", "Pay" })
+            Assert.True((await SendAsync(context, gig.Id, kind)).IsSuccess);
+
+        Assert.Equal(["Late", "CannotFindVenue", "Pay"], (await MyNoticesTodayAsync(context)).Select(row => row.Kind));
+        Assert.Equal(["Pay", "CannotFindVenue", "Late"], (await GroupNoticesAsync(context)).Select(row => row.Kind));
     }
 }
