@@ -129,8 +129,8 @@
         color: var(--acento-ink);
     }
 
+    /* The ring itself is declared outside every layer, further down: see "Keyboard focus ring". */
     :focus-visible {
-        outline: 2px solid var(--acento);
         outline-offset: 3px;
     }
 
@@ -186,6 +186,26 @@
     ::-webkit-scrollbar { width: 10px; height: 10px; }
     ::-webkit-scrollbar-track { background: var(--fondo); }
     ::-webkit-scrollbar-thumb { background: var(--fondo-3); border-radius: 10px; border: 2px solid var(--fondo); }
+}
+
+/*
+ * Keyboard focus ring — deliberately outside every cascade layer.
+ *
+ * Tailwind 4.1.18 emits `.outline-none` into the `utilities` layer with
+ * `--tw-outline-style: none; outline-style: none`, and `.focus-visible:outline-2` reads that same
+ * variable back (`outline-style: var(--tw-outline-style)`). So `outline-none focus-visible:outline-2`
+ * paints nothing, and a ring declared in `@layer base` loses to any of those utilities. Textareas,
+ * radios and `<summary>` elements across the request thread and the dashboard ended up with no ring
+ * at all. Unlayered declarations sort after every layer, so these three lines cannot be cancelled by
+ * a utility class: no control can lose its ring by accident, and no new control has to remember one.
+ *
+ * `outline-offset` stays in `@layer base` (and in `focus-visible:outline-offset-*` utilities) so a
+ * control may still decide how far from its edge the ring sits.
+ */
+:focus-visible {
+    outline-style: solid;
+    outline-width: 2px;
+    outline-color: var(--acento);
 }
 
 @layer components {

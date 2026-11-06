@@ -165,6 +165,43 @@ describe("RequestThread deal", () => {
     });
 });
 
+describe("RequestThread cancel on a past event (T52)", () => {
+    const past: EventRequest = { ...request, status: "Accepted", eventDate: "2020-10-24", respondedAt: "2020-09-01T18:00:00Z" };
+
+    it("does not offer to cancel an accepted event whose date already passed, and keeps the message and the review", async () => {
+        mocks.get.mockResolvedValue({ ...past, canReview: true, review: null });
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Client");
+
+        await screen.findByRole("heading", { name: "Versátil Rock y Pop" });
+        expect(screen.queryByRole("button", { name: "Cancelar solicitud" })).toBeNull();
+        // Lo que sí sigue: hablar con el grupo y escribir la reseña del evento que ya pasó.
+        expect(screen.getByLabelText("Escribir un mensaje")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Enviar mensaje" })).toBeInTheDocument();
+        expect(screen.getByRole("radiogroup", { name: "Tu calificación" })).toBeInTheDocument();
+    });
+
+    it("does not offer it to the group either", async () => {
+        mocks.get.mockResolvedValue(past);
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Group");
+
+        await screen.findByRole("heading", { name: "Camila Ramos" });
+        expect(screen.queryByRole("button", { name: "Cancelar solicitud" })).toBeNull();
+    });
+
+    it("still cancels a future accepted event exactly as today", async () => {
+        mocks.get.mockResolvedValue({ ...request, status: "Accepted", eventDate: "2099-12-05", respondedAt: "2099-10-02T18:00:00Z" });
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Client");
+
+        expect(await screen.findByRole("button", { name: "Cancelar solicitud" })).toBeInTheDocument();
+    });
+});
+
 describe("RequestThread search context", () => {
     it("takes the date of a closed request to the search, so nobody retypes it", async () => {
         mocks.get.mockResolvedValue({ ...request, status: "Declined", respondedAt: "2026-10-02T18:00:00Z" });

@@ -112,7 +112,7 @@ export function TextareaField({
                 maxLength={max}
                 placeholder={placeholder}
                 aria-describedby={hint ? `${id}-limit ${id}-hint` : `${id}-limit`}
-                className="block w-full bg-fondo-2 rounded-xl px-4 py-3 text-base text-tinta placeholder:text-tinta-2/70 resize-y outline-none focus-visible:outline-2 focus-visible:outline-acento focus-visible:-outline-offset-2"
+                className="block w-full bg-fondo-2 rounded-xl px-4 py-3 text-base text-tinta placeholder:text-tinta-2/70 resize-y focus-visible:-outline-offset-2"
             />
             {hint && <p id={`${id}-hint`} className="text-sm text-tinta-2">{hint}</p>}
         </div>

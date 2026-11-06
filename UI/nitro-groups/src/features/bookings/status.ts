@@ -1,6 +1,7 @@
 import { Ban, Check, CircleHelp, Clock, X, type LucideIcon } from "lucide-react";
 import type { VariantProps } from "class-variance-authority";
 import type { badgeVariants } from "@/components/ui/Badge";
+import { isIsoDate, todayInMexico } from "@/lib/format";
 import type { EventRequest, EventRequestParty, EventRequestStatus } from "./types";
 
 type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>;
@@ -43,17 +44,34 @@ export function statusLabel(status: EventRequestStatus, viewer: EventRequestPart
     }
 }
 
-/** Acciones disponibles: reflejan las transiciones que acepta la API (si no, devuelve 409). */
-export function availableActions(request: Pick<EventRequest, "status">, viewer: EventRequestParty) {
+/**
+ * Acciones disponibles: reflejan las transiciones que acepta la API (si no, devuelve 409).
+ *
+ * Un evento aceptado cuya fecha (día de México, la misma regla que los avisos del toque) ya pasó no
+ * se cancela: ya se tocó, y el botón ofrecía deshacer algo que ocurrió. La conversación sigue
+ * abierta y la reseña también (S5, S8). `today` se recibe para poder fijarlo en los tests.
+ */
+export function availableActions(
+    request: Pick<EventRequest, "status" | "eventDate">,
+    viewer: EventRequestParty,
+    today: string = todayInMexico(),
+) {
     const { status } = request;
+    const cancellableAccepted = status === "Accepted" && !alreadyHappened(request.eventDate, today);
     return {
         accept: viewer === "Group" && status === "Pending",
         decline: viewer === "Group" && status === "Pending",
-        cancel: viewer === "Client" ? status === "Pending" || status === "Accepted" : status === "Accepted",
+        cancel: viewer === "Client" ? status === "Pending" || cancellableAccepted : cancellableAccepted,
         message: status === "Pending" || status === "Accepted",
         // Una solicitud cerrada no se reabre: otra fecha es una solicitud nueva.
         requestAgain: viewer === "Client" && (status === "Declined" || status === "Cancelled"),
     };
+}
+
+/** true si la fecha del evento quedó antes de hoy en México; una fecha ilegible nunca se da por pasada. */
+function alreadyHappened(eventDate: string | null | undefined, today: string): boolean {
+    if (!isIsoDate(eventDate) || !isIsoDate(today)) return false;
+    return eventDate < today;
 }
 
 /** "20:00" a partir de "20:00:00". */

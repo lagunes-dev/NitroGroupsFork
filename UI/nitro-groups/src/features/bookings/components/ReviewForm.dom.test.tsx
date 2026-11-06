@@ -92,6 +92,66 @@ describe("review form in the client's thread", () => {
         expect(mocks.review).not.toHaveBeenCalled();
     });
 
+    it("sends a comment of exactly 1000 characters and marks nothing as wrong", async () => {
+        renderThread("Client");
+        const field = await screen.findByLabelText("Comentario (opcional)");
+        fireEvent.click(await screen.findByRole("radio", { name: "5 de 5" }));
+        fireEvent.change(field, { target: { value: "x".repeat(1000) } });
+
+        expect(screen.getByText("1000/1000")).toBeInTheDocument();
+        expect(field).not.toHaveAttribute("aria-invalid");
+        expect(screen.queryByRole("alert")).toBeNull();
+        expect(screen.getByRole("button", { name: "Enviar reseña" })).toBeEnabled();
+    });
+
+    it("stops the client past 1000 characters, says why and never cuts the text", async () => {
+        renderThread("Client");
+        const field = (await screen.findByLabelText("Comentario (opcional)")) as HTMLTextAreaElement;
+        fireEvent.click(await screen.findByRole("radio", { name: "5 de 5" }));
+
+        fireEvent.change(field, { target: { value: "x".repeat(1100) } });
+
+        expect(field.value).toHaveLength(1100); // el texto del cliente se conserva, no se recorta
+        expect(field).toHaveAttribute("aria-invalid", "true");
+        expect(field).toHaveAttribute("aria-describedby", "review-counter review-comment-error");
+        expect(screen.getByText("1100/1000")).toHaveClass("text-error");
+        const message = screen.getByRole("alert");
+        expect(message).toHaveTextContent("El comentario admite hasta 1000 caracteres.");
+        expect(message).toHaveAttribute("id", "review-comment-error");
+        expect(screen.getByRole("button", { name: "Enviar reseña" })).toBeDisabled();
+
+        fireEvent.click(screen.getByRole("button", { name: "Enviar reseña" }));
+        expect(mocks.review).not.toHaveBeenCalled();
+    });
+
+    it("lets the client send again once the comment fits", async () => {
+        renderThread("Client");
+        const field = await screen.findByLabelText("Comentario (opcional)");
+        fireEvent.click(await screen.findByRole("radio", { name: "5 de 5" }));
+        fireEvent.change(field, { target: { value: "x".repeat(1100) } });
+        expect(screen.getByRole("button", { name: "Enviar reseña" })).toBeDisabled();
+
+        fireEvent.change(field, { target: { value: "x".repeat(999) } });
+
+        expect(field).not.toHaveAttribute("aria-invalid");
+        expect(screen.queryByRole("alert")).toBeNull();
+        expect(screen.getByRole("button", { name: "Enviar reseña" })).toBeEnabled();
+    });
+
+    it("keeps the keyboard ring on every control of the form", async () => {
+        renderThread("Client");
+        const group = await screen.findByRole("radiogroup", { name: "Tu calificación" });
+        const controls = [screen.getByLabelText("Comentario (opcional)"), ...Array.from(within5(group))];
+
+        // `outline-none` sets `--tw-outline-style: none`, the very variable every `outline-*` utility
+        // reads back, so a control that carries it paints no ring at all (T50). The ring is declared
+        // once in globals.css; no control of this form may opt out of it by accident.
+        for (const control of controls) {
+            expect(control).not.toHaveClass("outline-none");
+            expect(control.className).not.toMatch(/outline-(transparent|0)/);
+        }
+    });
+
     it.each([
         [409, "Todavía no puedes reseñar este evento."],
         [400, "La calificación debe estar entre 1 y 5."],

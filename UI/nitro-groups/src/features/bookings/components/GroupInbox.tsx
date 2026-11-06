@@ -48,7 +48,7 @@ export function GroupInbox({ groupId }: { groupId: number }) {
 
                     {rest.length > 0 && (
                         <details className="group">
-                            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-[8px] py-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento [&::-webkit-details-marker]:hidden">
+                            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-[8px] py-1 focus-visible:outline-offset-2 [&::-webkit-details-marker]:hidden">
                                 <h3 className="type-heading text-2xl text-tinta-2">
                                     Historial <span className="tabular">({rest.length})</span>
                                 </h3>

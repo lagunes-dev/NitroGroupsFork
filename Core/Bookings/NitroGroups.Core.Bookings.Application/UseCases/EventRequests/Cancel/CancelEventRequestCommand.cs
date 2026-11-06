@@ -29,6 +29,13 @@ public sealed class CancelEventRequestCommandHandler(
 
         // Si el usuario es el cliente, cancela como cliente (tiene más margen que el grupo).
         var party = participation.IsClient ? EventRequestParty.Client : EventRequestParty.Group;
+
+        // S8/T52: un evento aceptado cuya fecha ya pasó (día de México, la misma regla que los avisos
+        // del toque y la reseña) ya se tocó: cancelarlo no deshace nada y el hilo dejó de ofrecer el botón.
+        if (request.Status == EventRequestStatus.Accepted && request.EventDate < MexicoTime.Today(time))
+            return BookingResult<EventRequestResponse>.Failure(
+                BookingErrorKind.Conflict, "No puedes cancelar un evento que ya pasó.");
+
         try
         {
             request.Cancel(party);

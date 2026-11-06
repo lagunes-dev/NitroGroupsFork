@@ -38,6 +38,10 @@ public sealed class GetGroupMembershipRequestsQueryHandler(IUnitOfWorkGroups uni
             cancellationToken);
 
         var group = await unitOfWork.Groups.GetByIdAsync(query.GroupId);
+
+        // T53: una pendiente de alguien que ya está dentro no se puede responder ni es asunto del manager.
+        requests = await WithoutPendingFromMembersAsync(requests, query.GroupId, group?.OwnerUserId, cancellationToken);
+
         var groups = group is null
             ? new Dictionary<long, Group>()
             : new Dictionary<long, Group> { [group.Id] = group };
@@ -50,6 +54,33 @@ public sealed class GetGroupMembershipRequestsQueryHandler(IUnitOfWorkGroups uni
             cancellationToken);
 
         return GroupsResult<List<GroupMembershipRequestResponse>>.Success(responses);
+    }
+
+    /// <summary>
+    /// Fuera las solicitudes *pendientes* de un músico que ya es miembro activo del grupo (o que es su
+    /// dueño): aceptarlas no cambia nada y la pestaña "Equipo" ya las muestra como equipo, así que la
+    /// bandeja, el aviso "1 músico quiere unirse" y el contador de la pestaña cuentan lo mismo que el
+    /// equipo real. Las filas resueltas son historial y no se tocan. Ese estado no lo produce la app
+    /// (`InviteMusicianCommand` y `RequestToJoinGroupCommand` lo rechazan con 409): puede venir de datos
+    /// viejos, como una solicitud anterior a entrar por otra vía.
+    /// </summary>
+    private async Task<List<GroupMembershipRequest>> WithoutPendingFromMembersAsync(
+        List<GroupMembershipRequest> requests,
+        long groupId,
+        long? ownerUserId,
+        CancellationToken cancellationToken)
+    {
+        if (!requests.Exists(r => r.Status == MembershipRequestStatus.Pending))
+            return requests;
+
+        var members = await unitOfWork.GroupMembers.FindAsync(m => m.GroupId == groupId && m.IsActive);
+        var inside = members.Select(m => m.UserId).ToHashSet();
+        if (ownerUserId is { } owner)
+            inside.Add(owner);
+
+        return requests
+            .Where(r => r.Status != MembershipRequestStatus.Pending || !inside.Contains(r.MusicianUserId))
+            .ToList();
     }
 }
 

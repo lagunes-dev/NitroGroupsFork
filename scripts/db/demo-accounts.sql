@@ -40,10 +40,15 @@ SELECT 2, m.id, 1, 0, 0, 'Nos falta una guitarra para la temporada de bodas.', 1
 FROM users.users m WHERE m.email = 'musico.demo@example.com'
   AND NOT EXISTS (SELECT 1 FROM groups.group_membership_requests r WHERE r.group_id = 2 AND r.musician_user_id = m.id AND r.status = 0);
 
+-- Solo si NO está ya en el equipo: un miembro activo no puede estar pidiendo unirse a su propio grupo
+-- (los handlers lo rechazan con 409). El seed no debe fabricar un estado que la app no produce.
 INSERT INTO groups.group_membership_requests (group_id, musician_user_id, initiated_by_user_id, direction, status, message, created_by)
 SELECT 1, m.id, m.id, 1, 0, 'Toco guitarra y canto; me encantaría sumarme a Versátil.', m.id
 FROM users.users m WHERE m.email = 'musico.demo@example.com'
-  AND NOT EXISTS (SELECT 1 FROM groups.group_membership_requests r WHERE r.group_id = 1 AND r.musician_user_id = m.id AND r.status = 0);
+  AND NOT EXISTS (SELECT 1 FROM groups.group_membership_requests r WHERE r.group_id = 1 AND r.musician_user_id = m.id AND r.status = 0)
+  AND NOT EXISTS (SELECT 1 FROM groups.group_members gm
+                  WHERE gm.group_id = 1 AND gm.user_id = m.id AND gm.is_active)
+  AND NOT EXISTS (SELECT 1 FROM groups.music_groups g WHERE g.id = 1 AND g.owner_user_id = m.id);
 
 -- Client: date orders in different states (event_requests.status: 0 Pending, 1 Accepted, 2 Declined, 3 Cancelled).
 INSERT INTO bookings.event_requests

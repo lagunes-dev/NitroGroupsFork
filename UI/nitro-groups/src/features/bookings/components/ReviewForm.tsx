@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Star } from "lucide-react";
 import { apiErrorMessage, bookingsService } from "../bookings.service";
-import { REVIEW_COMMENT_MAX, commentCounter, ratingText, reviewError } from "../review";
+import { commentCounter, commentLengthError, ratingText, reviewError } from "../review";
 import type { EventRequest } from "../types";
 
 /**
@@ -32,14 +32,21 @@ export function ReviewForm({ requestId }: { requestId: number }) {
         },
     });
 
+    // T51: pasarse del tope frena el envío aquí mismo, mientras se escribe, en vez de esperar el viaje.
+    const limitError = commentLengthError(comment);
+
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (limitError) return;
         const error = reviewError(rating, comment.trim());
         setLocalError(error);
         if (!error) send.mutate();
     };
 
-    const message = localError ?? (send.isError ? apiErrorMessage(send.error, "No se pudo guardar tu reseña. Inténtalo de nuevo.") : null);
+    const message =
+        limitError ??
+        localError ??
+        (send.isError ? apiErrorMessage(send.error, "No se pudo guardar tu reseña. Inténtalo de nuevo.") : null);
 
     return (
         <form onSubmit={submit} className="flex flex-col gap-5 rounded-xl bg-fondo-2 p-5" noValidate>
@@ -56,7 +63,7 @@ export function ReviewForm({ requestId }: { requestId: number }) {
                                 value={n}
                                 checked={rating === n}
                                 onChange={() => { setRating(n); setLocalError(null); }}
-                                className="peer absolute inset-0 m-0 cursor-pointer appearance-none rounded-lg outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
+                                className="peer absolute inset-0 m-0 cursor-pointer appearance-none rounded-lg focus-visible:outline-offset-2"
                             />
                             <Star aria-hidden className={`pointer-events-none size-8 ${n <= rating ? "fill-acento text-acento" : "text-tinta-2"}`} />
                             <span className="sr-only">{ratingText(n)}</span>
@@ -73,17 +80,18 @@ export function ReviewForm({ requestId }: { requestId: number }) {
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     rows={4}
-                    aria-describedby="review-counter"
-                    className="w-full resize-y rounded-xl bg-fondo px-4 py-3 text-tinta outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acento"
+                    aria-invalid={limitError ? true : undefined}
+                    aria-describedby={limitError ? "review-counter review-comment-error" : "review-counter"}
+                    className="w-full resize-y rounded-xl bg-fondo px-4 py-3 text-tinta focus-visible:-outline-offset-2"
                 />
-                <p id="review-counter" className={`self-end text-sm tabular ${comment.length > REVIEW_COMMENT_MAX ? "text-error" : "text-tinta-2"}`}>
+                <p id="review-counter" className={`self-end text-sm tabular ${limitError ? "text-error" : "text-tinta-2"}`}>
                     {commentCounter(comment)}
                 </p>
             </div>
 
-            {message && <p role="alert" className="text-error">{message}</p>}
+            {message && <p id="review-comment-error" role="alert" className="text-error">{message}</p>}
 
-            <button type="submit" disabled={send.isPending} className="h-12 self-start rounded-xl bg-acento px-6 font-semibold text-acento-ink hover:bg-acento-press disabled:opacity-45">
+            <button type="submit" disabled={send.isPending || Boolean(limitError)} className="h-12 self-start rounded-xl bg-acento px-6 font-semibold text-acento-ink hover:bg-acento-press disabled:opacity-45">
                 {send.isPending ? "Enviando…" : "Enviar reseña"}
             </button>
         </form>

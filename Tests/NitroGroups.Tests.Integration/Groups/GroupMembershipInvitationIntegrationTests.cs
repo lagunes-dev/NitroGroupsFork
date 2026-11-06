@@ -118,6 +118,25 @@ public class GroupMembershipInvitationIntegrationTests : IClassFixture<Integrati
         Assert.Empty(await app.RequestsAsync());
     }
 
+    /// <summary>
+    /// El dueño no tiene fila de miembro: la regla lo tiene que encontrar por <c>OwnerUserId</c>. Es el
+    /// caso que la búsqueda del manager ofrecía invitar (T53): nadie se invita a sí mismo al grupo
+    /// que ya administra.
+    /// </summary>
+    [Fact]
+    public async Task Invitar_AlDuenoDelGrupo_EsConflicto_YSinFilaDeMiembro()
+    {
+        await using var app = GroupMembershipTestHarness.Create(_fixture);
+        var ownerMusicianId = await app.AddMusicianAsync("Mónica", "Dueña");
+        var groupId = await app.AddGroupAsync(ownerId: ownerMusicianId);
+
+        var result = await app.Invite(new InviteMusicianCommand(groupId, GroupMembershipTestHarness.ManagerId, ownerMusicianId, null));
+
+        Assert.Equal(GroupsErrorKind.Conflict, result.ErrorKind);
+        Assert.Equal("Ese músico ya es miembro del grupo.", result.Error);
+        Assert.Empty(await app.RequestsAsync());
+    }
+
     [Fact]
     public async Task AceptarUnaInvitacion_ElMusicoInvitadoEntraComoMember()
     {
