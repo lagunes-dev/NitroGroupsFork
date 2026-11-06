@@ -62,7 +62,10 @@ export default async function SearchPage({ searchParams }: Props) {
                 <>
                     <p className="mt-12 text-tinta-2" aria-live="polite">{summary}</p>
                     {/* Si el filtro escondió un grupo porque ya toca para ti ese día, se dice. */}
-                    <AlreadyBookedNote fecha={filters.fecha} />
+                    <AlreadyBookedNote
+                        fecha={filters.fecha}
+                        dateIsTheOnlyFilter={!filters.q && !filters.genero && !filters.ciudad && !filters.budget}
+                    />
 
                     {items.length === 0 ? (
                         <div className="mt-10 max-w-[60ch]">

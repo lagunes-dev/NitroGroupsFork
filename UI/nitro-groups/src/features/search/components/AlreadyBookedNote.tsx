@@ -12,17 +12,25 @@ import { alreadyBooked } from "../alreadyBooked";
  * Esta línea explica el hueco en vez de dejar que parezca un error. Sin sesión, sin fecha o sin
  * toque aceptado no dibuja nada; si la consulta falla, tampoco: es una aclaración, no el trabajo.
  */
-export function AlreadyBookedNote({ fecha }: { fecha?: string | null }) {
+export function AlreadyBookedNote({
+    fecha,
+    dateIsTheOnlyFilter = true,
+}: {
+    fecha?: string | null;
+    /** false cuando hay género, ciudad o presupuesto: entonces el grupo puede faltar por otro motivo. */
+    dateIsTheOnlyFilter?: boolean;
+}) {
     const { user } = useCurrentUser();
     const requests = useQuery({
         queryKey: ["my-event-requests"],
         queryFn: () => bookingsService.mine(),
-        enabled: Boolean(user) && Boolean(fecha),
+        enabled: Boolean(user) && Boolean(fecha) && dateIsTheOnlyFilter,
         retry: false,
         staleTime: 60_000,
     });
 
-    if (!user || !fecha || !requests.isSuccess) return null;
+    // Si además hay otro filtro, no se puede asegurar que la fecha sea la causa del hueco.
+    if (!user || !fecha || !dateIsTheOnlyFilter || !requests.isSuccess) return null;
 
     const booked = alreadyBooked(requests.data, fecha);
     if (!booked) return null;

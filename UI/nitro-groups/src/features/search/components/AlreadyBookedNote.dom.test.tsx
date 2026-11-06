@@ -71,3 +71,18 @@ describe("AlreadyBookedNote", () => {
         expect(screen.queryByRole("note")).toBeNull();
     });
 });
+
+describe("AlreadyBookedNote con otros filtros activos", () => {
+    it("stays quiet when a genre or city filter already excluded the group", () => {
+        mocks.user.mockReturnValue({ id: 10 });
+        mocks.mine.mockResolvedValue([accepted]);
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        render(
+            <QueryClientProvider client={client}>
+                {/* Con ?genero=mariachi el grupo no aparecería igual: culpar a la fecha sería mentir. */}
+                <AlreadyBookedNote fecha="2026-11-19" dateIsTheOnlyFilter={false} />
+            </QueryClientProvider>
+        );
+        expect(screen.queryByText(/ya toca para ti/)).toBeNull();
+    });
+});
