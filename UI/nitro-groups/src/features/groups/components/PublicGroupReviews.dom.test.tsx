@@ -22,6 +22,17 @@ const first: GroupReviewsPage = {
 
 beforeEach(() => { mocks.page.mockReset(); });
 
+describe("PublicGroupReviews verified seal", () => {
+    it("seals every review as coming from a real booking, because only such a client can write one", () => {
+        // El sello dice la verdad sin trabajo extra: la API solo deja reseñar al cliente de un evento
+        // aceptado y ya pasado, así que toda reseña viene de una contratación real.
+        render(<PublicGroupReviews groupId={5} initial={first} fallbackAverage={3.5} fallbackCount={12} />);
+
+        const list = screen.getByRole("list", { name: "Reseñas del grupo" });
+        expect(within(list).getAllByText("Contratación verificada")).toHaveLength(first.items.length);
+    });
+});
+
 describe("PublicGroupReviews", () => {
     it("shows the summary and the first page with rating, comment, date, event type and author", () => {
         render(<PublicGroupReviews groupId={5} initial={first} fallbackAverage={3.5} fallbackCount={12} />);
