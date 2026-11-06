@@ -125,6 +125,36 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 
 **Lo que falta decidir y no decido solo**: cómo se entrega ese tramo de 194 commits. Pushear y abrir PRs siguen siendo decisiones del usuario.
 
+## Plan de entrega en 5 PRs (T64, S27)
+
+Extiende el plan de `odd/tasks/mvp-arquitectura.md` (12 PRs, hasta `fb399da`, posición 100 de la rama).
+Las cinco ramas se encadenan: cada una tiene como base el tip de la anterior y se mergean en ese orden.
+**Ninguna está pusheada ni tiene PR abierto**: el push y el PR son decisión del usuario.
+
+| PR | Rama | Base → tip | Commits | Archivos | Líneas autoradas | Tema |
+|---|---|---|---|---|---|---|
+| #13 | `stack/13-ux-membresias` | `fb399da` → `9fab418` | #101–#168 | 238 | 17.102 | pulido de UI + UX de membresías |
+| #14 | `stack/14-ola-2a-perfil-musico` | `9fab418` → `e96f997` | #169–#188 | 67 | 3.689 | perfil de músico |
+| #15 | `stack/15-ola-2b-agenda-gigs` | `e96f997` → `656bba4` | #189–#206 | 90 | 4.130 | agenda de gigs |
+| #16 | `stack/16-ola-3-descubrimiento` | `656bba4` → `3aafd5c` | #207–#281 | 265 | 15.294 | directorio, logística y reseñas |
+| #17 | `stack/17-rondas-6-8` | `3aafd5c` → `HEAD` | #282–#304 | 89 | 3.661 | arreglos de las rondas 6-8 |
+
+Cómo se midió: posiciones en `git rev-list --reverse origin/master..HEAD`, líneas autoradas con
+`git diff --numstat <base> <tip>` **excluyendo** lock files, `*.Designer.cs` y los snapshots de migración,
+que son generados.
+
+Orden de lectura: es el de la tabla, porque están encadenadas. Cada PR se lee como un tramo de producto
+cerrado (membresías → perfil → agenda → ola 3 → arreglos) y no como una capa técnica transversal.
+
+**Las cinco superan las 400 líneas**, igual que 11 de las 12 anteriores: cada una pide `size:exception`
+con su motivo medido (migraciones generadas, módulos completos, reescritura de pantallas). No se pueden
+partir sin romper el encadenado ni la coherencia del tramo.
+
+**Decisión que arrastra este plan**: el pulido de UI (#101–#151) no tiene PR propia en el plan viejo,
+porque la PR #12 termina en `fb399da` (#100). Para respetar la decisión de 5 PRs, viaja dentro de la #13,
+que por eso es la más grande de las cinco. Si el usuario prefiere una PR aparte para el pulido, son 6 y se
+parte justo en `2ae3435`.
+
 ## Log
 
 - L1 (usuario, verbatim): "D4: tu recomendacion, D5: EL cliente no contrata musicos, solo grupos, los grupos contratan musicos, D1: tu recomendación, D2: Explica con ejemplos, D6: tu recomendación despues de que resolvamos D2, D3: Tu recomendación, D7:Tu recomendación"
