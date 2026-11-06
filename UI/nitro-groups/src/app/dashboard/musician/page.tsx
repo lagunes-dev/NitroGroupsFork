@@ -63,23 +63,44 @@ export default function MusicianDashboardPage() {
 
   // Un enlace puede pedir una pestaña concreta ("#mi-perfil", "#invitaciones"): aterrizar en la agenda
   // cuando el botón promete otra cosa es un callejón (ronda 5, Miguel; ronda 7, T45).
-  // El hash es un sistema externo y no existe en el servidor: se lee al montar y cada vez que cambia
-  // estando el panel abierto (el enlace "Invitaciones" de la cabecera puede pulsarse desde aquí mismo).
+  // El hash es un sistema externo y no existe en el servidor: se lee al montar y cada vez que cambia.
+  // `hashchange` no basta: el <Link> de Next hace `pushState` (no lo dispara) y un hash igual tampoco.
+  // Por eso, además, se mira el clic en cualquier enlace a esta misma página con hash (el de la
+  // cabecera, escritorio y móvil), y la pestaña elegida a mano se escribe en el hash para que un
+  // clic posterior en "#invitaciones" siempre cambie algo.
   useEffect(() => {
-    const applyHash = () => {
-      const tab = tabFromHash(window.location.hash);
+    const openTab = (tab: string) => {
       if (!tab) return;
       setArrivedAtAvailability(tab === AVAILABILITY_ANCHOR_ID);
       setActiveTab(tab);
     };
+    const applyHash = () => openTab(tabFromHash(window.location.hash));
+    const onLinkClick = (event: MouseEvent) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const anchor = (event.target as Element | null)?.closest?.("a[href]");
+      if (!anchor) return;
+      const url = new URL((anchor as HTMLAnchorElement).href, window.location.href);
+      if (url.origin !== window.location.origin || url.pathname !== window.location.pathname) return;
+      openTab(tabFromHash(url.hash));
+    };
     applyHash();
     window.addEventListener("hashchange", applyHash);
-    return () => window.removeEventListener("hashchange", applyHash);
+    document.addEventListener("click", onLinkClick);
+    return () => {
+      window.removeEventListener("hashchange", applyHash);
+      document.removeEventListener("click", onLinkClick);
+    };
   }, []);
+
+  /** A tab picked by hand: state plus hash, with `replaceState` so there is no history entry or scroll jump. */
+  const pickTab = (tabKey: string) => {
+    setActiveTab(tabKey);
+    window.history.replaceState(window.history.state, "", `#${tabKey}`);
+  };
 
   const showTab = (tabKey: string) => {
     setArrivedAtAvailability(false);
-    setActiveTab(tabKey);
+    pickTab(tabKey);
     // The panel mounts after the state change: move focus there once it exists.
     setTimeout(() => tabsRef.current?.querySelector<HTMLElement>('[role="tabpanel"]')?.focus(), 0);
   };
@@ -122,7 +143,7 @@ export default function MusicianDashboardPage() {
       */}
       {!groupPending || groupId ? (
         <div ref={tabsRef}>
-        <TabbedSection label={groupId ? "Gestión del grupo" : "Mi panel"} className="mt-8 md:mt-20" activeKey={activeTab} onActiveKeyChange={setActiveTab}>
+        <TabbedSection label={groupId ? "Gestión del grupo" : "Mi panel"} className="mt-8 md:mt-20" activeKey={activeTab} onActiveKeyChange={pickTab}>
           {groupId ? (
             <TabItem title="Pedidos de fecha" shortTitle="Pedidos" tabKey="pedidos">
               <GroupInbox groupId={groupId} />

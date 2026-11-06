@@ -133,3 +133,60 @@ describe("musician dashboard honours the tab in the hash (T45)", () => {
         expect(await screen.findByRole("tab", { name: /Pedidos/ })).toHaveAttribute("aria-selected", "true");
     });
 });
+
+describe("musician dashboard reacts to the header link inside the panel (T45)", () => {
+    /** What Next's <Link> does on a same-page click: pushState, no hashchange. */
+    function HeaderLink() {
+        return (
+            <a
+                href="/dashboard/musician#invitaciones"
+                onClick={(event) => {
+                    event.preventDefault();
+                    window.history.pushState(null, "", "/dashboard/musician#invitaciones");
+                }}
+            >
+                Ir a invitaciones
+            </a>
+        );
+    }
+    function renderWithHeader() {
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        return render(
+            <QueryClientProvider client={client}>
+                <HeaderLink />
+                <MusicianDashboardPage />
+            </QueryClientProvider>
+        );
+    }
+
+    it("switches to Invitaciones when the link is pressed with a different hash", async () => {
+        renderWithHeader();
+        const tab = await screen.findByRole("tab", { name: /Invitaciones/ });
+        expect(tab).toHaveAttribute("aria-selected", "false");
+        await userEvent.click(screen.getByText("Ir a invitaciones"));
+        await waitFor(() => expect(tab).toHaveAttribute("aria-selected", "true"));
+    });
+    it("switches again when the hash already says #invitaciones but the user moved by hand", async () => {
+        renderWithHeader();
+        const tab = await screen.findByRole("tab", { name: /Invitaciones/ });
+        await userEvent.click(screen.getByText("Ir a invitaciones"));
+        await waitFor(() => expect(tab).toHaveAttribute("aria-selected", "true"));
+        await userEvent.click(screen.getByRole("tab", { name: /Agenda/ }));
+        expect(tab).toHaveAttribute("aria-selected", "false");
+        await userEvent.click(screen.getByText("Ir a invitaciones"));
+        await waitFor(() => expect(tab).toHaveAttribute("aria-selected", "true"));
+    });
+    it("reflects a manual tab switch in the hash without adding a history entry", async () => {
+        renderPage();
+        const before = window.history.length;
+        await userEvent.click(await screen.findByRole("tab", { name: /Equipo/ }));
+        expect(window.location.hash).toBe("#equipo");
+        expect(window.history.length).toBe(before);
+    });
+    it("still lands on the tab named by the hash on arrival", async () => {
+        window.location.hash = "#equipo";
+        renderPage();
+        const tab = await screen.findByRole("tab", { name: /Equipo/ });
+        await waitFor(() => expect(tab).toHaveAttribute("aria-selected", "true"));
+    });
+});
