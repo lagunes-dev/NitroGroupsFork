@@ -118,3 +118,61 @@ describe("GigEditor money as data (T48)", () => {
         expect(onSaved).not.toHaveBeenCalled();
     });
 });
+
+/** The cuadre as the manager reads it: each label with the figure next to it. */
+function settlementLines(): Record<string, string> {
+    const terms = screen.getAllByRole("term");
+    const values = screen.getAllByRole("definition");
+    return Object.fromEntries(terms.map((term, index) => [term.textContent ?? "", values[index]?.textContent ?? ""]));
+}
+
+describe("Cuadre del toque (T60, S23)", () => {
+    const deal: GroupGigPayload = { ...row, budget: 15000, currency: "MXN" };
+
+    it("shows the cachet total the client offered", () => {
+        renderEditor(deal);
+        expect(screen.getByRole("heading", { name: "Cuadre del toque" })).toBeInTheDocument();
+        expect(settlementLines()["Cachet total"]).toBe("$15,000");
+    });
+
+    it("adds up every musician with a pay amount, whatever they answered", () => {
+        // Mateo $2,000 + Ana $1,500 + Luis without a pay: the sum is what the editor already lists.
+        renderEditor({ ...deal, attendees: [...(row.attendees ?? []), { userId: 8, fullName: "Eva Sol", status: "Declined", pay: 500 }] });
+        expect(settlementLines()["Debes a tus músicos"]).toBe("$4,000");
+    });
+
+    it("states the difference between the cachet and what he owes", () => {
+        renderEditor(deal);
+        expect(settlementLines()["Diferencia"]).toBe("$11,500");
+    });
+
+    it("states a negative difference as a fact, never as an error", () => {
+        // A cachet below the debt is said the same way: same row, no alert and no failure colour (D1/D2).
+        renderEditor({ ...deal, budget: 2000 });
+        expect(settlementLines()["Diferencia"]).toBe("-$1,500");
+        expect(screen.getAllByRole("definition").at(-1)).not.toHaveClass("text-error");
+        expect(screen.queryByRole("alert")).toBeNull();
+    });
+
+    it("says 'Sin presupuesto' when the client left it empty and does not invent a difference", () => {
+        renderEditor({ ...row, budget: null, currency: "MXN" });
+        const lines = settlementLines();
+        expect(lines["Cachet total"]).toBe("Sin presupuesto");
+        expect(lines["Debes a tus músicos"]).toBe("$3,500");
+        expect(lines["Diferencia"]).toBe("No se puede calcular");
+    });
+
+    it("counts in the currency the request carries", () => {
+        renderEditor({ ...deal, currency: "USD" });
+        expect(settlementLines()["Cachet total"]).toMatch(/^USD\s15,000$/u);
+        expect(settlementLines()["Diferencia"]).toMatch(/^USD\s11,500$/u);
+    });
+
+    it("stacks in one column and may wrap, so it fits a 390px screen", () => {
+        renderEditor(deal);
+        const list = screen.getAllByRole("term")[0].closest("dl");
+        expect(list).toHaveClass("flex-col");
+        // jsdom measures no pixels: the wrapping row is the decision, the browser proves the result.
+        for (const term of screen.getAllByRole("term")) expect(term.parentElement).toHaveClass("flex-wrap");
+    });
+});

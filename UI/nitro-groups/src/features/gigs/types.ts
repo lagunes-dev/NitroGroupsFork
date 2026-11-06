@@ -70,4 +70,11 @@ export interface GroupGigPayload extends GigPayload {
     deposit?: DepositPayload | null;
     /** ISO timestamp the manager recorded when the client's balance arrived; null until then. */
     balanceReceivedAt?: string | null;
+    /**
+     * What the client offers for this gig (the cachet), or null when they left it empty. Manager view
+     * only (S23): the musician's and the client's rows keep their own contract.
+     */
+    budget?: number | string | null;
+    /** Currency of the request: the cuadre counts the cachet and the pays in it. */
+    currency?: string | null;
 }

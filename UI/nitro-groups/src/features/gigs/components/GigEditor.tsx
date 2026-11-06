@@ -9,6 +9,7 @@ import { gigsService } from "../gigs.service";
 import {
     buildDetailsBody,
     buildPayBody,
+    gigSettlement,
     initialLogisticsForm,
     parseAmount,
     recordedStateLabel,
@@ -69,6 +70,8 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
     const setPay = (userId: string, value: string) => setForm((f) => ({ ...f, pay: { ...f.pay, [userId]: value } }));
     const setPaid = (userId: string, value: boolean) => setForm((f) => ({ ...f, paid: { ...f.paid, [userId]: value } }));
     const balanceState = recordedStateLabel(form.balanceReceived, row.balanceReceivedAt, { done: "Saldo recibido", pending: "Saldo pendiente" });
+    const settlement = gigSettlement(row);
+    const settlementId = `${idPrefix}-cuadre`;
 
     return (
         <form
@@ -81,6 +84,28 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                 submit();
             }}
         >
+            {/* S23: the cuadre of the gig, with the numbers the request already carries. Read only. */}
+            <section aria-labelledby={settlementId} className="rounded-[12px] bg-fondo-2 p-4 sm:p-5">
+                <h4 id={settlementId} className="text-sm font-medium text-tinta">
+                    Cuadre del toque
+                </h4>
+                <dl className="mt-3 flex flex-col gap-2">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                        <dt className="text-tinta-2">Cachet total</dt>
+                        <dd className="tabular text-lg text-tinta">{settlement.cachet}</dd>
+                    </div>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                        <dt className="text-tinta-2">Debes a tus músicos</dt>
+                        <dd className="tabular text-lg text-tinta">{settlement.owed}</dd>
+                    </div>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                        <dt className="text-tinta-2">Diferencia</dt>
+                        <dd className="font-semibold tabular text-lg text-tinta">{settlement.difference}</dd>
+                    </div>
+                </dl>
+                <p className="mt-3 text-sm text-tinta-2">Con lo que está guardado. La app no cobra ni valida estos montos.</p>
+            </section>
+
             <div className="grid gap-6 md:grid-cols-2">
                 <TimeSelect
                     id={`${idPrefix}-call`}

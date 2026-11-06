@@ -1,4 +1,4 @@
-import { receivedDate } from "@/features/bookings/deposit";
+import { budgetLabel, receivedDate } from "@/features/bookings/deposit";
 import { formatPrice } from "@/lib/format";
 import { gigTimeLabel } from "./viewModel";
 import type { GroupGigPayload } from "./types";
@@ -170,4 +170,44 @@ export function attendeePayLines(attendees: GroupGigPayload["attendees"]): strin
 /** "120 / 4,000". */
 export function setlistCounter(setlist: string): string {
     return `${setlist.length.toLocaleString("es-MX")} / ${SETLIST_MAX.toLocaleString("es-MX")}`;
+}
+
+/** A money field as a number, or null when it is empty or cannot be read as a non-negative amount. */
+function readAmount(value: unknown): number | null {
+    const text = amountText(value);
+    return text ? Number(text) : null;
+}
+
+/**
+ * The three figures of the gig (S23), as the payload already holds them: the cachet the client
+ * offered, everything the manager owes the musicians, and the difference between the two. Text only:
+ * the app never charges, moves or validates money (D1 and D2), and a negative difference is a fact.
+ */
+export interface GigSettlement {
+    /** "$15,000", or "Sin presupuesto" when the client left it empty. */
+    cachet: string;
+    /** "$3,500": every attendee with a pay amount, whatever they answered. "$0" when there is none. */
+    owed: string;
+    /** "$11,500", "-$1,500", or "No se puede calcular" without a cachet. Never stated as an error. */
+    difference: string;
+}
+
+const NO_DIFFERENCE = "No se puede calcular";
+const NO_AMOUNT = "Sin monto";
+
+/** The cuadre of one gig, read from the row the manager already has. Un cero no es un cachet. */
+export function gigSettlement(row: Pick<GroupGigPayload, "budget" | "currency" | "attendees">): GigSettlement {
+    const currency = typeof row.currency === "string" && row.currency.trim() ? row.currency : "MXN";
+    const budget = readAmount(row.budget);
+    const cachet = budget !== null && budget > 0 ? budget : null;
+
+    let owed = 0;
+    for (const attendee of row.attendees ?? []) owed += readAmount(attendee.pay) ?? 0;
+
+    const difference = cachet === null ? NO_DIFFERENCE : (formatPrice(cachet - owed, currency) ?? NO_DIFFERENCE);
+    return {
+        cachet: budgetLabel({ budget: cachet, currency }),
+        owed: formatPrice(owed, currency) ?? NO_AMOUNT,
+        difference,
+    };
 }

@@ -12,6 +12,16 @@ namespace NitroGroups.Shared.Contracts.Bookings.Responses
 
         /// <summary>Cuándo se recibió el saldo del cliente; null mientras no.</summary>
         public DateTime? BalanceReceivedAt { get; set; }
+
+        /// <summary>
+        /// Lo que el cliente ofrece por este toque (el cachet), o null si no lo cargó. Solo viaja en la
+        /// fila del manager: la del músico y la del cliente conservan su contrato. El servidor no suma
+        /// ni valida nada con él (D1 y D2).
+        /// </summary>
+        public decimal? Budget { get; set; }
+
+        /// <summary>Moneda del pedido, con la que el manager cuenta el cachet y los pagos.</summary>
+        public string Currency { get; set; } = "MXN";
     }
 
     /// <summary>Una respuesta de asistencia, con el nombre del miembro y sin su email.</summary>

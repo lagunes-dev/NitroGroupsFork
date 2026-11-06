@@ -77,7 +77,10 @@ public static class GroupGigResponses
             {
                 Attendees = attendees,
                 Deposit = new GigDepositResponse { Amount = gig.DepositAmount, ReceivedAt = gig.DepositReceivedAt },
-                BalanceReceivedAt = gig.BalanceReceivedAt
+                BalanceReceivedAt = gig.BalanceReceivedAt,
+                // T60 (S23): el cachet del pedido, tal como lo dejó el cliente. Un dato, no un cálculo.
+                Budget = gig.Budget,
+                Currency = gig.Currency
             };
             GigResponses.Fill(row, gig, groupName, groupSlug, callerRole, mine?.Status);
             return row;
