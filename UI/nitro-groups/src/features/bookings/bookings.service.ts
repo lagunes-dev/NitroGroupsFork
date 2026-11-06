@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/api-client";
 import type { EventRequestSignals } from "./signals";
-import type { CreateEventRequestBody, EventRequest, EventRequestStatus } from "./types";
+import type { CreateEventRequestBody, EventRequest, EventRequestStatus, EventReview } from "./types";
 
 /** API de solicitudes de evento. El usuario siempre sale del token (apiClient lo adjunta). */
 export const bookingsService = {
@@ -24,6 +24,10 @@ export const bookingsService = {
 
     postMessage: async (id: number, body: string) =>
         (await apiClient.post(`/event-requests/${id}/messages`, { body })).data,
+
+    /** D7: the client's review of an accepted event that already happened (one per event). */
+    review: async (id: number, body: { rating: number; comment?: string }) =>
+        (await apiClient.post<EventReview>(`/event-requests/${id}/review`, body)).data,
 
     /** D6: the day clash and the budget comparison of one request of that group. */
     signals: async (groupId: number, id: number) =>

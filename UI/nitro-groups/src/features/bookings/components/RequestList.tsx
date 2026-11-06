@@ -41,6 +41,11 @@ export function RequestList({ requests, viewer }: { requests: EventRequest[]; vi
                             {balance && <p className="relative tabular text-lg text-tinta">{balance}</p>}
                             {nextStep && <p className="relative text-base text-tinta">{nextStep}</p>}
                             {sent && <p className="relative text-sm text-tinta-2">{sent}</p>}
+                            {viewer === "Client" && r.canReview && (
+                                <Link href={`/solicitudes/${r.id}`} className="relative mt-1 inline-flex min-h-11 items-center text-acento underline-offset-4 hover:underline">
+                                    Puedes dejar tu reseña
+                                </Link>
+                            )}
                             {viewer === "Group" && r.isSelfBooked && <span className="block text-sm text-tinta-2">Cargada por el grupo</span>}
                         </div>
                         <p className="tabular md:col-span-2">

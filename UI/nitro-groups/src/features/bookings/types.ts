@@ -13,6 +13,13 @@ export interface EventRequestMessage {
     createdAt: string;
 }
 
+/** The client's review of one event, as `GET api/event-requests/{id}` carries it. */
+export interface EventReview {
+    rating: number;
+    comment: string | null;
+    createdAt: string;
+}
+
 export interface EventRequest {
     id: number;
     groupId: number;
@@ -41,6 +48,9 @@ export interface EventRequest {
      * accepted gig. The client's list never carries it and keeps rendering exactly as it did.
      */
     dateClash?: DateClashSignal | null;
+    /** D7: only on the client's payloads. True when the accepted event already happened and has no review. */
+    canReview?: boolean;
+    review?: EventReview | null;
 }
 
 export interface CreateEventRequestBody {

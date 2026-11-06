@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { MusicGroup } from "@/features/groups/types/MusicGroup";
 import type { PublicGroupTeamMember } from "@/features/groups/types/PublicGroupTeamMember";
+import { loadGroupReviews } from "@/features/groups/lib/loadGroupReviews";
 import { PublicGroupProfile } from "@/features/groups/components/PublicGroupProfile";
 import { serverGetResult } from "@/lib/serverApi";
 import { isIsoDate } from "@/lib/format";
@@ -47,12 +48,13 @@ export default async function GroupPublicPage({ params, searchParams }: Props) {
     const [group, session] = await Promise.all([loadGroup(slug), getNitroSession()]);
     if (!group) notFound();
 
-    const teamMembers = await loadTeam(group.id);
+    const [teamMembers, reviews] = await Promise.all([loadTeam(group.id), loadGroupReviews(group.id)]);
 
     return (
         <PublicGroupProfile
             group={group}
             teamMembers={teamMembers}
+            reviews={reviews}
             requestedDate={isIsoDate(fecha) ? fecha : undefined}
             signedIn={Boolean(session?.user)}
         />

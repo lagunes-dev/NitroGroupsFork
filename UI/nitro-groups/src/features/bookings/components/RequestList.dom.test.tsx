@@ -113,3 +113,19 @@ describe("RequestList clash of dates", () => {
         expect(screen.queryByText(/No podemos saber/)).toBeNull();
     });
 });
+
+describe("RequestList review cue", () => {
+    it("tells the client a finished request can be reviewed and links to its thread", () => {
+        render(<RequestList requests={[{ ...accepted, canReview: true, review: null }]} viewer="Client" />);
+        const cue = screen.getByRole("link", { name: "Puedes dejar tu reseña" });
+        expect(cue).toHaveAttribute("href", "/solicitudes/11");
+    });
+
+    it("shows no cue when the request cannot be reviewed or the group is looking", () => {
+        const { unmount } = render(<RequestList requests={[{ ...accepted, canReview: false }]} viewer="Client" />);
+        expect(screen.queryByText("Puedes dejar tu reseña")).toBeNull();
+        unmount();
+        render(<RequestList requests={[{ ...accepted, canReview: true }]} viewer="Group" />);
+        expect(screen.queryByText("Puedes dejar tu reseña")).toBeNull();
+    });
+});

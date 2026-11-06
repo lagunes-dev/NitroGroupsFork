@@ -12,6 +12,8 @@ import { balanceBlock, budgetLabel, clientDepositLabel, nextStepLabel, sentLabel
 import { availableActions, shortTime, statusLabel } from "../status";
 import { threadItems, type ThreadItem } from "../thread";
 import type { EventRequest, EventRequestParty } from "../types";
+import { ReviewForm } from "./ReviewForm";
+import { SavedReview } from "./SavedReview";
 import { RequestSignals } from "./RequestSignals";
 import { StatusBadge } from "./StatusBadge";
 
@@ -160,6 +162,9 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                         </button>
                     </form>
                 )}
+
+                {/* D7: only the client's own view; the group never sees the form nor the review here. */}
+                {viewer === "Client" && (r.review ? <SavedReview review={r.review} /> : r.canReview ? <ReviewForm requestId={r.id} /> : null)}
 
                 {actions.requestAgain && (
                     <div className="bg-fondo-2 rounded-xl p-5">
