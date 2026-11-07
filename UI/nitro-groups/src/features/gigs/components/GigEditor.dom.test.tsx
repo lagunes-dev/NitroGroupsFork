@@ -235,3 +235,65 @@ describe("Cuadre del toque (T60, S23)", () => {
         for (const term of screen.getAllByRole("term")) expect(term.parentElement).toHaveClass("flex-wrap");
     });
 });
+
+describe("Cuadre del toque follows what is typed", () => {
+    const deal: GroupGigPayload = { ...row, budget: 15000, currency: "MXN" };
+    const SAVED_NOTE = "Estas cifras son las que están guardadas. La app no cobra ni valida estos montos.";
+    const TYPED_NOTE = "Estas cifras siguen lo que escribes y todavía no están guardadas. La app no cobra ni valida estos montos.";
+
+    async function typePay(name: string, text: string) {
+        const box = screen.getByRole("spinbutton", { name: `Pago a ${name}` });
+        await userEvent.clear(box);
+        if (text) await userEvent.type(box, text);
+    }
+
+    it("moves 'Debes a tus músicos' and 'Diferencia' while a pay box is typed, and keeps the cachet", async () => {
+        renderEditor(deal);
+        await typePay("Mateo Ruiz", "3000");
+        const lines = settlementLines();
+        expect(lines["Cachet total"]).toBe("$15,000");
+        expect(lines["Debes a tus músicos"]).toBe("$4,500");
+        expect(lines["Diferencia"]).toBe("$10,500");
+    });
+
+    it("counts a musician who had no pay as soon as an amount is typed", async () => {
+        renderEditor(deal);
+        await typePay("Luis Peña", "500");
+        expect(settlementLines()["Debes a tus músicos"]).toBe("$4,000");
+    });
+
+    it("says the figures are the saved ones until something differs, then that they are not saved yet", async () => {
+        renderEditor(deal);
+        expect(screen.getByText(SAVED_NOTE)).toBeInTheDocument();
+
+        await typePay("Mateo Ruiz", "3000");
+        expect(screen.getByText(TYPED_NOTE)).toBeInTheDocument();
+        expect(screen.queryByText(SAVED_NOTE)).toBeNull();
+
+        await typePay("Mateo Ruiz", "2000");
+        expect(screen.getByText(SAVED_NOTE)).toBeInTheDocument();
+    });
+
+    it.each([
+        ["an empty box", ""],
+        ["text", "abc"],
+        ["a negative amount", "-5"],
+    ])("counts %s as no pay, with no NaN and no error", async (_label, text) => {
+        renderEditor(deal);
+        await typePay("Mateo Ruiz", text);
+        const lines = settlementLines();
+        expect(lines["Debes a tus músicos"]).toBe("$1,500");
+        expect(lines["Diferencia"]).toBe("$13,500");
+        expect(document.body.textContent).not.toMatch(/NaN/);
+        expect(screen.queryByRole("alert")).toBeNull();
+    });
+
+    it("states a negative difference as a plain fact while typing", async () => {
+        renderEditor({ ...deal, budget: 2000 });
+        await typePay("Mateo Ruiz", "2500");
+        expect(settlementLines()["Diferencia"]).toBe("-$2,000");
+        expect(screen.getAllByRole("definition").at(-1)).not.toHaveClass("text-error");
+        expect(screen.queryByRole("alert")).toBeNull();
+    });
+});
+

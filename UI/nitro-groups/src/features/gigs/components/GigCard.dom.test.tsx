@@ -567,7 +567,7 @@ describe("GigCard teammates and manager phone (S22)", () => {
     it("says who plays the gig with name and group role", () => {
         render(<GigCard gig={toGigView(withPeople)} {...props} />);
 
-        expect(screen.getByText("Con quién tocás")).toBeInTheDocument();
+        expect(screen.getByText("Con quién tocas")).toBeInTheDocument();
         expect(screen.getByText("Mateo Músico · Miembro")).toBeInTheDocument();
         expect(screen.getByText("Luis Percusión · Manager")).toBeInTheDocument();
     });
@@ -590,7 +590,7 @@ describe("GigCard teammates and manager phone (S22)", () => {
     it("draws nothing when there are no teammates and no phone", () => {
         render(<GigCard gig={toGigView(row)} {...props} />);
 
-        expect(screen.queryByText("Con quién tocás")).toBeNull();
+        expect(screen.queryByText("Con quién tocas")).toBeNull();
         expect(screen.queryByRole("link", { name: /^Llamar a/ })).toBeNull();
     });
 
@@ -598,14 +598,14 @@ describe("GigCard teammates and manager phone (S22)", () => {
         render(<GigCard gig={toGigView({ ...row, managerPhone: "33 1234 5678" })} {...props} />);
 
         // Sin compañeros confirmados no hay bloque de quiénes tocan, pero el contacto sigue ahí.
-        expect(screen.queryByText("Con quién tocás")).toBeNull();
+        expect(screen.queryByText("Con quién tocas")).toBeNull();
         expect(screen.getByRole("link", { name: "Llamar a Versátil Rock y Pop" })).toHaveAttribute("href", "tel:3312345678");
     });
 
     it("draws nobody and no phone on a past gig: it keeps exactly what it already showed", () => {
         render(<GigCard gig={toGigView(withPeople)} past {...props} />);
 
-        expect(screen.queryByText("Con quién tocás")).toBeNull();
+        expect(screen.queryByText("Con quién tocas")).toBeNull();
         expect(screen.queryByRole("link", { name: /^Llamar a/ })).toBeNull();
         // Lo de siempre sigue ahí.
         expect(screen.getByText("Este toque ya pasó")).toBeInTheDocument();
@@ -615,7 +615,7 @@ describe("GigCard teammates and manager phone (S22)", () => {
     it("never draws an empty name or an empty label", () => {
         render(<GigCard gig={toGigView({ ...row, managerPhone: "   ", teammates: [{ fullName: "  " }] as never })} {...props} />);
 
-        expect(screen.queryByText("Con quién tocás")).toBeNull();
+        expect(screen.queryByText("Con quién tocas")).toBeNull();
         expect(screen.queryByRole("link", { name: /^Llamar a/ })).toBeNull();
     });
 
@@ -624,13 +624,13 @@ describe("GigCard teammates and manager phone (S22)", () => {
 
         expect(screen.getByText(/19 de noviembre/i)).toBeInTheDocument();
         expect(screen.getByRole("button", { name: /Confirmar el/ })).toBeInTheDocument();
-        expect(screen.queryByText("Con quién tocás")).toBeNull();
+        expect(screen.queryByText("Con quién tocas")).toBeNull();
     });
 
     it("names every teammate in one compact row, stacked at 390 px", () => {
         render(<GigCard gig={toGigView(withPeople)} {...props} />);
 
-        const list = screen.getByRole("list", { name: "Con quién tocás" });
+        const list = screen.getByRole("list", { name: "Con quién tocas" });
         expect(within(list).getAllByRole("listitem")).toHaveLength(2);
         // Se apila en el celular y se pone en fila cuando hay ancho, sin partidas raras.
         expect(list.className).toContain("flex-col");

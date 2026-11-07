@@ -576,3 +576,6 @@ ai/logs/
 # Gentle-AI (índice local de skills, rutas de la máquina)
 .atl/
 backup/
+
+# Capturas que las críticas de QA guardan junto a sus scripts: son efímeras, no se versionan.
+scripts/qa/*.png

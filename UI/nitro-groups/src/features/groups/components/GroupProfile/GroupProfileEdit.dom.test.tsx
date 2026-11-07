@@ -73,7 +73,7 @@ describe("El teléfono del grupo en el formulario del manager (S22)", () => {
 
         // La promesa es la de S22: solo el miembro activo lo ve, y el campo vacío es el interruptor.
         expect(screen.getByText(/integrantes activos/i)).toBeInTheDocument();
-        expect(screen.getByText(/si lo dejás vacío, nadie lo ve/i)).toBeInTheDocument();
+        expect(screen.getByText(/si lo dejas vacío, nadie lo ve/i)).toBeInTheDocument();
     });
 
     it("writes into the state that gets saved, never into a field the app ignores", async () => {

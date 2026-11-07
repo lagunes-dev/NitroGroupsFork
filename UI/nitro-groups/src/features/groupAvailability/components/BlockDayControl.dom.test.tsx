@@ -189,3 +189,20 @@ describe("S26 · no afirma lo que todavía no leyó", () => {
         expect(button).toBeDisabled();
     });
 });
+
+describe("S26 · objetivos táctiles del diálogo", () => {
+    it.each([["Bloquear", "Bloquear día"], ["Desbloquear", "Desbloquear día"]] as const)(
+        "keeps 44 px on both dialog buttons when confirming '%s'",
+        async (verb, action) => {
+            const user = userEvent.setup();
+            service.getGroupSchedules.mockResolvedValue(verb === "Desbloquear" ? [wholeDayBlock(DAY)] : []);
+            renderControl();
+
+            await user.click(await toggle(verb));
+            const dialog = screen.getByRole("dialog");
+            expect(within(dialog).getByRole("button", { name: "Cancelar" })).toHaveClass("min-h-11");
+            expect(within(dialog).getByRole("button", { name: action })).toHaveClass("min-h-11");
+        }
+    );
+});
+

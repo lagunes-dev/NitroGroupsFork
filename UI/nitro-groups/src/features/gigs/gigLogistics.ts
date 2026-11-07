@@ -215,24 +215,54 @@ export interface GigSettlement {
     owed: string;
     /** "$11,500", "-$1,500", or "No se puede calcular" without a cachet. Never stated as an error. */
     difference: string;
+    /** Says whether the figures are the saved ones or follow what is being typed. */
+    note: string;
 }
 
 const NO_DIFFERENCE = "No se puede calcular";
 const NO_AMOUNT = "Sin monto";
 
-/** The cuadre of one gig, read from the row the manager already has. Un cero no es un cachet. */
-export function gigSettlement(row: Pick<GroupGigPayload, "budget" | "currency" | "attendees">): GigSettlement {
+const SETTLEMENT_DISCLAIMER = "La app no cobra ni valida estos montos.";
+const NOTE_SAVED = `Estas cifras son las que están guardadas. ${SETTLEMENT_DISCLAIMER}`;
+const NOTE_TYPED = `Estas cifras siguen lo que escribes y todavía no están guardadas. ${SETTLEMENT_DISCLAIMER}`;
+
+/** What the pay boxes would save: the same parsing as `buildPayBody`, so the block and the save agree. */
+function typedPayments(pay: Record<string, string>): Map<string, number> {
+    return new Map(buildPayBody(pay).payments.map((payment) => [String(payment.userId), payment.amount]));
+}
+
+function samePayments(a: Map<string, number>, b: Map<string, number>): boolean {
+    return a.size === b.size && [...a].every(([userId, amount]) => b.get(userId) === amount);
+}
+
+/**
+ * The cuadre of one gig. Without `typedPay` it reads the saved row; with it (the editor's pay boxes,
+ * as typed) the owed sum and the difference follow the boxes while the cachet stays the saved budget.
+ * An empty or unreadable box is no pay. Un cero no es un cachet.
+ */
+export function gigSettlement(
+    row: Pick<GroupGigPayload, "budget" | "currency" | "attendees">,
+    typedPay?: Record<string, string>
+): GigSettlement {
     const currency = typeof row.currency === "string" && row.currency.trim() ? row.currency : "MXN";
     const budget = readAmount(row.budget);
     const cachet = budget !== null && budget > 0 ? budget : null;
 
     let owed = 0;
-    for (const attendee of row.attendees ?? []) owed += readAmount(attendee.pay) ?? 0;
+    let note = NOTE_SAVED;
+    if (typedPay) {
+        const typed = typedPayments(typedPay);
+        for (const amount of typed.values()) owed += amount;
+        if (!samePayments(typed, typedPayments(initialLogisticsForm({ attendees: row.attendees }).pay))) note = NOTE_TYPED;
+    } else {
+        for (const attendee of row.attendees ?? []) owed += readAmount(attendee.pay) ?? 0;
+    }
 
     const difference = cachet === null ? NO_DIFFERENCE : (formatPrice(cachet - owed, currency) ?? NO_DIFFERENCE);
     return {
         cachet: budgetLabel({ budget: cachet, currency }),
         owed: formatPrice(owed, currency) ?? NO_AMOUNT,
         difference,
+        note,
     };
 }

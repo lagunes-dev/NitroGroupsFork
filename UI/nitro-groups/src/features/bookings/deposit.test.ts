@@ -87,6 +87,52 @@ describe("nextStepLabel", () => {
     it("is only for the client", () => {
         expect(nextStepLabel({ status: "Accepted", budget: 18000, deposit: received }, "Group")).toBeNull();
     });
+
+    // Ronda 9 (Camila): con la fecha límite del saldo ya dicha arriba, "para el día del evento" era un
+    // segundo plazo para el mismo saldo, y los dos se contradecían.
+    it("does not name a second date for the balance when the group loaded the deadline", () => {
+        const step = nextStepLabel(
+            { status: "Accepted", budget: 12000, deposit: received, balanceDueDate: "2026-11-15", eventDate: "2026-12-19" },
+            "Client",
+            "2026-11-07"
+        );
+
+        expect(step).toBe("Acuerda el saldo con el grupo.");
+        expect(step).not.toMatch(/día del evento/);
+    });
+
+    it("keeps the event day as the balance purpose while there is no deadline", () => {
+        expect(
+            nextStepLabel({ status: "Accepted", budget: 12000, deposit: received, eventDate: "2026-12-19" }, "Client", "2026-11-07")
+        ).toBe("Acuerda el saldo con el grupo para el día del evento.");
+    });
+
+    // Ronda 9 (Camila): un evento que ya pasó no puede pedir "cerrar la fecha" ni "acordar el saldo para
+    // el día del evento": son acciones sobre un futuro que ya no existe.
+    it("states that a past event is over instead of asking to settle it", () => {
+        const past = { status: "Accepted" as const, eventDate: "2026-10-24", budget: 9000 };
+
+        expect(nextStepLabel(past, "Client", "2026-11-07")).toBe("Este evento ya pasó.");
+        expect(nextStepLabel({ ...past, deposit: received }, "Client", "2026-11-07")).toBe("Este evento ya pasó.");
+    });
+
+    it("still says nothing is owed on a past event the group recorded as paid", () => {
+        expect(
+            nextStepLabel({ status: "Accepted", eventDate: "2026-10-24", balanceReceivedAt: "2026-10-25T02:00:00Z" }, "Client", "2026-11-07")
+        ).toBe("No queda nada por pagar.");
+    });
+
+    it("does not treat the day of the event as past", () => {
+        expect(
+            nextStepLabel({ status: "Accepted", eventDate: "2026-11-07", budget: 9000 }, "Client", "2026-11-07")
+        ).toBe("Acuerda el anticipo con el grupo para cerrar la fecha.");
+    });
+
+    it("never invents a past event from a date it cannot read", () => {
+        expect(nextStepLabel({ status: "Accepted", eventDate: "no es fecha", budget: 9000 }, "Client", "2026-11-07")).toBe(
+            "Acuerda el anticipo con el grupo para cerrar la fecha."
+        );
+    });
 });
 
 describe("fecha límite del anticipo y del saldo (T61, S24)", () => {
@@ -151,15 +197,16 @@ describe("fecha límite del anticipo y del saldo (T61, S24)", () => {
     });
 
     it("uses the deadline as the block's 'para el …' instead of repeating it", () => {
-        expect(balanceBlock({ ...owed, balanceDueDate: "2026-11-15", eventDate: "2026-12-12" }, "Client")).toEqual({
+        expect(balanceBlock({ ...owed, balanceDueDate: "2026-11-15", eventDate: "2026-12-12" }, "Client", "2026-11-07")).toEqual({
             balance: "Falta pagar $14,000 · para el 15 de noviembre",
             purpose: null,
-            nextStep: "Acuerda el saldo con el grupo para el día del evento.",
+            // Una sola fecha para el saldo: la del plazo. "El día del evento" sería otra y se contradirían.
+            nextStep: "Acuerda el saldo con el grupo.",
         });
     });
 
     it("keeps the event day as the purpose while there is no deadline", () => {
-        expect(balanceBlock({ ...owed, eventDate: "2026-12-12" }, "Client")).toEqual({
+        expect(balanceBlock({ ...owed, eventDate: "2026-12-12" }, "Client", "2026-11-07")).toEqual({
             balance: "Falta pagar $14,000",
             purpose: "para el 12 de diciembre",
             nextStep: "Acuerda el saldo con el grupo para el día del evento.",
