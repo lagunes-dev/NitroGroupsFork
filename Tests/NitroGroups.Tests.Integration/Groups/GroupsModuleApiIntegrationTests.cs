@@ -54,6 +54,66 @@ public class GroupsModuleApiIntegrationTests(IntegrationTestFixture fixture) : I
         Assert.Equal([OwnerId, ManagerId], managers.Order());
     }
 
+    [Fact]
+    public async Task GetUserGroupMembershipsAsync_SoloActivas_YOwnerManagerMemberConLaMasViejaPrimero()
+    {
+        await using var context = fixture.CreateGroupsContext();
+        var userId = 30;
+        var joinedAt = new DateTime(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc);
+
+        var oldestMemberGroupId = await SeedNamedGroupAsync(context, "Los Viejos");
+        var newerMemberGroupId = await SeedNamedGroupAsync(context, "Los Nuevos");
+        var managerGroupId = await SeedNamedGroupAsync(context, "Los Managers");
+        var ownerGroupId = await SeedNamedGroupAsync(context, "Los Dueños");
+        var formerGroupId = await SeedNamedGroupAsync(context, "Los Ex");
+
+        context.GroupMembers.AddRange(
+            new GroupMember { GroupId = oldestMemberGroupId, UserId = userId, Role = GroupMemberRole.Member, IsActive = true, JoinedAt = joinedAt.AddYears(-3) },
+            new GroupMember { GroupId = newerMemberGroupId, UserId = userId, Role = GroupMemberRole.Member, IsActive = true, JoinedAt = joinedAt.AddMonths(-1) },
+            new GroupMember { GroupId = managerGroupId, UserId = userId, Role = GroupMemberRole.Manager, IsActive = true, JoinedAt = joinedAt },
+            new GroupMember { GroupId = ownerGroupId, UserId = userId, Role = GroupMemberRole.Owner, IsActive = true, JoinedAt = joinedAt },
+            // La fila inactiva (grupo del que ya salió) no debe aparecer.
+            new GroupMember { GroupId = formerGroupId, UserId = userId, Role = GroupMemberRole.Owner, IsActive = false, JoinedAt = joinedAt.AddYears(-5) },
+            // La membresía de otro usuario no se mezcla.
+            new GroupMember { GroupId = formerGroupId, UserId = 31, Role = GroupMemberRole.Owner, IsActive = true, JoinedAt = joinedAt });
+        await context.SaveChangesAsync();
+
+        var memberships = await new GroupsModuleApi(context).GetUserGroupMembershipsAsync(userId);
+
+        // Owner, Manager, Member (por privilegio) y, dentro del mismo rol, la membresía más vieja primero.
+        Assert.Equal(
+            [ownerGroupId, managerGroupId, oldestMemberGroupId, newerMemberGroupId],
+            memberships.Select(m => m.GroupId));
+        Assert.Equal(
+            [GroupMemberRole.Owner, GroupMemberRole.Manager, GroupMemberRole.Member, GroupMemberRole.Member],
+            memberships.Select(m => m.Role));
+        Assert.Equal(["Los Dueños", "Los Managers", "Los Viejos", "Los Nuevos"], memberships.Select(m => m.GroupName));
+        Assert.Equal(joinedAt.AddYears(-3), memberships[2].JoinedAt);
+    }
+
+    [Fact]
+    public async Task GetUserGroupMembershipsAsync_SinMembresias_ListaVacia()
+    {
+        await using var context = fixture.CreateGroupsContext();
+
+        Assert.Empty(await new GroupsModuleApi(context).GetUserGroupMembershipsAsync(StrangerId));
+    }
+
+    private static async Task<long> SeedNamedGroupAsync(
+        Core.Groups.Infrastructure.Persistence.GroupsDbContext context, string groupName)
+    {
+        var group = new Group
+        {
+            OwnerUserId = OwnerId,
+            Slug = $"los-test-{Guid.NewGuid():N}",
+            GroupName = groupName,
+            Active = true
+        };
+        context.Groups.Add(group);
+        await context.SaveChangesAsync();
+        return group.Id;
+    }
+
     private static async Task<long> SeedGroupAsync(Core.Groups.Infrastructure.Persistence.GroupsDbContext context)
     {
         var group = new Group { OwnerUserId = OwnerId, Slug = $"los-test-{Guid.NewGuid():N}", GroupName = "Los Test", Active = true };

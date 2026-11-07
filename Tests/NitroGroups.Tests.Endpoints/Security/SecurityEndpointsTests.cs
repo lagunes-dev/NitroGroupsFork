@@ -55,9 +55,13 @@ public class SecurityEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
         "GET api/groups/slug/{slug}",
         "GET api/groups/search",
         "GET api/groups/{groupId:long}/members",
+        "GET api/groups/{groupId:long}/team/public",
         "GET api/groups/{groupId:long}/media",
         "GET api/groups/{groupId:long}/schedule",
         "GET api/groups/{id}/schedules",
+        "GET api/groups/{groupId:long}/reviews",
+        "GET api/musicians",
+        "GET api/musicians/{userId:long}",
         "GET /openapi/{documentName}.json",
     ];
 
@@ -92,6 +96,8 @@ public class SecurityEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
     [InlineData("POST", "api/membership-requests/1/cancel")]
     [InlineData("GET", "api/groups/1/membership-requests")]
     [InlineData("GET", "api/membership-requests/mine")]
+    [InlineData("GET", "api/users/me/memberships")]
+    [InlineData("POST", "api/event-requests/1/review")]
     public async Task EndpointsPrivados_SinToken_Returns401(string method, string url)
     {
         using var request = new HttpRequestMessage(new HttpMethod(method), url) { Content = JsonContent.Create(new { }) };

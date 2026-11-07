@@ -490,6 +490,63 @@ namespace NitroGroups.Core.Groups.Infrastructure.Persistence.Migrations
                     b.ToTable("group_membership_requests", "groups");
                 });
 
+            modelBuilder.Entity("NitroGroups.Core.Groups.Domain.Entities.GroupProfileVisit", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<long?>("DeletedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<long>("GroupId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("group_id");
+
+                    b.Property<DateTime>("LastVisitedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_visited_at");
+
+                    b.Property<long>("MusicianUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("musician_user_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupId", "MusicianUserId")
+                        .IsUnique();
+
+                    b.HasIndex("MusicianUserId", "LastVisitedAt");
+
+                    b.ToTable("group_profile_visits", "groups");
+                });
+
             modelBuilder.Entity("NitroGroups.Core.Groups.Domain.Entities.MusicGenre", b =>
                 {
                     b.Property<long>("Id")
@@ -652,6 +709,17 @@ namespace NitroGroups.Core.Groups.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("NitroGroups.Core.Groups.Domain.Entities.GroupMembershipRequest", b =>
+                {
+                    b.HasOne("NitroGroups.Core.Groups.Domain.Entities.Group", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("NitroGroups.Core.Groups.Domain.Entities.GroupProfileVisit", b =>
                 {
                     b.HasOne("NitroGroups.Core.Groups.Domain.Entities.Group", "Group")
                         .WithMany()

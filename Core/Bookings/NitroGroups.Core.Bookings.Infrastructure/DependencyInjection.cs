@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NitroGroups.Core.Bookings.Application.Abstractions;
 using NitroGroups.Core.Bookings.Infrastructure.Persistence;
 using NitroGroups.Core.Bookings.Infrastructure.Repositories;
+using NitroGroups.Shared.Contracts.Modules;
 using NitroGroups.Shared.EndpointMapping;
 using NitroGroups.Shared.Infrastructure.Persistence;
 
@@ -15,6 +16,8 @@ public static class DependencyInjection
         services.AddModuleDbContext<BookingsDbContext>(configuration, BookingsDbContext.SchemaName);
         services.AddBookingsRepositories();
 
+        services.AddScoped<IBookingsModuleApi, Adapters.BookingsModuleApi>();
+
         services.AddEndpoints(typeof(DependencyInjection).Assembly);
 
         return services;
@@ -24,6 +27,10 @@ public static class DependencyInjection
     public static IServiceCollection AddBookingsRepositories(this IServiceCollection services)
     {
         services.AddScoped<IEventRequestRepository, EventRequestRepository>();
+        services.AddScoped<IGigAttendanceRepository, GigAttendanceRepository>();
+        services.AddScoped<IGigPayRepository, GigPayRepository>();
+        services.AddScoped<IEventReviewRepository, EventReviewRepository>();
+        services.AddScoped<IGigNoticeRepository, GigNoticeRepository>();
         services.AddModuleUnitOfWork<IUnitOfWorkBookings, UnitOfWorkBookings, BookingsDbContext>();
         return services;
     }

@@ -51,7 +51,8 @@ public sealed class PostEventRequestMessageCommandHandler(
             return BookingResult<EventRequestMessageResponse>.Failure(BookingErrorKind.Conflict, "La solicitud cambió mientras escribías. Recarga y vuelve a enviar tu mensaje.");
         }
 
-        var response = await EventRequestResponses.BuildAsync(request, groups, users, includeMessages: true, cancellationToken);
+        var response = await EventRequestResponses.BuildAsync(
+            request, groups, users, unitOfWork.EventReviews, time, command.UserId, includeMessages: true, cancellationToken);
         return BookingResult<EventRequestMessageResponse>.Success(response.Messages!.Single(m => m.Id == message.Id));
     }
 }

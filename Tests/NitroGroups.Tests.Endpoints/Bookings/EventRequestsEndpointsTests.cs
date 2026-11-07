@@ -145,6 +145,202 @@ public class EventRequestsEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
         Assert.Contains("El grupo no está disponible en esa fecha.", await response.Content.ReadAsStringAsync());
     }
 
+    /// <summary>Un renglón con todos los campos del contrato, como lo arma el handler.</summary>
+    private static EventRequestResponse Row(long id = 3) => new()
+    {
+        Id = id,
+        GroupId = 1,
+        GroupName = "Los Vargas",
+        GroupSlug = "los-vargas",
+        ClientName = "Ana L.",
+        EventDate = new DateOnly(2026, 12, 12),
+        StartTime = new TimeOnly(21, 0),
+        DurationHours = 3,
+        EventType = "Boda",
+        LocationText = "Salón Los Arcos, CDMX",
+        GuestCount = 150,
+        Budget = 25000m,
+        Currency = "MXN",
+        Message = "Buscamos mariachi para la entrada y el vals.",
+        Status = EventRequestStatus.Pending,
+        IsSelfBooked = false,
+        CreatedAt = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc),
+        RespondedAt = null,
+        ResponseMessage = null,
+        Deposit = new GigDepositResponse(),
+        CanReview = false,
+        Review = null,
+        Messages = null
+    };
+
+    private static DateClashSignalResponse Clash() => new()
+    {
+        Clashes = true,
+        WithGig = new ClashingGigResponse
+        {
+            Id = 77,
+            EventType = "Boda",
+            LocationText = "Hacienda San Gabriel",
+            StartTime = "20:00",
+            DurationHours = 2
+        }
+    };
+
+    /// <summary>Los campos de siempre, en su orden.</summary>
+    private static readonly string[] LegacyKeys =
+    [
+        "id", "groupId", "groupName", "groupSlug", "clientName", "eventDate", "startTime",
+        "durationHours", "eventType", "locationText", "guestCount", "budget", "currency",
+        "message", "status", "isSelfBooked", "createdAt", "respondedAt", "responseMessage",
+        "deposit", "canReview", "review", "messages"
+    ];
+
+    // T29: la bandeja del grupo avisa del choque sin abrir el hilo (S11).
+    [Fact]
+    public async Task BandejaDelGrupo_LaFilaAvisaDelChoqueYConservaLosCamposDeSiempreEnSuOrden()
+    {
+        var row = Row();
+        row.DateClash = Clash();
+        _mediator.SendQueryAsync<GetGroupEventRequestsQuery, List<EventRequestResponse>>(Arg.Any<GetGroupEventRequestsQuery>())
+            .Returns([row]);
+
+        var response = await _client.GetAsync("api/groups/1/event-requests");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var item = json.RootElement[0];
+
+        // El campo nuevo entra al final: los de siempre no se movieron ni se perdieron.
+        Assert.Equal([.. LegacyKeys, "balanceReceivedAt", "balanceDueDate", "dateClash"], item.EnumerateObject().Select(property => property.Name));
+
+        var clash = item.GetProperty("dateClash");
+        Assert.True(clash.GetProperty("clashes").GetBoolean());
+        var withGig = clash.GetProperty("withGig");
+        Assert.Equal(77, withGig.GetProperty("id").GetInt64());
+        Assert.Equal("Boda", withGig.GetProperty("eventType").GetString());
+        Assert.Equal("Hacienda San Gabriel", withGig.GetProperty("locationText").GetString());
+        // Con horas, la fila puede decir "se pisa 2 h con Boda 20:00".
+        Assert.Equal("20:00", withGig.GetProperty("startTime").GetString());
+        Assert.Equal(2, withGig.GetProperty("durationHours").GetInt32());
+    }
+
+    [Fact]
+    public async Task BandejaDelGrupo_FilaSinChoque_NoLlevaElObjetoDelChoque()
+    {
+        _mediator.SendQueryAsync<GetGroupEventRequestsQuery, List<EventRequestResponse>>(Arg.Any<GetGroupEventRequestsQuery>())
+            .Returns([Row()]);
+
+        var response = await _client.GetAsync("api/groups/1/event-requests");
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var item = json.RootElement[0];
+
+        // Sin choque el hecho es null, y un null no viaja: la fila queda como siempre.
+        Assert.False(item.TryGetProperty("dateClash", out _));
+        Assert.Equal([.. LegacyKeys, "balanceReceivedAt", "balanceDueDate"], item.EnumerateObject().Select(property => property.Name));
+    }
+
+    // T29: el cliente nunca ve si el grupo está ocupado.
+    [Fact]
+    public async Task Mias_LaFilaDelClienteNoLlevaElCampoDelChoque()
+    {
+        _mediator.SendQueryAsync<GetMyEventRequestsQuery, List<EventRequestResponse>>(Arg.Any<GetMyEventRequestsQuery>())
+            .Returns([Row()]);
+
+        var response = await _client.GetAsync("api/event-requests/mine");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var item = json.RootElement[0];
+
+        // El contrato del cliente no cambia en absoluto: ni el campo ni el objeto.
+        Assert.False(item.TryGetProperty("dateClash", out _));
+        Assert.DoesNotContain("dateClash", await response.Content.ReadAsStringAsync());
+        // T48: lo único nuevo es el saldo recibido, al final de los campos de siempre.
+        Assert.Equal([.. LegacyKeys, "balanceReceivedAt", "balanceDueDate"], item.EnumerateObject().Select(property => property.Name));
+    }
+
+    // T48 (S18): el cliente ve cuándo se recibió su saldo, y nunca lo que se le paga a los músicos.
+    [Fact]
+    public async Task Mias_ElClienteVeElSaldoRecibido_PeroNuncaElPagoNiLaFechaDePagoDeLosMusicos()
+    {
+        var received = Row();
+        received.BalanceReceivedAt = new DateTime(2026, 12, 13, 15, 0, 0, DateTimeKind.Utc);
+        _mediator.SendQueryAsync<GetMyEventRequestsQuery, List<EventRequestResponse>>(Arg.Any<GetMyEventRequestsQuery>())
+            .Returns([received, Row()]);
+
+        var response = await _client.GetAsync("api/event-requests/mine");
+
+        var body = await response.Content.ReadAsStringAsync();
+        using var json = JsonDocument.Parse(body);
+        Assert.Equal("2026-12-13T15:00:00Z", json.RootElement[0].GetProperty("balanceReceivedAt").GetString());
+        Assert.Equal(JsonValueKind.Null, json.RootElement[1].GetProperty("balanceReceivedAt").ValueKind);
+        Assert.DoesNotContain("paidAt", body);
+        Assert.DoesNotContain("myPay", body);
+        Assert.DoesNotContain("setlist", body);
+        Assert.DoesNotContain("attendees", body);
+    }
+
+    // T61 (S24): el cliente ve la fecha límite del anticipo y la del saldo en su lista y en su
+    // detalle, como días del calendario ("YYYY-MM-DD"). Sin fecha cargada, el campo viaja nulo y el
+    // texto del cliente queda como está.
+    [Fact]
+    public async Task Mias_ElClienteVeLaFechaLimiteDelAnticipoYDelSaldo()
+    {
+        var withDates = Row();
+        withDates.Deposit = new GigDepositResponse { Amount = 4000m, DueDate = new DateOnly(2026, 11, 15) };
+        withDates.BalanceDueDate = new DateOnly(2026, 12, 12);
+        _mediator.SendQueryAsync<GetMyEventRequestsQuery, List<EventRequestResponse>>(Arg.Any<GetMyEventRequestsQuery>())
+            .Returns([withDates, Row()]);
+        _mediator.SendQueryAsync<GetEventRequestByIdQuery, BookingResult<EventRequestResponse>>(Arg.Any<GetEventRequestByIdQuery>())
+            .Returns(BookingResult<EventRequestResponse>.Success(withDates));
+
+        var list = await _client.GetAsync("api/event-requests/mine");
+        var detail = await _client.GetAsync("api/event-requests/7");
+
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+
+        using var listJson = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
+        Assert.Equal("2026-11-15", listJson.RootElement[0].GetProperty("deposit").GetProperty("dueDate").GetString());
+        Assert.Equal("2026-12-12", listJson.RootElement[0].GetProperty("balanceDueDate").GetString());
+        // Sin fecha cargada: nulo, nunca una fecha inventada.
+        Assert.Equal(JsonValueKind.Null, listJson.RootElement[1].GetProperty("deposit").GetProperty("dueDate").ValueKind);
+        Assert.Equal(JsonValueKind.Null, listJson.RootElement[1].GetProperty("balanceDueDate").ValueKind);
+
+        using var detailJson = JsonDocument.Parse(await detail.Content.ReadAsStringAsync());
+        Assert.Equal("2026-11-15", detailJson.RootElement.GetProperty("deposit").GetProperty("dueDate").GetString());
+        Assert.Equal("2026-12-12", detailJson.RootElement.GetProperty("balanceDueDate").GetString());
+    }
+
+    // T59 (S22): el cliente nunca ve con quién toca el grupo ni el teléfono de su manager, ni en la
+    // lista ni en el detalle: el contrato del cliente no cambia en absoluto.
+    [Fact]
+    public async Task Mias_ElClienteNoLlevaTelefonoDelManagerNiCompaneros_EnLaListaNiEnElDetalle()
+    {
+        _mediator.SendQueryAsync<GetMyEventRequestsQuery, List<EventRequestResponse>>(Arg.Any<GetMyEventRequestsQuery>())
+            .Returns([Row()]);
+        _mediator.SendQueryAsync<GetEventRequestByIdQuery, BookingResult<EventRequestResponse>>(Arg.Any<GetEventRequestByIdQuery>())
+            .Returns(BookingResult<EventRequestResponse>.Success(Row()));
+
+        var list = await _client.GetAsync("api/event-requests/mine");
+        var detail = await _client.GetAsync("api/event-requests/7");
+
+        var listBody = await list.Content.ReadAsStringAsync();
+        var detailBody = await detail.Content.ReadAsStringAsync();
+        foreach (var body in new[] { listBody, detailBody })
+        {
+            Assert.DoesNotContain("managerPhone", body);
+            Assert.DoesNotContain("teammates", body);
+        }
+
+        using var listJson = JsonDocument.Parse(listBody);
+        Assert.Equal([.. LegacyKeys, "balanceReceivedAt", "balanceDueDate"], listJson.RootElement[0].EnumerateObject().Select(property => property.Name));
+        using var detailJson = JsonDocument.Parse(detailBody);
+        Assert.DoesNotContain("managerPhone", detailJson.RootElement.EnumerateObject().Select(property => property.Name));
+        Assert.DoesNotContain("teammates", detailJson.RootElement.EnumerateObject().Select(property => property.Name));
+    }
+
     [Fact]
     public async Task Mias_UsaElUsuarioDelToken()
     {

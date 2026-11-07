@@ -42,12 +42,12 @@ export default function GroupProfileView({ group, isPublic, toggleEdit }: GroupP
             {group.isAcceptingBookings ? (
               <span className="inline-flex items-center gap-2 text-ok">
                 <span aria-hidden className="size-2 rounded-full bg-current" />
-                Recibiendo solicitudes
+                Recibiendo pedidos de fecha
               </span>
             ) : (
               <span className="inline-flex items-center gap-2 text-tinta-2">
                 <span aria-hidden className="size-2 rounded-full border-2 border-current" />
-                Solicitudes en pausa
+                Pedidos de fecha en pausa
               </span>
             )}
             {group.isVerified && (
@@ -82,7 +82,7 @@ export default function GroupProfileView({ group, isPublic, toggleEdit }: GroupP
         </div>
       )}
 
-      <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-5 rounded-[12px] bg-fondo-2 p-5 sm:grid-cols-3 md:px-6 xl:grid-cols-[1fr_1.5fr_1fr_1fr_1fr_1.3fr]">
+      <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-5 rounded-[12px] bg-fondo-2 p-5 sm:grid-cols-3 md:px-6 xl:grid-cols-[1fr_1.5fr_0.9fr_0.9fr_1fr_1.8fr]">
         {facts.map((fact) => (
           <div key={fact.label} className="min-w-0">
             <dt className="text-sm leading-5 text-tinta-2">{fact.label}</dt>

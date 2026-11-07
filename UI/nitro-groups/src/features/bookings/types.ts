@@ -1,3 +1,6 @@
+import type { DepositPayload } from "./deposit";
+import type { DateClashSignal } from "./signals";
+
 export type EventRequestStatus = "Pending" | "Accepted" | "Declined" | "Cancelled";
 export type EventRequestParty = "Client" | "Group";
 
@@ -7,6 +10,13 @@ export interface EventRequestMessage {
     senderParty: EventRequestParty;
     senderName: string;
     body: string;
+    createdAt: string;
+}
+
+/** The client's review of one event, as `GET api/event-requests/{id}` carries it. */
+export interface EventReview {
+    rating: number;
+    comment: string | null;
     createdAt: string;
 }
 
@@ -31,6 +41,18 @@ export interface EventRequest {
     respondedAt: string | null;
     responseMessage: string | null;
     messages?: EventRequestMessage[] | null;
+    /** Recorded by the group once the request is accepted; the app never charges it. */
+    deposit?: DepositPayload | null;
+    /** T48: ISO timestamp the group recorded when the balance arrived; null until then. */
+    balanceReceivedAt?: string | null;
+    /**
+     * T39: only on the lists the group receives, one per row, and only when the day already has an
+     * accepted gig. The client's list never carries it and keeps rendering exactly as it did.
+     */
+    dateClash?: DateClashSignal | null;
+    /** D7: only on the client's payloads. True when the accepted event already happened and has no review. */
+    canReview?: boolean;
+    review?: EventReview | null;
 }
 
 export interface CreateEventRequestBody {

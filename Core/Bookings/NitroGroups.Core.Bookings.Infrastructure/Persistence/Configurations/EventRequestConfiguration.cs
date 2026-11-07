@@ -34,6 +34,16 @@ public class EventRequestConfiguration : IEntityTypeConfiguration<EventRequest>
         builder.Property(e => e.RespondedAt).HasColumnName("responded_at");
         builder.Property(e => e.ResponseMessage).HasColumnName("response_message").HasColumnType("text");
 
+        builder.Property(e => e.Setlist).HasColumnName("setlist").HasMaxLength(4000);
+        builder.Property(e => e.CallTime).HasColumnName("call_time");
+        builder.Property(e => e.DepositAmount).HasColumnName("deposit_amount").HasPrecision(12, 2);
+        builder.Property(e => e.DepositReceivedAt).HasColumnName("deposit_received_at");
+        builder.Property(e => e.BalanceReceivedAt).HasColumnName("balance_received_at");
+
+        // S24: un día del calendario, igual que event_date, no un instante.
+        builder.Property(e => e.DepositDueDate).HasColumnName("deposit_due_date");
+        builder.Property(e => e.BalanceDueDate).HasColumnName("balance_due_date");
+
         builder.Property(e => e.CreatedAt).HasDefaultValueSql("now()").HasColumnName("created_at");
         builder.Property(e => e.CreatedBy).HasColumnName("created_by");
         builder.Property(e => e.DeletedAt).HasColumnName("deleted_at");
@@ -44,6 +54,11 @@ public class EventRequestConfiguration : IEntityTypeConfiguration<EventRequest>
         builder.HasMany(e => e.Messages)
             .WithOne(m => m.EventRequest)
             .HasForeignKey(m => m.EventRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(e => e.Attendance)
+            .WithOne()
+            .HasForeignKey(a => a.EventRequestId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(e => new { e.GroupId, e.Status, e.CreatedAt });

@@ -20,6 +20,18 @@ namespace NitroGroups.Core.Users.Application.Abstractions
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Directorio público: mismos músicos que <see cref="SearchAsync"/>, con filtros opcionales por
+        /// nombre, instrumento y ciudad (texto contenido, sin importar mayúsculas, combinados con AND).
+        /// </summary>
+        Task<PagedResult<MusicianDirectoryItem>> SearchDirectoryAsync(
+            string? text,
+            string? instrument,
+            string? city,
+            int page,
+            int size,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Resumen por id de usuario, sin filtrar por <c>IsOpenToJoin</c>: una invitación
         /// pendiente debe poder mostrar el nombre aunque el músico haya cerrado su perfil.
         /// </summary>

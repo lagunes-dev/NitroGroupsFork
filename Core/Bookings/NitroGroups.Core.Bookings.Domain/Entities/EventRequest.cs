@@ -39,7 +39,33 @@ public class EventRequest : AuditableModel
     public DateTime? RespondedAt { get; private set; }
     public string? ResponseMessage { get; private set; }
 
+    /// <summary>Lista de canciones en texto libre; la edita el manager del toque aceptado.</summary>
+    public string? Setlist { get; private set; }
+
+    public TimeOnly? CallTime { get; private set; }
+
+    /// <summary>Anticipo acordado, solo como dato (la app no cobra).</summary>
+    public decimal? DepositAmount { get; private set; }
+
+    /// <summary>Cuándo se recibió el anticipo; null mientras no se haya recibido.</summary>
+    public DateTime? DepositReceivedAt { get; private set; }
+
+    /// <summary>Cuándo se recibió el saldo; null mientras no se haya recibido.</summary>
+    public DateTime? BalanceReceivedAt { get; private set; }
+
+    /// <summary>
+    /// Fecha límite del anticipo (S24): un día del calendario, como <see cref="EventDate"/>, no un
+    /// instante. Puede existir sin monto: el manager pone el plazo antes de que exista la plata.
+    /// </summary>
+    public DateOnly? DepositDueDate { get; private set; }
+
+    /// <summary>Fecha límite del saldo (S24), con las mismas reglas que el anticipo.</summary>
+    public DateOnly? BalanceDueDate { get; private set; }
+
     public List<EventRequestMessage> Messages { get; set; } = [];
+
+    /// <summary>Respuestas de asistencia de los miembros del grupo (una por usuario).</summary>
+    public List<GigAttendance> Attendance { get; set; } = [];
 
     /// <summary>Se llama después de guardar (cuando ya hay Id) para avisar al grupo.</summary>
     public void RaiseCreatedEvent()
@@ -95,6 +121,50 @@ public class EventRequest : AuditableModel
 
         ChangeStatus(EventRequestStatus.Cancelled, by);
     }
+
+    /// <summary>
+    /// Guarda o corrige la respuesta de un miembro al toque. Solo un toque aceptado tiene
+    /// asistencia y cada usuario tiene una sola fila: si ya respondió, se actualiza la misma.
+    /// </summary>
+    public GigAttendance RespondAttendance(long userId, GigAttendanceStatus status)
+    {
+        var attendance = Attendance.FirstOrDefault(a => a.UserId == userId);
+        if (attendance is null)
+        {
+            attendance = new GigAttendance { EventRequestId = Id, UserId = userId };
+            Attendance.Add(attendance);
+        }
+
+        attendance.Status = status;
+        return attendance;
+    }
+
+    public void SetSetlist(string? setlist)
+        => Setlist = string.IsNullOrWhiteSpace(setlist) ? null : setlist.Trim();
+
+    public void SetCallTime(TimeOnly? callTime) => CallTime = callTime;
+
+    public void SetDepositAmount(decimal? amount) => DepositAmount = amount;
+
+    /// <summary>
+    /// Marca el anticipo como recibido (fija la fecha si estaba vacía, sin moverla si ya la había)
+    /// o lo marca como no recibido (limpia la fecha).
+    /// </summary>
+    public void SetDepositReceived(bool received, DateTime nowUtc)
+        => DepositReceivedAt = received ? DepositReceivedAt ?? nowUtc : null;
+
+    /// <summary>Igual que el anticipo: fija la fecha si estaba vacía, o la limpia.</summary>
+    public void SetBalanceReceived(bool received, DateTime nowUtc)
+        => BalanceReceivedAt = received ? BalanceReceivedAt ?? nowUtc : null;
+
+    /// <summary>
+    /// Guarda o limpia la fecha límite del anticipo. No se valida contra hoy: un plazo que ya pasó se
+    /// registra igual, porque es un hecho y la app no cobra ni reclama nada (D1, D2, S18).
+    /// </summary>
+    public void SetDepositDueDate(DateOnly? dueDate) => DepositDueDate = dueDate;
+
+    /// <summary>Igual que el anticipo, para la fecha límite del saldo.</summary>
+    public void SetBalanceDueDate(DateOnly? dueDate) => BalanceDueDate = dueDate;
 
     /// <summary>Agrega un mensaje de una de las partes y avisa a la otra.</summary>
     public EventRequestMessage PostMessage(long senderUserId, EventRequestParty senderParty, string body, DateTime nowUtc)

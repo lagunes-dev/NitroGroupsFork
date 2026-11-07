@@ -4,8 +4,15 @@ import { Photo } from "@/components/ui/Photo";
 import { ROUTES } from "@/config/routes";
 import { formatEventDate, priceLabel } from "@/lib/format";
 import type { MusicGroup } from "../types/MusicGroup";
+import type { PublicGroupTeamMember } from "../types/PublicGroupTeamMember";
+import { PublicGroupTeam } from "./PublicGroupTeam";
+import { PublicGroupReviews } from "./PublicGroupReviews";
+import type { GroupReviewsPage } from "../types/GroupReviews";
 import type { GroupMediaResponse } from "@/features/groupMedia/types/GroupMedia";
 import { RequestForm } from "@/features/bookings/components/RequestForm";
+import { JoinShortcut } from "@/features/membership/components/JoinShortcut";
+import { ContractLink } from "@/features/membership/components/ContractLink";
+import { HideForMembers } from "@/features/membership/components/HideForMembers";
 import { RequestToJoin } from "@/features/membership/components/RequestToJoin";
 
 const kind = (m: GroupMediaResponse) => m.type.toLowerCase();
@@ -27,7 +34,7 @@ function Fact({ label, value }: { label: string; value: string }) {
  * Perfil público de un grupo. La primera foto manda; el nombre en voz de cartel; la acción
  * principal es pedir una fecha. Server Component: no necesita JavaScript para leerse.
  */
-export function PublicGroupProfile({ group, requestedDate, signedIn = false }: { group: MusicGroup; requestedDate?: string; signedIn?: boolean }) {
+export function PublicGroupProfile({ group, teamMembers = [], reviews = null, requestedDate, signedIn = false }: { group: MusicGroup; teamMembers?: PublicGroupTeamMember[]; reviews?: GroupReviewsPage | null; requestedDate?: string; signedIn?: boolean }) {
     const media = [...(group.media ?? [])].sort(byOrder);
     const photos = media.filter((m) => kind(m) === "photo");
     const videos = media.filter((m) => kind(m) === "video");
@@ -38,6 +45,7 @@ export function PublicGroupProfile({ group, requestedDate, signedIn = false }: {
     const price = priceLabel({ basePrice: group.basePrice ?? null, hourlyRate: group.hourlyRate ?? null, currency: group.currency || "MXN" });
     const dateText = requestedDate ? formatEventDate(requestedDate) : null;
     const requestHref = `#solicitar`;
+
 
     const facts = [
         group.numMembers > 0 && { label: "Integrantes", value: String(group.numMembers) },
@@ -81,13 +89,23 @@ export function PublicGroupProfile({ group, requestedDate, signedIn = false }: {
                 </div>
                 <div className="md:col-span-4 md:justify-self-end flex flex-col gap-3 md:items-end">
                     <p className="text-2xl font-semibold tabular">{price}</p>
-                    {group.isAcceptingBookings ? (
-                        <Link href={requestHref} className="inline-flex h-14 items-center justify-center px-7 bg-acento text-acento-ink rounded-lg font-semibold no-underline hover:bg-acento-press transition-colors">
-                            {dateText ? `Pedir el ${dateText}` : "Pedir una fecha"}
-                        </Link>
-                    ) : (
+                    {!group.isAcceptingBookings && (
                         <p className="text-tinta-2 max-w-[28ch] md:text-right">Este grupo no está tomando nuevas fechas por ahora.</p>
                     )}
+                    <div className="flex flex-wrap gap-3 md:justify-end">
+                        {group.isAcceptingBookings && (
+                            <ContractLink
+                                groupId={group.id}
+                                slug={group.slug}
+                                active={group.active}
+                                ownerUserId={group.ownerUserId}
+                                signedIn={signedIn}
+                                href={requestHref}
+                                label={dateText ? `Pedir el ${dateText}` : "Pedir una fecha"}
+                            />
+                        )}
+                        <JoinShortcut groupId={group.id} active={group.active} ownerUserId={group.ownerUserId} signedIn={signedIn} />
+                    </div>
                 </div>
             </header>
 
@@ -106,6 +124,12 @@ export function PublicGroupProfile({ group, requestedDate, signedIn = false }: {
                     </div>
                 </section>
             )}
+
+            {/* El equipo con caras (S14): va después de la historia y antes de las fotos. */}
+            <PublicGroupTeam members={teamMembers} />
+
+            {/* S19: the opinions behind the number printed in the header. */}
+            <PublicGroupReviews groupId={group.id} initial={reviews} fallbackAverage={group.averageRating} fallbackCount={group.totalReviews} />
 
             {(gallery.length > 0 || videos.length > 0 || audios.length > 0) && (
                 <section className="page-frame mt-[var(--section-gap)]" aria-labelledby="galeria">
@@ -158,6 +182,7 @@ export function PublicGroupProfile({ group, requestedDate, signedIn = false }: {
             )}
 
             {group.isAcceptingBookings && (
+                <HideForMembers groupId={group.id} slug={group.slug} active={group.active} ownerUserId={group.ownerUserId} signedIn={signedIn}>
                 <section id="solicitar" className="page-frame mt-[var(--section-gap)] scroll-mt-24" aria-labelledby="solicitar-titulo">
                     <h2 id="solicitar-titulo" className="titulo">Pedir una fecha</h2>
                     <p className="mt-4 mb-10 max-w-[52ch] text-lg text-tinta">
@@ -174,6 +199,7 @@ export function PublicGroupProfile({ group, requestedDate, signedIn = false }: {
                         </Link>
                     )}
                 </section>
+                </HideForMembers>
             )}
 
             <RequestToJoin

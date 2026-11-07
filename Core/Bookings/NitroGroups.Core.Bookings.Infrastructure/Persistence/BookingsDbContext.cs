@@ -12,4 +12,8 @@ public class BookingsDbContext(DbContextOptions<BookingsDbContext> options) : Mo
 
     public DbSet<EventRequest> EventRequests => Set<EventRequest>();
     public DbSet<EventRequestMessage> EventRequestMessages => Set<EventRequestMessage>();
+    public DbSet<GigAttendance> GigAttendances => Set<GigAttendance>();
+    public DbSet<GigPay> GigPays => Set<GigPay>();
+    public DbSet<EventReview> EventReviews => Set<EventReview>();
+    public DbSet<GigNotice> GigNotices => Set<GigNotice>();
 }

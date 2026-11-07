@@ -71,4 +71,28 @@ describe("membershipService", () => {
         expect(await membershipService.groupMembers(3)).toEqual([{ userId: 4, isActive: true }]);
         expect(get).toHaveBeenCalledWith("/groups/3/members");
     });
+
+    it("lista las membresías propias y normaliza el rol", async () => {
+        get.mockResolvedValue({ data: [
+            { groupId: 1, groupName: "A", slug: "a", profilePictureUrl: null, role: "Owner", joinedAt: "2026-01-01T00:00:00Z" },
+            { groupId: 2, groupName: "B", slug: "b", profilePictureUrl: "https://x/y.png", role: 2, joinedAt: "2026-02-01T00:00:00Z" },
+            { groupId: 3, groupName: "C", slug: "c", profilePictureUrl: null, role: "Mystery", joinedAt: "2026-03-01T00:00:00Z" },
+        ] });
+        const rows = await membershipService.myGroups();
+        expect(get).toHaveBeenCalledWith("/users/me/memberships");
+        expect(rows.map((r) => r.role)).toEqual(["Owner", "Manager", null]);
+        expect(rows[1]).toMatchObject({ groupId: 2, slug: "b", profilePictureUrl: "https://x/y.png" });
+    });
+
+    it("reads the group team from the manager-only endpoint", async () => {
+        get.mockResolvedValue({ data: [{ userId: 10, fullName: "Olga Ortiz", role: "Owner", profilePictureUrl: null, joinedAt: "2026-10-04T18:00:00Z" }] });
+        const team = await membershipService.team(3);
+        expect(get).toHaveBeenCalledWith("/groups/3/team");
+        expect(team).toEqual([{ userId: 10, fullName: "Olga Ortiz", role: "Owner", profilePictureUrl: null, joinedAt: "2026-10-04T18:00:00Z" }]);
+    });
+
+    it("devuelve una lista vacía sin membresías", async () => {
+        get.mockResolvedValue({ data: [] });
+        expect(await membershipService.myGroups()).toEqual([]);
+    });
 });

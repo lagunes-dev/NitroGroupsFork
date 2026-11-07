@@ -34,7 +34,7 @@ export default async function Home() {
                     <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-fondo" />
                 </div>
 
-                <div className="page-frame relative pt-[clamp(5rem,16vh,10rem)] pb-[clamp(4rem,12vh,8rem)]">
+                <div className="page-frame relative pt-[clamp(5rem,16vh,10rem)] pb-[clamp(2.5rem,6vh,4rem)]">
                     <h1 id="titulo" className="aparece titulo max-w-[16ch]">
                         Música en vivo para tu fecha
                     </h1>
@@ -71,9 +71,9 @@ export default async function Home() {
                 </div>
             </section>
 
-            {/* Disponibles: tarjetas sobrias, la foto arriba y el precio a la vista. */}
+            {/* Disponibles: la misma búsqueda pública, con grupos reales y clicables. */}
             {available.length > 0 && (
-                <section className="page-frame mt-[calc(var(--section-gap)*0.6)]" aria-labelledby="disponibles">
+                <section className="page-frame mt-[clamp(2rem,5vw,3.5rem)]" aria-labelledby="disponibles">
                     <div data-reveal className="columna">
                         <h2 id="disponibles" className="titulo">Libres este fin de semana</h2>
                         <p className="mt-4 text-tinta-2">
@@ -109,7 +109,7 @@ export default async function Home() {
                     <p className="mt-4 text-tinta-2">Cuatro pasos, todos en la misma pantalla y por escrito.</p>
                 </div>
                 <div data-reveal className="mt-12">
-                    <Pasos groupName={featured?.groupName ?? "Mariachi Vargas"} price={featured ? priceLabel(featured) : "Desde $18,000"} />
+                    <Pasos />
                 </div>
             </section>
 

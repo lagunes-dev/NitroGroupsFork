@@ -27,9 +27,9 @@ export function isIsoDate(value: string | undefined | null): value is string {
     return date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
 }
 
-const longDate = new Intl.DateTimeFormat("es-MX", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+const longDate = new Intl.DateTimeFormat("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
-/** "sábado, 12 de diciembre" a partir de "2026-12-12"; null si la fecha no es válida. */
+/** "sábado, 12 de diciembre de 2026" a partir de "2026-12-12"; null si la fecha no es válida. Un evento se planea con meses de anticipación: el año no es decorativo. */
 export function formatEventDate(isoDate: string): string | null {
     if (!isIsoDate(isoDate)) return null;
     const [y, m, d] = isoDate.split("-").map(Number);

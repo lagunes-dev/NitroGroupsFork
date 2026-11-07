@@ -32,6 +32,21 @@ namespace NitroGroups.Core.Users.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("City")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("city");
+
+                    b.Property<string>("Headline")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("headline");
+
+                    b.Property<string>("Instruments")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("instruments");
+
                     b.Property<bool>("IsOpenToJoin")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -46,6 +61,11 @@ namespace NitroGroups.Core.Users.Infrastructure.Persistence.Migrations
                     b.Property<long>("UserId")
                         .HasColumnType("bigint")
                         .HasColumnName("user_id");
+
+                    b.Property<string>("VideoUrl")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("video_url");
 
                     b.Property<int>("YearsExperience")
                         .ValueGeneratedOnAdd()

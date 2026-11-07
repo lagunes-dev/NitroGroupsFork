@@ -1,4 +1,5 @@
 using NitroGroups.Shared.Domain.DomainEvents.Bookings.Enums;
+using System.Text.Json.Serialization;
 
 namespace NitroGroups.Shared.Contracts.Bookings.Responses
 {
@@ -29,8 +30,38 @@ namespace NitroGroups.Shared.Contracts.Bookings.Responses
         public DateTime? RespondedAt { get; set; }
         public string? ResponseMessage { get; set; }
 
+        /// <summary>Anticipo registrado por el grupo. El cliente no ve el setlist ni los pagos a los músicos.</summary>
+        public GigDepositResponse Deposit { get; set; } = new();
+
+        /// <summary>
+        /// true solo para el cliente del evento cuando ya puede reseñarlo (aceptado, fecha pasada
+        /// en hora de México, sin autorreserva y sin reseña previa).
+        /// </summary>
+        public bool CanReview { get; set; }
+
+        /// <summary>La reseña del evento, o null si todavía no tiene.</summary>
+        public EventReviewResponse? Review { get; set; }
+
         /// <summary>Solo en el detalle (<c>GET api/event-requests/{id}</c>); null en los listados.</summary>
         public List<EventRequestMessageResponse>? Messages { get; set; }
+
+        /// <summary>Cuándo el grupo registró que recibió el saldo; null mientras no. Es un dato, la app no cobra.</summary>
+        public DateTime? BalanceReceivedAt { get; set; }
+
+        /// <summary>
+        /// Fecha límite del saldo (S24): un día del calendario, como la fecha del evento. Null mientras el
+        /// grupo no la haya cargado. Una fecha que ya pasó se muestra igual: es un hecho, no un error.
+        /// </summary>
+        public DateOnly? BalanceDueDate { get; set; }
+
+        /// <summary>
+        /// Solo para el grupo: si el grupo ya tiene otro toque aceptado ese mismo día y cuál es
+        /// (D6/S11). Null en las solicitudes del cliente — el cliente nunca ve si el grupo está
+        /// ocupado — y null cuando no hay choque, y un null no viaja: el contrato del cliente queda
+        /// exactamente como estaba.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public DateClashSignalResponse? DateClash { get; set; }
     }
 
     public class EventRequestMessageResponse

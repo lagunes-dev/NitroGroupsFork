@@ -33,7 +33,7 @@ public class EventRequestCommandHandlersIntegrationTests : IClassFixture<Integra
 
     private CancelEventRequestCommandHandler CancelHandler(BookingsDbContext context)
         => new(_fixture.CreateBookingsUnitOfWork(context, _fixture.CreateBookingsOutbox(context)),
-            _scenario.Groups, _scenario.Users);
+            _scenario.Groups, _scenario.Users, _scenario.Time);
 
     private PostEventRequestMessageCommandHandler MessageHandler(BookingsDbContext context)
         => new(_fixture.CreateBookingsUnitOfWork(context, _fixture.CreateBookingsOutbox(context)),
@@ -342,6 +342,68 @@ public class EventRequestCommandHandlersIntegrationTests : IClassFixture<Integra
         Assert.Equal(BookingErrorKind.NotFound, result.ErrorKind);
         context.ChangeTracker.Clear();
         Assert.Equal(EventRequestStatus.Pending, (await context.EventRequests.SingleAsync()).Status);
+    }
+
+    /// <summary>
+    /// S8/T52: un evento aceptado cuya fecha ya pasó ya se tocó: cancelarlo no deshace nada y el hilo del
+    /// cliente dejó de ofrecer el botón. La API lo rechaza con el mismo día de México que los avisos.
+    /// </summary>
+    [Theory]
+    [InlineData(ClientId)]
+    [InlineData(ManagerId)]
+    public async Task Cancelar_UnaAceptadaConFechaPasada_ConflictYNoEscribeNada(long userId)
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        // El reloj del escenario es el 3/11/2026 al mediodía en México.
+        var request = await SeedAsync(
+            context,
+            eventDate: new DateOnly(2026, 10, 24),
+            configure: r => r.Accept(null, DateTime.UtcNow));
+
+        var result = await CancelHandler(context).Handle(new CancelEventRequestCommand(request.Id, userId), CancellationToken.None);
+
+        Assert.Equal(BookingErrorKind.Conflict, result.ErrorKind);
+        Assert.Equal("No puedes cancelar un evento que ya pasó.", result.Error);
+        Assert.Null(result.Value);
+        context.ChangeTracker.Clear();
+        var saved = await context.EventRequests.SingleAsync();
+        Assert.Equal(EventRequestStatus.Accepted, saved.Status);
+        Assert.NotNull(saved.RespondedAt); // sigue aceptado, con la respuesta original intacta
+        Assert.Empty(context.OutboxEvents);
+    }
+
+    /// <summary>El día de hoy en México todavía se cancela: la fecha que pasó es la de ayer, no la de hoy.</summary>
+    [Theory]
+    [InlineData(2026, 11, 3)] // hoy en México, según el reloj fijo del escenario
+    [InlineData(2026, 12, 12)] // la fecha futura de siempre
+    public async Task Cancelar_UnaAceptadaDeHoyOFutura_SeSigueCancelandoIgual(int year, int month, int day)
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var request = await SeedAsync(
+            context,
+            eventDate: new DateOnly(year, month, day),
+            configure: r => r.Accept(null, DateTime.UtcNow));
+
+        var result = await CancelHandler(context).Handle(new CancelEventRequestCommand(request.Id, ClientId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(EventRequestStatus.Cancelled, result.Value!.Status);
+        context.ChangeTracker.Clear();
+        Assert.Equal(EventRequestStatus.Cancelled, (await context.EventRequests.SingleAsync()).Status);
+        Assert.Single(context.OutboxEvents);
+    }
+
+    /// <summary>La regla es solo para aceptadas: una solicitud pendiente vieja todavía se puede cerrar.</summary>
+    [Fact]
+    public async Task Cancelar_UnaPendienteConFechaPasada_SeSigueCancelando()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var request = await SeedAsync(context, eventDate: new DateOnly(2026, 10, 24));
+
+        var result = await CancelHandler(context).Handle(new CancelEventRequestCommand(request.Id, ClientId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(EventRequestStatus.Cancelled, result.Value!.Status);
     }
 
     // ---------- Mensajes ----------

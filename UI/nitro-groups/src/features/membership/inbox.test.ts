@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { musicianActions, splitMyRequests } from "./inbox";
+import { musicianActions, splitGroupRequests, splitMyRequests } from "./inbox";
 import type { MembershipRequest } from "./types";
 
 const row = (over: Partial<MembershipRequest>): MembershipRequest => ({
@@ -48,5 +48,30 @@ describe("musicianActions", () => {
     });
     it("resolved rows have no actions", () => {
         expect(musicianActions(row({ status: "Accepted" }))).toEqual({ accept: false, decline: false, cancel: false });
+    });
+});
+
+describe("splitGroupRequests", () => {
+    const rows = [
+        row({ id: 1, direction: "Request", status: "Pending" }),
+        row({ id: 2, direction: "Invitation", status: "Pending" }),
+        row({ id: 3, direction: "Request", status: "Declined", updatedAt: "2026-02-01T00:00:00Z" }),
+        row({ id: 4, direction: "Request", status: "Accepted", updatedAt: "2026-03-01T00:00:00Z" }),
+        row({ id: 5, direction: "Invitation", status: "Cancelled" }),
+    ];
+    it("splits join requests and sent invitations, pending first", () => {
+        const { incoming, invitations } = splitGroupRequests(rows);
+        expect(incoming.pending.map((r) => r.id)).toEqual([1]);
+        expect(invitations.pending.map((r) => r.id)).toEqual([2]);
+        expect(invitations.history.map((r) => r.id)).toEqual([5]);
+    });
+    it("orders each history newest first", () => {
+        expect(splitGroupRequests(rows).incoming.history.map((r) => r.id)).toEqual([4, 3]);
+    });
+    it("sends rows with an unknown direction or status to no pending list", () => {
+        const odd = [row({ id: 7, direction: null }), row({ id: 8, status: null })];
+        const { incoming, invitations } = splitGroupRequests(odd);
+        expect(incoming.pending).toEqual([]);
+        expect(invitations.pending).toEqual([]);
     });
 });

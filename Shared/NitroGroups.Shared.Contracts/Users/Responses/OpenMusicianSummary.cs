@@ -11,5 +11,11 @@ namespace NitroGroups.Shared.Contracts.Users.Responses
         public string FullName { get; init; } = string.Empty;
         public string? ProfilePictureUrl { get; init; }
         public int YearsExperience { get; init; }
+
+        /// <summary>Instrumentos que toca, como texto libre. Null cuando no los cargó.</summary>
+        public string? Instruments { get; init; }
+
+        /// <summary>Ciudad donde vive. Null cuando no la cargó.</summary>
+        public string? City { get; init; }
     }
 }

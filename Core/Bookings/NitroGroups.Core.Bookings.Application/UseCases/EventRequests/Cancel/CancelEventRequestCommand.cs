@@ -14,7 +14,8 @@ public sealed record CancelEventRequestCommand(long Id, long UserId) : ICommand<
 public sealed class CancelEventRequestCommandHandler(
     IUnitOfWorkBookings unitOfWork,
     IGroupsModuleApi groups,
-    IUsersModuleApi users) : ICommandHandler<CancelEventRequestCommand, BookingResult<EventRequestResponse>>
+    IUsersModuleApi users,
+    TimeProvider time) : ICommandHandler<CancelEventRequestCommand, BookingResult<EventRequestResponse>>
 {
     public async Task<BookingResult<EventRequestResponse>> Handle(CancelEventRequestCommand command, CancellationToken cancellationToken)
     {
@@ -28,6 +29,13 @@ public sealed class CancelEventRequestCommandHandler(
 
         // Si el usuario es el cliente, cancela como cliente (tiene más margen que el grupo).
         var party = participation.IsClient ? EventRequestParty.Client : EventRequestParty.Group;
+
+        // S8/T52: un evento aceptado cuya fecha ya pasó (día de México, la misma regla que los avisos
+        // del toque y la reseña) ya se tocó: cancelarlo no deshace nada y el hilo dejó de ofrecer el botón.
+        if (request.Status == EventRequestStatus.Accepted && request.EventDate < MexicoTime.Today(time))
+            return BookingResult<EventRequestResponse>.Failure(
+                BookingErrorKind.Conflict, "No puedes cancelar un evento que ya pasó.");
+
         try
         {
             request.Cancel(party);
@@ -49,7 +57,8 @@ public sealed class CancelEventRequestCommandHandler(
             return BookingResult<EventRequestResponse>.Failure(BookingErrorKind.Conflict, "La solicitud cambió mientras la cancelabas. Recarga para ver su estado actual.");
         }
 
-        var response = await EventRequestResponses.BuildAsync(request, groups, users, includeMessages: true, cancellationToken);
+        var response = await EventRequestResponses.BuildAsync(
+            request, groups, users, unitOfWork.EventReviews, time, command.UserId, includeMessages: true, cancellationToken);
         return BookingResult<EventRequestResponse>.Success(response);
     }
 }

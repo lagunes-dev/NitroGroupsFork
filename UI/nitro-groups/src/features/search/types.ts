@@ -40,4 +40,6 @@ export interface SearchFilters {
     presupuesto?: string;
     fecha?: string;
     pagina?: string;
+    /** Id of a group left out of the list: the one that just rejected this date (T41). */
+    excluir?: string;
 }
