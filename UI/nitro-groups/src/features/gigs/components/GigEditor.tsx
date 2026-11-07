@@ -70,7 +70,7 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
     const setPay = (userId: string, value: string) => setForm((f) => ({ ...f, pay: { ...f.pay, [userId]: value } }));
     const setPaid = (userId: string, value: boolean) => setForm((f) => ({ ...f, paid: { ...f.paid, [userId]: value } }));
     const balanceState = recordedStateLabel(form.balanceReceived, row.balanceReceivedAt, { done: "Saldo recibido", pending: "Saldo pendiente" });
-    const settlement = gigSettlement(row);
+    const settlement = gigSettlement(row, form.pay);
     const settlementId = `${idPrefix}-cuadre`;
 
     return (
@@ -103,7 +103,7 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                         <dd className="font-semibold tabular text-lg text-tinta">{settlement.difference}</dd>
                     </div>
                 </dl>
-                <p className="mt-3 text-sm text-tinta-2">Con lo que está guardado. La app no cobra ni valida estos montos.</p>
+                <p className="mt-3 text-sm text-tinta-2">{settlement.note}</p>
             </section>
 
             <div className="grid gap-6 md:grid-cols-2">
