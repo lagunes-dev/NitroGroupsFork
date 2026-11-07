@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { JOIN_MESSAGE_MAX, joinOffer, prepareJoinMessage } from "./join";
+import { JOIN_MESSAGE_MAX, joinOffer, prepareJoinMessage, showJoinShortcut } from "./join";
 
 const group = { active: true, ownerUserId: 1 };
 const musician = { id: 5, userType: "Musician" as const };
@@ -38,6 +38,17 @@ describe("joinOffer", () => {
         const inactive = { ...group, active: false };
         expect(joinOffer({ signedIn: true, user: musician, group: inactive, members })).toBe("hidden");
         expect(joinOffer({ signedIn: false, user: null, group: inactive, members })).toBe("hidden");
+    });
+});
+
+describe("showJoinShortcut", () => {
+    it("shows the header button only with the form, once the members list settled", () => {
+        expect(showJoinShortcut("form", false)).toBe(true);
+        expect(showJoinShortcut("form", true)).toBe(false);
+    });
+    it("never for anonymous visitors or hidden offers", () => {
+        expect(showJoinShortcut("login", false)).toBe(false);
+        expect(showJoinShortcut("hidden", false)).toBe(false);
     });
 });
 

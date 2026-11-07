@@ -9,12 +9,15 @@ import { Button } from "@/components/ui/Button";
 import { ROUTES } from "@/config/routes";
 import { LogoutButton } from "@/components/auth";
 import { UserTypeEnum } from "@/features/groups/types/User";
-import { PUBLIC_LINKS, dashboardFor } from "./navigation";
+import { usePendingMembership } from "@/hooks/usePendingMembership";
+import { PUBLIC_LINKS, dashboardEntries } from "./navigation";
+import { NavCount } from "./NavCount";
 
 export function MobileMenu() {
     const { user, auth0User, isLoading } = useCurrentUser();
     const [open, setOpen] = useState(false);
     const pathname = usePathname();
+    const pending = usePendingMembership();
 
     // Cerrar al navegar y con Escape.
     useEffect(() => {
@@ -31,7 +34,7 @@ export function MobileMenu() {
 
     if (isLoading) return null;
 
-    const dashboard = dashboardFor(user?.userType === UserTypeEnum.Musician);
+    const entries = dashboardEntries(user?.userType === UserTypeEnum.Musician, pending);
     const linkClass = "block py-3 text-2xl type-heading text-tinta no-underline";
 
     return (
@@ -52,7 +55,9 @@ export function MobileMenu() {
                     <nav aria-label="Principal">
                         <Link href={ROUTES.GROUPS.SEARCH} className={linkClass}>Explorar grupos</Link>
                         {auth0User ? (
-                            <Link href={dashboard.href} className={linkClass}>{dashboard.label}</Link>
+                            entries.map((e) => (
+                                <Link key={e.label} href={e.href} className={linkClass}>{e.label}<NavCount count={e.count} /></Link>
+                            ))
                         ) : (
                             PUBLIC_LINKS.filter((l) => l.href !== ROUTES.GROUPS.SEARCH).map((l) => (
                                 <Link key={l.href} href={l.href} className={linkClass}>{l.label}</Link>

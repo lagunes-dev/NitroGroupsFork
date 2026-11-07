@@ -1,8 +1,13 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { TabItem, TabbedSection } from "@/components/ui";
+import { Button, TabItem, TabbedSection } from "@/components/ui";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { usePendingMembership } from "@/hooks/usePendingMembership";
+import { useMyMemberships } from "@/hooks/useMyMemberships";
+import { showMyGroupsTab } from "@/features/membership/roles";
+import { joinBannerText } from "@/features/membership/counts";
 import { groupsService } from "@/features/groups/services/groups.service";
 import GroupProfile from "@/features/groups/components/GroupProfile";
 import GroupCalendar from "@/features/groupAvailability/components/GroupCalendar";
@@ -10,10 +15,11 @@ import GroupGallery from "@/features/groupMedia/components/GroupGallery";
 import { GroupInbox } from "@/features/bookings/components/GroupInbox";
 import { TeamTab } from "@/features/membership/components/TeamTab";
 import { MyInvitations } from "@/features/membership/components/MyInvitations";
+import { MyGroups } from "@/features/membership/components/MyGroups";
 
 /**
  * Panel del grupo. Arriba, quién es y en qué estado está; abajo, el trabajo diario:
- * responder solicitudes primero, después la galería y el calendario.
+ * responder los pedidos de fecha primero, después la galería y el calendario.
  */
 export default function MusicianDashboardPage() {
   const { user } = useCurrentUser();
@@ -30,9 +36,28 @@ export default function MusicianDashboardPage() {
   });
 
   const groupId = group?.id;
+  const memberships = useMyMemberships();
+  const myGroupsTab = showMyGroupsTab({ memberships: memberships.data, managedGroupId: groupId ?? null });
+  const { invitations, joinRequests } = usePendingMembership();
+  const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const banner = groupId ? joinBannerText(joinRequests) : null;
+
+  const showTab = (tabKey: string) => {
+    setActiveTab(tabKey);
+    // The panel mounts after the state change: move focus there once it exists.
+    setTimeout(() => tabsRef.current?.querySelector<HTMLElement>('[role="tabpanel"]')?.focus(), 0);
+  };
 
   return (
     <div className="page-frame pb-24">
+      {banner && (
+        <div className="superficie mt-6 flex flex-col gap-3 rounded-[12px] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p role="status" aria-live="polite" className="font-semibold text-tinta">{banner}</p>
+          <Button variant="outline" onClick={() => showTab("equipo")}>Ver solicitudes</Button>
+        </div>
+      )}
+
       <GroupProfile />
 
       {/*
@@ -41,14 +66,15 @@ export default function MusicianDashboardPage() {
         grupo carga no se muestra nada: la cabecera ya explica la carga o el error.
       */}
       {!groupPending || groupId ? (
-        <TabbedSection label="Gestión del grupo" className="mt-16 md:mt-20">
+        <div ref={tabsRef}>
+        <TabbedSection label="Gestión del grupo" className="mt-16 md:mt-20" activeKey={activeTab} onActiveKeyChange={setActiveTab}>
           {groupId ? (
-            <TabItem title="Solicitudes" tabKey="solicitudes">
+            <TabItem title="Pedidos de fecha" tabKey="pedidos">
               <GroupInbox groupId={groupId} />
             </TabItem>
           ) : null}
           {groupId ? (
-            <TabItem title="Equipo" tabKey="equipo">
+            <TabItem title="Equipo" count={joinRequests} tabKey="equipo">
               <TeamTab groupId={groupId} />
             </TabItem>
           ) : null}
@@ -62,10 +88,16 @@ export default function MusicianDashboardPage() {
               <GroupCalendar groupId={groupId} mode="private" />
             </TabItem>
           ) : null}
-          <TabItem title="Invitaciones" tabKey="invitaciones">
-            <MyInvitations />
+          {myGroupsTab ? (
+            <TabItem title="Mis grupos" tabKey="mis-grupos">
+              <MyGroups managedGroupId={groupId ?? null} />
+            </TabItem>
+          ) : null}
+          <TabItem title="Invitaciones" count={invitations} tabKey="invitaciones">
+            <MyInvitations onViewMyGroups={() => showTab("mis-grupos")} />
           </TabItem>
         </TabbedSection>
+        </div>
       ) : null}
     </div>
   );

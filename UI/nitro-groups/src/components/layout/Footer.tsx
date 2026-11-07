@@ -22,7 +22,7 @@ export default function Footer() {
                     <p className="text-tinta">Contratar</p>
                     <ul className="mt-3 space-y-2">
                         <li><Link href={ROUTES.GROUPS.SEARCH} className={link}>Explorar grupos</Link></li>
-                        {isAuthenticated && <li><Link href={ROUTES.DASHBOARD.ROOT} className={link}>Mis solicitudes</Link></li>}
+                        {isAuthenticated && <li><Link href={ROUTES.DASHBOARD.ROOT} className={link}>Mis pedidos</Link></li>}
                     </ul>
                 </div>
                 <div className="md:col-span-2">

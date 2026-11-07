@@ -27,6 +27,11 @@ export function joinOffer({ signedIn, user, group, members }: JoinOfferInput): J
     return "form";
 }
 
+/** The header shortcut appears only where the form below will be, and not while it still waits for the members list. */
+export function showJoinShortcut(offer: JoinOffer, membersPending: boolean): boolean {
+    return offer === "form" && !membersPending;
+}
+
 export type JoinMessageResult = { ok: true; message: string | undefined } | { ok: false; error: string };
 
 /** Blank means "no message" (omitted from the body); the limit is checked on the trimmed text. */

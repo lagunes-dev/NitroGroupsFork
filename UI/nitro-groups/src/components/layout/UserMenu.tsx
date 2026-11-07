@@ -5,14 +5,17 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { LogoutButton } from "@/components/auth";
 import { UserTypeEnum } from "@/features/groups/types/User";
 import { ROUTES } from "@/config/routes";
-import { dashboardFor } from "./navigation";
+import { usePendingMembership } from "@/hooks/usePendingMembership";
+import { dashboardEntries } from "./navigation";
+import { NavCount } from "./NavCount";
 
 export function UserMenu() {
     const { user, auth0User, isLoading } = useCurrentUser();
+    const pending = usePendingMembership();
 
     if (isLoading || !auth0User) return null;
 
-    const dashboard = dashboardFor(user?.userType === UserTypeEnum.Musician);
+    const entries = dashboardEntries(user?.userType === UserTypeEnum.Musician, pending);
     const displayName = user?.firstName || auth0User.name || auth0User.nickname || auth0User.email;
     const picture = user?.profilePictureUrl || auth0User.picture;
 
@@ -22,9 +25,12 @@ export function UserMenu() {
                 <Link href={ROUTES.GROUPS.SEARCH} className="text-[0.875rem] text-tinta-2 no-underline hover:text-tinta transition-colors">
                     Explorar grupos
                 </Link>
-                <Link href={dashboard.href} className="text-[0.875rem] text-tinta no-underline font-medium hover:text-acento transition-colors">
-                    {dashboard.label}
-                </Link>
+                {entries.map((e) => (
+                    <Link key={e.label} href={e.href} className="text-[0.875rem] text-tinta no-underline font-medium hover:text-acento transition-colors">
+                        {e.label}
+                        <NavCount count={e.count} />
+                    </Link>
+                ))}
             </nav>
             <div className="flex items-center gap-3">
                 {picture ? (

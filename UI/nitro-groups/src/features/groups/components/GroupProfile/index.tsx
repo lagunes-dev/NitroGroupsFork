@@ -3,9 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MusicGroup } from "../../types/MusicGroup";
-import Link from "next/link";
-import { ROUTES } from "@/config/routes";
-import { Button } from "@/components/ui/Button";
+import { NoGroupPaths } from "@/features/membership/components/NoGroupPaths";
 import { groupsService } from "../../services/groups.service";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import GroupProfileView from "./GroupProfileView";
@@ -52,8 +50,10 @@ export default function GroupProfile({ mode = "private", slug, initialGroup }: G
     refetchOnWindowFocus: false,
     refetchOnMount: true,
     refetchOnReconnect: false,
-    retry: 5,
-    retryDelay: 3000,
+    // A 404 can be transient right after onboarding (the group is created by an outbox event), so retry briefly;
+    // anything longer leaves a user without a group staring at an empty panel.
+    retry: 3,
+    retryDelay: 1500,
     enabled: shouldFetch,
   });
 
@@ -142,15 +142,7 @@ export default function GroupProfile({ mode = "private", slug, initialGroup }: G
       <p className="mt-3 text-tinta-2">Recarga la página en un momento. Si sigue igual, vuelve a iniciar sesión.</p>
     </div>
   );
-  if (shouldFetch && groupQuery.isError) return (
-    <div className="max-w-[56ch] pt-14">
-      <p className="type-heading text-3xl">Todavía no encontramos tu grupo</p>
-      <p className="mt-3 text-tinta-2">Crea el perfil de tu grupo para empezar a recibir solicitudes.</p>
-      <Button asChild className="mt-6">
-        <Link href={ROUTES.AUTH.ONBOARDING}>Crear mi grupo</Link>
-      </Button>
-    </div>
-  );
+  if (shouldFetch && groupQuery.isError) return <NoGroupPaths />;
 
   if (isEditing && !isPublic) {
     return (

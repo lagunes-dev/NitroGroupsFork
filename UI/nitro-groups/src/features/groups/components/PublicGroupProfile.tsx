@@ -6,6 +6,7 @@ import { formatEventDate, priceLabel } from "@/lib/format";
 import type { MusicGroup } from "../types/MusicGroup";
 import type { GroupMediaResponse } from "@/features/groupMedia/types/GroupMedia";
 import { RequestForm } from "@/features/bookings/components/RequestForm";
+import { JoinShortcut } from "@/features/membership/components/JoinShortcut";
 import { RequestToJoin } from "@/features/membership/components/RequestToJoin";
 
 const kind = (m: GroupMediaResponse) => m.type.toLowerCase();
@@ -81,13 +82,17 @@ export function PublicGroupProfile({ group, requestedDate, signedIn = false }: {
                 </div>
                 <div className="md:col-span-4 md:justify-self-end flex flex-col gap-3 md:items-end">
                     <p className="text-2xl font-semibold tabular">{price}</p>
-                    {group.isAcceptingBookings ? (
-                        <Link href={requestHref} className="inline-flex h-14 items-center justify-center px-7 bg-acento text-acento-ink rounded-lg font-semibold no-underline hover:bg-acento-press transition-colors">
-                            {dateText ? `Pedir el ${dateText}` : "Pedir una fecha"}
-                        </Link>
-                    ) : (
+                    {!group.isAcceptingBookings && (
                         <p className="text-tinta-2 max-w-[28ch] md:text-right">Este grupo no está tomando nuevas fechas por ahora.</p>
                     )}
+                    <div className="flex flex-wrap gap-3 md:justify-end">
+                        {group.isAcceptingBookings && (
+                            <Link href={requestHref} className="inline-flex h-14 items-center justify-center px-7 bg-acento text-acento-ink rounded-lg font-semibold no-underline hover:bg-acento-press transition-colors">
+                                {dateText ? `Pedir el ${dateText}` : "Pedir una fecha"}
+                            </Link>
+                        )}
+                        <JoinShortcut groupId={group.id} active={group.active} ownerUserId={group.ownerUserId} signedIn={signedIn} />
+                    </div>
                 </div>
             </header>
 

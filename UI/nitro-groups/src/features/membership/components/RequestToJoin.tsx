@@ -2,13 +2,13 @@
 
 import { useId, useRef, useState } from "react";
 import Link from "next/link";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Button, Textarea } from "@/components/ui";
 import { ROUTES } from "@/config/routes";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { membershipService } from "../membership.service";
 import { joinRequestErrorMessage } from "../errors";
-import { JOIN_MESSAGE_MAX, joinOffer, prepareJoinMessage } from "../join";
+import { JOIN_MESSAGE_MAX, prepareJoinMessage } from "../join";
+import { useJoinOffer } from "../useJoinOffer";
 
 interface RequestToJoinProps {
     groupId: number;
@@ -29,34 +29,19 @@ export function RequestToJoin({ groupId, groupName, slug, active, ownerUserId, s
     const [message, setMessage] = useState("");
     const [invalid, setInvalid] = useState("");
 
-    const { user } = useCurrentUser();
-    // Public list of member ids. If it cannot be read we show the form and let the API answer 409.
-    const members = useQuery({
-        queryKey: ["group-members", groupId],
-        queryFn: () => membershipService.groupMembers(groupId),
-        enabled: signedIn,
-        retry: false,
-    });
-
     const send = useMutation({
         mutationFn: (text: string | undefined) => membershipService.requestToJoin(groupId, text),
         onSuccess: () => setTimeout(() => doneRef.current?.focus(), 0),
     });
 
-    const offer = joinOffer({
-        signedIn,
-        user: user ? { id: user.id, userType: user.userType } : null,
-        group: { active, ownerUserId },
-        // While the list loads we wait instead of flashing a form the viewer may not be allowed to use.
-        members: members.data ?? null,
-    });
-    if (offer === "hidden" || (offer === "form" && members.isPending)) return null;
+    const { offer, membersPending } = useJoinOffer({ groupId, active, ownerUserId, signedIn });
+    if (offer === "hidden" || (offer === "form" && membersPending)) return null;
 
     const returnTo = `${ROUTES.GROUPS.PUBLIC_PROFILE(slug)}#unirse`;
 
     return (
         <section id="unirse" className="page-frame mt-[var(--section-gap)] scroll-mt-24" aria-labelledby="unirse-titulo">
-            <h2 id="unirse-titulo" className="titulo">Pedir unirse</h2>
+            <h2 id="unirse-titulo" tabIndex={-1} className="titulo outline-none">Pedir unirse</h2>
             {offer === "login" ? (
                 <>
                     <p className="mt-4 mb-10 max-w-[52ch] text-lg text-tinta">

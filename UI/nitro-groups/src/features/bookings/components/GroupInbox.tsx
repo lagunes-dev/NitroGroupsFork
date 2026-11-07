@@ -8,8 +8,8 @@ import { RequestList } from "./RequestList";
 export function GroupInbox({ groupId }: { groupId: number }) {
     const requests = useQuery({ queryKey: ["event-requests", "group", groupId], queryFn: () => bookingsService.forGroup(groupId) });
 
-    if (requests.isPending) return <p className="text-tinta-2 py-10" aria-busy>Cargando solicitudes…</p>;
-    if (requests.isError) return <p role="alert" className="text-error py-10">No pudimos cargar las solicitudes. Recarga la página en un momento.</p>;
+    if (requests.isPending) return <p className="text-tinta-2 py-10" aria-busy>Cargando pedidos de fecha…</p>;
+    if (requests.isError) return <p role="alert" className="text-error py-10">No pudimos cargar los pedidos de fecha. Recarga la página en un momento.</p>;
 
     const pending = requests.data.filter((r) => r.status === "Pending");
     const rest = requests.data.filter((r) => r.status !== "Pending");
@@ -17,8 +17,8 @@ export function GroupInbox({ groupId }: { groupId: number }) {
     if (requests.data.length === 0) {
         return (
             <div className="py-10 max-w-[56ch]">
-                <p className="type-heading text-2xl">Aún no tienes solicitudes</p>
-                <p className="mt-2 text-tinta">Cuando un cliente te pida una fecha, aparece aquí y te avisamos por email.</p>
+                <p className="type-heading text-2xl">Aún no tienes pedidos de fecha</p>
+                <p className="mt-2 text-tinta">Cuando un cliente te pida una fecha, el pedido aparece aquí y te avisamos por email.</p>
             </div>
         );
     }

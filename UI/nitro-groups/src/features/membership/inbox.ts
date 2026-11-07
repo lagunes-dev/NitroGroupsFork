@@ -24,3 +24,19 @@ export function musicianActions(row: Pick<MembershipRequest, "direction" | "stat
         cancel: pending && row.direction === "Request",
     };
 }
+
+/**
+ * The manager's side, in two lists: join requests received (they need an answer) and invitations
+ * the group sent. Each has its pending rows and, apart, its resolved history (newest first).
+ * A row with an unknown direction belongs to neither list.
+ */
+export function splitGroupRequests(rows: MembershipRequest[]) {
+    const side = (direction: MembershipRequest["direction"]) => {
+        const own = rows.filter((r) => r.direction === direction);
+        return {
+            pending: own.filter((r) => r.status === "Pending"),
+            history: own.filter((r) => r.status !== "Pending").sort((a, b) => stamp(b) - stamp(a)),
+        };
+    };
+    return { incoming: side("Request"), invitations: side("Invitation") };
+}

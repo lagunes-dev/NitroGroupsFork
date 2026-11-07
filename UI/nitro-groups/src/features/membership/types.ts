@@ -43,3 +43,16 @@ export interface MembershipFilters {
     direction?: MembershipDirection;
     status?: MembershipStatus;
 }
+
+export type MembershipRole = "Owner" | "Manager" | "Member";
+
+/** Fila de `GET api/users/me/memberships`: un grupo activo del usuario y su rol. */
+export interface MyMembership {
+    groupId: number;
+    groupName: string;
+    slug: string;
+    profilePictureUrl: string | null;
+    /** Null si la API manda un valor que esta versión no conoce. */
+    role: MembershipRole | null;
+    joinedAt: string;
+}
