@@ -1,11 +1,14 @@
 using Microsoft.EntityFrameworkCore;
+using NitroGroups.Core.Users.Application.Abstractions;
 using NitroGroups.Core.Users.Infrastructure.Persistence;
 using NitroGroups.Shared.Contracts.Modules;
+using NitroGroups.Shared.Contracts.Users.Responses;
+using NitroGroups.Shared.Domain.DomainEvents.Users.Enums;
 
 namespace NitroGroups.Core.Users.Infrastructure.Adapters
 {
     /// <summary>Implementación in-process de la API pública del módulo Users.</summary>
-    internal sealed class UsersModuleApi(UsersDbContext context) : IUsersModuleApi
+    internal sealed class UsersModuleApi(UsersDbContext context, IOpenMusicianSearchRepository openMusicians) : IUsersModuleApi
     {
         public async Task<long?> GetUserIdByAuth0IdAsync(string auth0Id, CancellationToken cancellationToken = default)
         {
@@ -35,5 +38,20 @@ namespace NitroGroups.Core.Users.Infrastructure.Adapters
                 .Select(u => new UserSummary(u.Id, u.Email, u.FirstName, u.LastName, u.UserType, u.ProfilePictureUrl))
                 .ToDictionaryAsync(u => u.Id, cancellationToken);
         }
+
+        public async Task<IReadOnlyDictionary<long, OpenMusicianSummary>> GetMusicianSummariesAsync(
+            IEnumerable<long> userIds,
+            CancellationToken cancellationToken = default)
+        {
+            var summaries = await openMusicians.GetSummariesByUserIdsAsync(userIds.Distinct().ToList(), cancellationToken);
+            return summaries.ToDictionary(summary => summary.UserId);
+        }
+
+        public Task<bool> IsMusicianOpenToJoinAsync(long userId, CancellationToken cancellationToken = default)
+            => context.Musicians.AsNoTracking()
+                .AnyAsync(m => m.UserId == userId
+                    && m.IsOpenToJoin
+                    && m.User.UserType == UserType.Musician
+                    && m.User.Active, cancellationToken);
     }
 }

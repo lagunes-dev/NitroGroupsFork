@@ -11,5 +11,6 @@ namespace NitroGroups.Core.Groups.Application.Abstractions
         IGenericRepository<GroupGenre, long> GroupGenres { get; }
         IGenericRepository<GroupMedia, long> GroupMedia { get; }
         IGroupSearchRepository GroupSearch { get; }
+        IGroupMembershipRequestRepository MembershipRequests { get; }
     }
 }

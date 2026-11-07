@@ -18,6 +18,7 @@ using NitroGroups.Core.Users.Application.Mappings;
 using NitroGroups.Core.Users.Domain.Entities;
 using NitroGroups.Core.Users.Infrastructure;
 using NitroGroups.Core.Users.Infrastructure.Persistence;
+using NitroGroups.Core.Users.Infrastructure.Repositories;
 using NitroGroups.Shared.Abstractions.Events;
 using NitroGroups.Shared.Infrastructure.Events;
 using NitroGroups.Shared.Infrastructure.Repository;
@@ -68,18 +69,23 @@ public sealed class IntegrationTestFixture : IDisposable
             context,
             outbox,
             new GenericRepository<User, long>(context),
-            new GenericRepository<Musician, long>(context));
+            new GenericRepository<Musician, long>(context),
+            new OpenMusicianSearchRepository(context));
 
     public IUnitOfWorkGroups CreateGroupsUnitOfWork(GroupsDbContext context)
+        => CreateGroupsUnitOfWork(context, Substitute.For<IOutboxService>());
+
+    public IUnitOfWorkGroups CreateGroupsUnitOfWork(GroupsDbContext context, IOutboxService outbox)
         => new UnitOfWorkGroups(
             context,
-            Substitute.For<IOutboxService>(),
+            outbox,
             new GenericRepository<Group, long>(context),
             new GenericRepository<GroupMember, long>(context),
             new GenericRepository<MusicGenre, long>(context),
             new GenericRepository<GroupGenre, long>(context),
             new GenericRepository<GroupMedia, long>(context),
-            new Core.Groups.Infrastructure.Repositories.GroupSearchRepository(context));
+            new Core.Groups.Infrastructure.Repositories.GroupSearchRepository(context),
+            new Core.Groups.Infrastructure.Repositories.GroupMembershipRequestRepository(context));
 
     public IUnitOfWorkSchedules CreateSchedulesUnitOfWork(SchedulesDbContext context)
     {

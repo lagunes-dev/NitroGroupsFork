@@ -15,7 +15,8 @@ namespace NitroGroups.Core.Groups.Infrastructure
         IGenericRepository<MusicGenre, long> musicGenres,
         IGenericRepository<GroupGenre, long> groupGenres,
         IGenericRepository<GroupMedia, long> groupMedia,
-        IGroupSearchRepository groupSearch) : UnitOfWork(context, outboxService), IUnitOfWorkGroups
+        IGroupSearchRepository groupSearch,
+        IGroupMembershipRequestRepository membershipRequests) : UnitOfWork(context, outboxService), IUnitOfWorkGroups
     {
         public IGenericRepository<Group, long> Groups { get; } = groups;
         public IGenericRepository<GroupMember, long> GroupMembers { get; } = groupMembers;
@@ -23,5 +24,6 @@ namespace NitroGroups.Core.Groups.Infrastructure
         public IGenericRepository<GroupGenre, long> GroupGenres { get; } = groupGenres;
         public IGenericRepository<GroupMedia, long> GroupMedia { get; } = groupMedia;
         public IGroupSearchRepository GroupSearch { get; } = groupSearch;
+        public IGroupMembershipRequestRepository MembershipRequests { get; } = membershipRequests;
     }
 }

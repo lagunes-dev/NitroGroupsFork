@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "react-day-picker/style.css";
 
 /*
  * NitroGroups design system — "Noche". See DESIGN.md.
@@ -155,6 +156,33 @@
         letter-spacing: inherit;
     }
 
+    /*
+     * Safety net: any native control that remains still gets dark tokens and a dark popup, so it can never
+     * render light-on-light again (Edge and Firefox on Windows ignore the page's dark scheme otherwise).
+     */
+    select, option, optgroup {
+        background-color: var(--fondo-2);
+        color: var(--tinta);
+        color-scheme: dark;
+    }
+
+    option:checked, option:hover {
+        background-color: var(--fondo-3);
+        color: var(--tinta);
+    }
+
+    input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"], input[type="week"] {
+        background-color: var(--fondo-2);
+        color: var(--tinta);
+        color-scheme: dark;
+    }
+
+    input::-webkit-calendar-picker-indicator {
+        background-color: transparent;
+        color: var(--tinta);
+        cursor: pointer;
+    }
+
     ::-webkit-scrollbar { width: 10px; height: 10px; }
     ::-webkit-scrollbar-track { background: var(--fondo); }
     ::-webkit-scrollbar-thumb { background: var(--fondo-3); border-radius: 10px; border: 2px solid var(--fondo); }
@@ -299,4 +327,95 @@
 @keyframes ondas-mece {
     from { transform: translateY(-1.5%) scaleY(0.94); }
     to { transform: translateY(1.5%) scaleY(1.06); }
+}
+
+/* Floating panels (Select, DatePicker) ease in; with reduced motion they simply appear. */
+@keyframes panel-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: none; }
+}
+
+/*
+ * DatePicker calendar in the "Noche" palette. Layout comes from react-day-picker/style.css;
+ * only colour, shape and state live here. Cells are 44px for touch.
+ */
+.rdp-root.rdp-noche {
+    --rdp-accent-color: var(--acento);
+    --rdp-accent-background-color: var(--fondo-3);
+    --rdp-day-height: 44px;
+    --rdp-day-width: 44px;
+    --rdp-day_button-height: 40px;
+    --rdp-day_button-width: 40px;
+    --rdp-day_button-border-radius: 8px;
+    --rdp-day_button-border: 0;
+    --rdp-selected-border: 0;
+    --rdp-today-color: var(--acento);
+    --rdp-disabled-opacity: 0.4;
+    --rdp-weekday-opacity: 1;
+    --rdp-nav-height: 44px;
+    --rdp-nav_button-height: 44px;
+    --rdp-nav_button-width: 44px;
+    color: var(--tinta);
+    font-size: 0.9375rem;
+}
+
+.rdp-noche .rdp-month_caption {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    padding-inline-start: 0.25rem;
+}
+
+.rdp-noche .rdp-weekday {
+    color: var(--tinta-2);
+    font-size: 0.8125rem;
+    text-transform: capitalize;
+}
+
+.rdp-noche .rdp-chevron { fill: var(--tinta); }
+
+.rdp-noche .rdp-button_next,
+.rdp-noche .rdp-button_previous {
+    border-radius: 8px;
+    color: var(--tinta);
+}
+
+.rdp-noche .rdp-button_next:hover:not(:disabled),
+.rdp-noche .rdp-button_previous:hover:not(:disabled),
+.rdp-noche .rdp-day_button:hover:not(:disabled) {
+    background-color: var(--fondo-3);
+}
+
+.rdp-noche .rdp-today:not(.rdp-selected):not(.rdp-outside) .rdp-day_button {
+    box-shadow: inset 0 0 0 1px var(--acento);
+}
+
+.rdp-noche .rdp-selected { font-size: inherit; }
+
+.rdp-noche .rdp-selected .rdp-day_button,
+.rdp-noche .rdp-selected .rdp-day_button:hover {
+    background-color: var(--acento);
+    color: var(--acento-ink);
+    font-weight: 700;
+}
+
+.rdp-noche .rdp-day_button:focus-visible,
+.rdp-noche .rdp-button_next:focus-visible,
+.rdp-noche .rdp-button_previous:focus-visible {
+    outline: 2px solid var(--acento);
+    outline-offset: 2px;
+}
+
+.rdp-noche .rdp-disabled .rdp-day_button {
+    cursor: not-allowed;
+    text-decoration: line-through;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .rdp-noche .rdp-day_button,
+    .rdp-noche .rdp-button_next,
+    .rdp-noche .rdp-button_previous {
+        transition: background-color 0.3s var(--ease-out), color 0.3s var(--ease-out);
+    }
 }

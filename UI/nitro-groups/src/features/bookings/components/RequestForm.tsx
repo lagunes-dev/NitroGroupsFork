@@ -1,14 +1,25 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
+import { Button } from "@/components/ui/Button";
+import { DatePicker } from "@/components/ui/DatePicker";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
 import { todayInMexico } from "@/lib/format";
+import {
+    durationOptions,
+    eventTypeOptions,
+    firstInvalidField,
+    startTimeOptions,
+    validateRequestFields,
+    type RequestFieldErrors,
+} from "@/lib/requestForm";
 import { bookingsService, apiErrorMessage } from "../bookings.service";
 import { EVENT_TYPES } from "../types";
 
-const field = "h-12 w-full bg-fondo-2 px-4 text-tinta placeholder:text-tinta-2/70 outline-none focus-visible:outline-2 focus-visible:outline-acento focus-visible:-outline-offset-2";
-const label = "block text-sm font-medium text-tinta-2 mb-2";
 const MESSAGE_MIN = 10;
 const MESSAGE_MAX = 2000;
 
@@ -23,7 +34,15 @@ interface RequestFormProps {
 export function RequestForm({ groupId, groupName, minimumHours, defaultDate }: RequestFormProps) {
     const id = useId();
     const [message, setMessage] = useState("");
+    const [errors, setErrors] = useState<RequestFieldErrors>({});
     const minHours = Math.min(Math.max(minimumHours || 1, 1), 12);
+    const startTimes = useMemo(() => startTimeOptions(), []);
+    const fieldIds = {
+        eventDate: `${id}-fecha`,
+        durationHours: `${id}-horas`,
+        eventType: `${id}-tipo`,
+        locationText: `${id}-lugar`,
+    };
 
     const create = useMutation({ mutationFn: bookingsService.create });
 
@@ -45,6 +64,23 @@ export function RequestForm({ groupId, groupName, minimumHours, defaultDate }: R
         e.preventDefault();
         const f = new FormData(e.currentTarget);
         const num = (k: string) => (f.get(k) ? Number(f.get(k)) : null);
+        const found = validateRequestFields(
+            {
+                eventDate: String(f.get("eventDate") ?? ""),
+                durationHours: Number(f.get("durationHours")),
+                eventType: String(f.get("eventType") ?? ""),
+                locationText: String(f.get("locationText") ?? ""),
+            },
+            todayInMexico(),
+            minHours
+        );
+        setErrors(found);
+        const first = firstInvalidField(found);
+        if (first) {
+            // The date and select controls are buttons with an id, so focus lands on the control itself.
+            document.getElementById(fieldIds[first])?.focus();
+            return;
+        }
         create.mutate({
             groupId,
             eventDate: String(f.get("eventDate")),
@@ -58,61 +94,91 @@ export function RequestForm({ groupId, groupName, minimumHours, defaultDate }: R
         });
     }
 
+    const clearError = (field: keyof RequestFieldErrors) =>
+        setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current));
+
     const tooShort = message.trim().length < MESSAGE_MIN;
 
     return (
-        <form onSubmit={onSubmit} className="grid md:grid-cols-6 gap-x-4 gap-y-6 max-w-4xl" aria-describedby={create.isError ? `${id}-error` : undefined}>
+        // noValidate: every rule is checked in onSubmit so custom controls and native inputs report errors the same way.
+        <form onSubmit={onSubmit} noValidate className="grid max-w-4xl items-start gap-x-4 gap-y-6 md:grid-cols-6" aria-describedby={create.isError ? `${id}-error` : undefined}>
             <div className="md:col-span-2">
-                <label htmlFor={`${id}-fecha`} className={label}>Fecha</label>
-                <input id={`${id}-fecha`} name="eventDate" type="date" required min={todayInMexico()} defaultValue={defaultDate} className={`${field} [color-scheme:dark]`} />
+                <DatePicker
+                    id={fieldIds.eventDate}
+                    name="eventDate"
+                    label="Fecha"
+                    required
+                    min={todayInMexico()}
+                    defaultValue={defaultDate}
+                    error={errors.eventDate}
+                    onChange={() => clearError("eventDate")}
+                />
             </div>
             <div className="md:col-span-2">
-                <label htmlFor={`${id}-hora`} className={label}>Hora de inicio <span className="text-tinta-2/70">(opcional)</span></label>
-                <input id={`${id}-hora`} name="startTime" type="time" step={900} className={`${field} [color-scheme:dark]`} />
+                <Select
+                    id={`${id}-hora`}
+                    name="startTime"
+                    label="Hora de inicio (opcional)"
+                    placeholder="Sin hora definida"
+                    emptyOption="Sin hora definida"
+                    options={startTimes}
+                />
             </div>
             <div className="md:col-span-2">
-                <label htmlFor={`${id}-horas`} className={label}>Horas de música</label>
-                <select id={`${id}-horas`} name="durationHours" defaultValue={minHours} className={field}>
-                    {Array.from({ length: 13 - minHours }, (_, i) => minHours + i).map((h) => (
-                        <option key={h} value={h}>{h} {h === 1 ? "hora" : "horas"}</option>
-                    ))}
-                </select>
+                <Select
+                    id={fieldIds.durationHours}
+                    name="durationHours"
+                    label="Horas de música"
+                    required
+                    defaultValue={String(minHours)}
+                    options={durationOptions(minHours)}
+                    error={errors.durationHours}
+                    onValueChange={() => clearError("durationHours")}
+                />
             </div>
             <div className="md:col-span-2">
-                <label htmlFor={`${id}-tipo`} className={label}>Qué celebras</label>
-                <select id={`${id}-tipo`} name="eventType" required className={field} defaultValue="Boda">
-                    {EVENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <Select
+                    id={fieldIds.eventType}
+                    name="eventType"
+                    label="Qué celebras"
+                    required
+                    defaultValue="Boda"
+                    options={eventTypeOptions(EVENT_TYPES)}
+                    error={errors.eventType}
+                    onValueChange={() => clearError("eventType")}
+                />
             </div>
             <div className="md:col-span-4">
-                <label htmlFor={`${id}-lugar`} className={label}>Lugar</label>
-                <input id={`${id}-lugar`} name="locationText" required maxLength={200} placeholder="Salón Los Arcos, Zapopan" className={field} />
+                <Input
+                    id={fieldIds.locationText}
+                    name="locationText"
+                    label="Lugar"
+                    required
+                    maxLength={200}
+                    placeholder="Salón Los Arcos, Zapopan"
+                    error={errors.locationText}
+                    onChange={() => clearError("locationText")}
+                />
             </div>
             <div className="md:col-span-2">
-                <label htmlFor={`${id}-invitados`} className={label}>Invitados <span className="text-tinta-2/70">(opcional)</span></label>
-                <input id={`${id}-invitados`} name="guestCount" type="number" inputMode="numeric" min={1} max={5000} className={`${field} tabular`} />
+                <Input id={`${id}-invitados`} name="guestCount" label="Invitados (opcional)" type="number" inputMode="numeric" min={1} max={5000} className="tabular" />
             </div>
             <div className="md:col-span-2">
-                <label htmlFor={`${id}-presupuesto`} className={label}>Presupuesto en MXN <span className="text-tinta-2/70">(opcional)</span></label>
-                <input id={`${id}-presupuesto`} name="budget" type="number" inputMode="numeric" min={0} step={500} className={`${field} tabular`} />
+                <Input id={`${id}-presupuesto`} name="budget" label="Presupuesto en MXN (opcional)" type="number" inputMode="numeric" min={0} step={500} className="tabular" />
             </div>
             <div className="md:col-span-6">
-                <label htmlFor={`${id}-mensaje`} className={label}>Mensaje para {groupName}</label>
-                <textarea
+                <Textarea
                     id={`${id}-mensaje`}
+                    label={`Mensaje para ${groupName}`}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     required
                     minLength={MESSAGE_MIN}
                     maxLength={MESSAGE_MAX}
                     rows={5}
-                    aria-describedby={`${id}-mensaje-ayuda`}
                     placeholder="Es nuestra boda, queremos mariachi a la salida de la iglesia y una hora en la recepción."
-                    className="w-full bg-fondo-2 rounded-xl px-4 py-3 text-tinta placeholder:text-tinta-2/70 outline-none focus-visible:outline-2 focus-visible:outline-acento focus-visible:-outline-offset-2 resize-y leading-relaxed"
+                    helperText={tooShort ? `Al menos ${MESSAGE_MIN} caracteres.` : `${message.length} de ${MESSAGE_MAX}`}
                 />
-                <p id={`${id}-mensaje-ayuda`} className="mt-2 text-sm text-tinta-2 tabular">
-                    {tooShort ? `Al menos ${MESSAGE_MIN} caracteres.` : `${message.length} de ${MESSAGE_MAX}`}
-                </p>
             </div>
             {create.isError && (
                 <p id={`${id}-error`} role="alert" className="md:col-span-6 text-error">
@@ -120,13 +186,9 @@ export function RequestForm({ groupId, groupName, minimumHours, defaultDate }: R
                 </p>
             )}
             <div className="md:col-span-6">
-                <button
-                    type="submit"
-                    disabled={create.isPending || tooShort}
-                    className="h-14 px-8 bg-acento text-acento-ink rounded-lg font-semibold hover:bg-acento-press transition-colors disabled:opacity-45 disabled:pointer-events-none"
-                >
+                <Button type="submit" size="lg" disabled={create.isPending || tooShort} className="rounded-[8px] px-8">
                     {create.isPending ? "Enviando…" : "Enviar solicitud"}
-                </button>
+                </Button>
             </div>
         </form>
     );

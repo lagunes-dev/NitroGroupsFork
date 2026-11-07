@@ -8,6 +8,8 @@ import GroupProfile from "@/features/groups/components/GroupProfile";
 import GroupCalendar from "@/features/groupAvailability/components/GroupCalendar";
 import GroupGallery from "@/features/groupMedia/components/GroupGallery";
 import { GroupInbox } from "@/features/bookings/components/GroupInbox";
+import { TeamTab } from "@/features/membership/components/TeamTab";
+import { MyInvitations } from "@/features/membership/components/MyInvitations";
 
 /**
  * Panel del grupo. Arriba, quién es y en qué estado está; abajo, el trabajo diario:
@@ -17,7 +19,7 @@ export default function MusicianDashboardPage() {
   const { user } = useCurrentUser();
   const userId = user?.id;
 
-  const { data: group } = useQuery({
+  const { data: group, isPending: groupPending } = useQuery({
     queryKey: ["music-group", userId],
     queryFn: async () => {
       if (!userId) throw new Error("Usuario no autenticado");
@@ -27,21 +29,41 @@ export default function MusicianDashboardPage() {
     staleTime: 1000 * 60 * 10,
   });
 
+  const groupId = group?.id;
+
   return (
     <div className="page-frame pb-24">
       <GroupProfile />
 
-      {/* Sin grupo no hay nada que gestionar: la cabecera ya explica la carga o el error. */}
-      {group?.id ? (
+      {/*
+        Las pestañas del grupo solo existen con grupo; "Invitaciones" es del músico y se queda
+        aunque no tenga uno (así puede aceptar la invitación a su primer grupo). Mientras el
+        grupo carga no se muestra nada: la cabecera ya explica la carga o el error.
+      */}
+      {!groupPending || groupId ? (
         <TabbedSection label="Gestión del grupo" className="mt-16 md:mt-20">
-          <TabItem title="Solicitudes" tabKey="solicitudes">
-            <GroupInbox groupId={group.id} />
-          </TabItem>
-          <TabItem title="Galería" tabKey="galeria">
-            <GroupGallery />
-          </TabItem>
-          <TabItem title="Calendario" tabKey="calendario">
-            <GroupCalendar groupId={group.id} mode="private" />
+          {groupId ? (
+            <TabItem title="Solicitudes" tabKey="solicitudes">
+              <GroupInbox groupId={groupId} />
+            </TabItem>
+          ) : null}
+          {groupId ? (
+            <TabItem title="Equipo" tabKey="equipo">
+              <TeamTab groupId={groupId} />
+            </TabItem>
+          ) : null}
+          {groupId ? (
+            <TabItem title="Galería" tabKey="galeria">
+              <GroupGallery />
+            </TabItem>
+          ) : null}
+          {groupId ? (
+            <TabItem title="Calendario" tabKey="calendario">
+              <GroupCalendar groupId={groupId} mode="private" />
+            </TabItem>
+          ) : null}
+          <TabItem title="Invitaciones" tabKey="invitaciones">
+            <MyInvitations />
           </TabItem>
         </TabbedSection>
       ) : null}

@@ -156,6 +156,31 @@ Sin configuración, los emails **no se envían**: solo se registran en el log el
 | `Email:Smtp:Username` / `Email:Smtp:Password` | (vacíos) | Credenciales; guárdalas en User Secrets o variables de entorno (`Email__Smtp__Password`) |
 | `Email:Smtp:EnableSsl` | `true` | TLS |
 
+## Membresías de grupo (invitaciones y solicitudes)
+
+Un manager puede invitar a un músico a su grupo y un músico puede pedir unirse. Quien recibe responde. Cada pedido es un `GroupMembershipRequest` del módulo Groups (esquema `groups`, tabla `group_membership_requests`), separado de `GroupMember` a propósito: `GET api/groups/{id}/members` es público y no debe mostrar pendientes.
+
+| Ruta | Quién | Resultado |
+| --- | --- | --- |
+| `GET api/musicians/open-to-join?query=&page=&size=` | usuario autenticado | Músicos con `IsOpenToJoin`, buscados por nombre. Nunca devuelve email. |
+| `POST api/groups/{groupId}/membership-invitations` | Owner o Manager | Invita a un músico (`{ musicianUserId, message? }`). 201. |
+| `POST api/groups/{groupId}/membership-requests` | músico | Pide unirse (`{ message? }` opcional). 201. |
+| `POST api/membership-requests/{id}/accept`, `/decline`, `/cancel` | según el sentido | Acepta o rechaza quien recibe; cancela quien inició. |
+| `GET api/groups/{groupId}/membership-requests?direction=&status=` | Owner o Manager | Bandeja del grupo. |
+| `GET api/membership-requests/mine?direction=&status=` | quien consulta | Sus propias invitaciones y solicitudes. |
+
+Reglas:
+
+- Solo se puede invitar a músicos con `IsOpenToJoin` activado. Un cliente o un músico cerrado responde 409.
+- Al aceptar se crea el `GroupMember` con rol `Member` (nunca `Manager`). Si el músico ya había salido, se reactiva su fila en vez de crear otra: existe un índice único `(group_id, user_id)`.
+- Solo puede haber una solicitud pendiente por grupo y músico. Un índice parcial lo garantiza y el segundo intento responde 409.
+- Un músico puede estar en varios grupos.
+- Quien no participa recibe 404, no 403, para no revelar que la solicitud existe.
+- Los avisos por email salen por el outbox del módulo Groups (ver [Emails](#emails)) en cuatro momentos: invitación recibida, solicitud recibida y cada una resuelta. Los cuerpos no incluyen el texto de los mensajes ni direcciones de correo.
+- Promover a un miembro a Manager todavía no existe. Cuando se agregue, debe ser una acción exclusiva del Owner.
+
+En el frontend, el panel del grupo (`/dashboard/musician`) tiene la pestaña **Equipo** (buscar e invitar, responder solicitudes) y la pestaña **Invitaciones** para el músico. El perfil público del grupo muestra **Pedir unirse** solo a músicos que no son miembros. El detalle de la feature está en `odd/tasks/membresias-grupo.md`.
+
 ## Tailwind CSS
 
 El frontend usa **Tailwind CSS 4** integrado en el flujo de build de Next.js. Para ver los estilos en caliente basta con ejecutar `npm run dev` en `UI/nitro-groups`; para builds de producción se ejecuta automáticamente con `npm run build`.

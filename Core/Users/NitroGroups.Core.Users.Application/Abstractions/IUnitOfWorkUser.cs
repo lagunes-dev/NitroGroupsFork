@@ -7,5 +7,6 @@ namespace NitroGroups.Core.Users.Application.Abstractions
     {
         IGenericRepository<User, long> Users { get; }
         IGenericRepository<Musician, long> Musicians { get; }
+        IOpenMusicianSearchRepository OpenMusicians { get; }
     }
 }

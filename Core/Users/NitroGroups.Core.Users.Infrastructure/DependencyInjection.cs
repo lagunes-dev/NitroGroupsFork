@@ -41,6 +41,7 @@ namespace NitroGroups.Core.Users.Infrastructure
         {
             services.AddModuleRepository<UsersDbContext, User>();
             services.AddModuleRepository<UsersDbContext, Musician>();
+            services.AddScoped<IOpenMusicianSearchRepository, Repositories.OpenMusicianSearchRepository>();
             services.AddModuleUnitOfWork<IUnitOfWorkUser, UnitOfWorkUser, UsersDbContext>();
             return services;
         }

@@ -407,6 +407,89 @@ namespace NitroGroups.Core.Groups.Infrastructure.Persistence.Migrations
                     b.ToTable("group_members", "groups");
                 });
 
+            modelBuilder.Entity("NitroGroups.Core.Groups.Domain.Entities.GroupMembershipRequest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<long?>("DeletedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<int>("Direction")
+                        .HasColumnType("integer")
+                        .HasColumnName("direction");
+
+                    b.Property<long>("GroupId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("group_id");
+
+                    b.Property<long>("InitiatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("initiated_by_user_id");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("message");
+
+                    b.Property<long>("MusicianUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("musician_user_id");
+
+                    b.Property<long?>("ResolvedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("resolved_by_user_id");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupId", "MusicianUserId")
+                        .IsUnique()
+                        .HasFilter("status = 0");
+
+                    b.HasIndex("GroupId", "Status");
+
+                    b.HasIndex("MusicianUserId", "Status");
+
+                    b.ToTable("group_membership_requests", "groups");
+                });
+
             modelBuilder.Entity("NitroGroups.Core.Groups.Domain.Entities.MusicGenre", b =>
                 {
                     b.Property<long>("Id")
@@ -561,6 +644,17 @@ namespace NitroGroups.Core.Groups.Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("NitroGroups.Core.Groups.Domain.Entities.Group", "Group")
                         .WithMany("Members")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("NitroGroups.Core.Groups.Domain.Entities.GroupMembershipRequest", b =>
+                {
+                    b.HasOne("NitroGroups.Core.Groups.Domain.Entities.Group", "Group")
+                        .WithMany()
                         .HasForeignKey("GroupId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

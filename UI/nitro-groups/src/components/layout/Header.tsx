@@ -16,9 +16,8 @@ export default function Header() {
             </a>
             <div className="page-frame h-14 flex items-center justify-between gap-6">
                 <Logo />
-                {isLoading ? (
-                    <span className="hidden md:block h-9 w-56 rounded-full bg-fondo-2" aria-hidden />
-                ) : (
+                {/* Nothing while the session loads: a placeholder cannot match both the signed-in and signed-out controls. */}
+                {!isLoading && (
                     <>
                         <UserMenu />
                         <PublicNavigation />

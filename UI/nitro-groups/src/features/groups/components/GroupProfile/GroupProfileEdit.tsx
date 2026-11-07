@@ -2,7 +2,10 @@ import { useId } from "react";
 import { Check } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { Field, fieldClass, hintId } from "./Common";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
+import { ImageUrlField } from "./ImageUrlField";
 import type { MusicGroup } from "../../types/MusicGroup";
 import type { GenreListItem } from "../../services/groups.service";
 
@@ -21,21 +24,25 @@ type GroupProfileEditProps = {
   set: <K extends keyof MusicGroup>(k: K, v: MusicGroup[K]) => void;
 };
 
+const CURRENCY_OPTIONS = [
+  { value: "MXN", label: "Pesos (MXN)" },
+  { value: "USD", label: "Dólares (USD)" },
+];
+
 /** Campo numérico con un prefijo de moneda dentro del control. */
-function MoneyInput({ id, value, onChange }: { id: string; value: number | undefined; onChange: (v: number | undefined) => void }) {
+function MoneyInput({ id, label, value, onChange }: { id: string; label: string; value: number | undefined; onChange: (v: number | undefined) => void }) {
   return (
-    <div className="relative">
-      <span aria-hidden className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-tinta-2">$</span>
-      <input
-        id={id}
-        type="number"
-        inputMode="numeric"
-        min={0}
-        value={value || ""}
-        onChange={(e) => onChange(Number(e.target.value) || undefined)}
-        className={`${fieldClass} pl-8 tabular`}
-      />
-    </div>
+    <Input
+      id={id}
+      label={label}
+      type="number"
+      inputMode="numeric"
+      min={0}
+      value={value || ""}
+      onChange={(e) => onChange(Number(e.target.value) || undefined)}
+      icon={<span aria-hidden>$</span>}
+      className="tabular"
+    />
   );
 }
 
@@ -72,21 +79,15 @@ export default function GroupProfileEdit({
         <fieldset className="min-w-0 space-y-6 lg:col-span-7">
           <legend className="type-heading mb-6 text-2xl">Cómo te presentas</legend>
 
-          <Field label="Nombre del grupo" htmlFor={id("name")} required>
-            <input id={id("name")} value={group.groupName} onChange={(e) => set("groupName", e.target.value)}
-              className={fieldClass} placeholder="Ej. Los Relámpagos" required autoComplete="organization" />
-          </Field>
+          <Input id={id("name")} label="Nombre del grupo (obligatorio)" value={group.groupName} onChange={(e) => set("groupName", e.target.value)}
+            placeholder="Ej. Los Relámpagos" required autoComplete="organization" />
 
-          <Field label="Descripción corta" htmlFor={id("description")} hint={`${group.description?.length ?? 0} de 150`}>
-            <input id={id("description")} value={group.description} onChange={(e) => set("description", e.target.value)}
-              className={fieldClass} placeholder="Una frase que defina a tu grupo" maxLength={150}
-              aria-describedby={hintId(id("description"))} />
-          </Field>
+          <Input id={id("description")} label="Descripción corta" helperText={`${group.description?.length ?? 0} de 150`}
+            value={group.description} onChange={(e) => set("description", e.target.value)}
+            placeholder="Una frase que defina a tu grupo" maxLength={150} />
 
-          <Field label="Biografía" htmlFor={id("biography")}>
-            <textarea id={id("biography")} rows={6} value={group.biography} onChange={(e) => set("biography", e.target.value)}
-              className={`${fieldClass} h-auto resize-y py-3 leading-relaxed`} placeholder="Historia, estilo, dónde han tocado…" />
-          </Field>
+          <Textarea id={id("biography")} label="Biografía" rows={6} value={group.biography} onChange={(e) => set("biography", e.target.value)}
+            placeholder="Historia, estilo, dónde han tocado…" />
 
           <div role="group" aria-labelledby={genresLabelId} aria-describedby={id("genres-hint")}>
             <p id={genresLabelId} className="mb-1 text-sm font-medium text-tinta">Géneros</p>
@@ -119,75 +120,48 @@ export default function GroupProfileEdit({
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <Field label="Foto de perfil (URL)" htmlFor={id("avatar")}>
-              <input id={id("avatar")} value={group.profilePictureUrl || ""} onChange={(e) => set("profilePictureUrl", e.target.value)}
-                className={fieldClass} placeholder="https://…" type="url" inputMode="url" />
-            </Field>
-            <Field label="Portada (URL)" htmlFor={id("cover")}>
-              <input id={id("cover")} value={group.coverImageUrl || ""} onChange={(e) => set("coverImageUrl", e.target.value)}
-                className={fieldClass} placeholder="https://…" type="url" inputMode="url" />
-            </Field>
+          <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2">
+            <ImageUrlField id={id("avatar")} label="Foto de perfil" groupId={group.id}
+              value={group.profilePictureUrl || ""} onChange={(url) => set("profilePictureUrl", url)} />
+            <ImageUrlField id={id("cover")} label="Portada" groupId={group.id}
+              value={group.coverImageUrl || ""} onChange={(url) => set("coverImageUrl", url)}
+              helperText="Sin portada, tu perfil usa la primera foto de la galería." />
           </div>
-          <p className="-mt-3 text-sm text-tinta-2">Sin portada, tu perfil usa la primera foto de la galería.</p>
         </fieldset>
 
         {/* Cómo se contrata */}
         <fieldset className="min-w-0 space-y-6 lg:col-span-5">
           <legend className="type-heading mb-6 text-2xl">Cómo te contratan</legend>
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <Field label="Precio base" htmlFor={id("base")}>
-              <MoneyInput id={id("base")} value={group.basePrice} onChange={(v) => set("basePrice", v)} />
-            </Field>
-            <Field label="Precio por hora" htmlFor={id("hourly")}>
-              <MoneyInput id={id("hourly")} value={group.hourlyRate} onChange={(v) => set("hourlyRate", v)} />
-            </Field>
+          <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2">
+            <MoneyInput id={id("base")} label="Precio base" value={group.basePrice} onChange={(v) => set("basePrice", v)} />
+            <MoneyInput id={id("hourly")} label="Precio por hora" value={group.hourlyRate} onChange={(v) => set("hourlyRate", v)} />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <Field label="Moneda" htmlFor={id("currency")}>
-              <select id={id("currency")} value={group.currency || "MXN"} onChange={(e) => set("currency", e.target.value)}
-                className={fieldClass}>
-                <option value="MXN">Pesos (MXN)</option>
-                <option value="USD">Dólares (USD)</option>
-              </select>
-            </Field>
-            <Field label="Viaja hasta" htmlFor={id("radius")} hint="km">
-              <input id={id("radius")} type="number" inputMode="numeric" min={0} value={group.serviceRadiusKm}
-                onChange={(e) => set("serviceRadiusKm", Number(e.target.value))}
-                className={`${fieldClass} tabular`} aria-describedby={hintId(id("radius"))} />
-            </Field>
+          <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2">
+            <Select id={id("currency")} label="Moneda" value={group.currency || "MXN"} onValueChange={(v) => set("currency", v)} options={CURRENCY_OPTIONS} />
+            <Input id={id("radius")} label="Viaja hasta (km)" type="number" inputMode="numeric" min={0} value={group.serviceRadiusKm}
+              onChange={(e) => set("serviceRadiusKm", Number(e.target.value))} className="tabular" />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <Field label="Contratación mínima" htmlFor={id("min-hours")} hint="horas">
-              <input id={id("min-hours")} type="number" inputMode="numeric" min={1} value={group.minimumDurationHours || 1}
-                onChange={(e) => set("minimumDurationHours", Number(e.target.value))}
-                className={`${fieldClass} tabular`} aria-describedby={hintId(id("min-hours"))} />
-            </Field>
-            <Field label="Montaje" htmlFor={id("setup")} hint="minutos">
-              <input id={id("setup")} type="number" inputMode="numeric" min={0} step={15} value={group.setupTimeMinutes || 0}
-                onChange={(e) => set("setupTimeMinutes", Number(e.target.value))}
-                className={`${fieldClass} tabular`} aria-describedby={hintId(id("setup"))} />
-            </Field>
+          <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2">
+            <Input id={id("min-hours")} label="Contratación mínima (horas)" type="number" inputMode="numeric" min={1} value={group.minimumDurationHours || 1}
+              onChange={(e) => set("minimumDurationHours", Number(e.target.value))} className="tabular" />
+            <Input id={id("setup")} label="Montaje (minutos)" type="number" inputMode="numeric" min={0} step={15} value={group.setupTimeMinutes || 0}
+              onChange={(e) => set("setupTimeMinutes", Number(e.target.value))} className="tabular" />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <Field label="Ciudad" htmlFor={id("location")}>
-              <input id={id("location")} value={group.locationText} onChange={(e) => set("locationText", e.target.value)}
-                className={fieldClass} placeholder="Ciudad, estado" autoComplete="address-level2" />
-            </Field>
-            <Field label="Integrantes" htmlFor={id("members")}>
-              <input id={id("members")} type="number" inputMode="numeric" min={1} value={group.numMembers || ""}
-                onChange={(e) => set("numMembers", parseInt(e.target.value) || 0)} className={`${fieldClass} tabular`} />
-            </Field>
+          <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2">
+            <Input id={id("location")} label="Ciudad" value={group.locationText} onChange={(e) => set("locationText", e.target.value)}
+              placeholder="Ciudad, estado" autoComplete="address-level2" />
+            <Input id={id("members")} label="Integrantes" type="number" inputMode="numeric" min={1} value={group.numMembers || ""}
+              onChange={(e) => set("numMembers", parseInt(e.target.value) || 0)} className="tabular" />
           </div>
 
-          <Field label="Años de experiencia" htmlFor={id("years")}>
-            <input id={id("years")} type="number" inputMode="numeric" min={0} value={group.yearsExperience || 0}
-              onChange={(e) => set("yearsExperience", Number(e.target.value))} className={`${fieldClass} tabular sm:max-w-[calc(50%-0.75rem)]`} />
-          </Field>
+          <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2">
+            <Input id={id("years")} label="Años de experiencia" type="number" inputMode="numeric" min={0} value={group.yearsExperience || 0}
+              onChange={(e) => set("yearsExperience", Number(e.target.value))} className="tabular" />
+          </div>
 
           {/* Interruptor accesible: el estado se lee en el texto, no solo en el color. */}
           <div className="flex items-start justify-between gap-6 bg-fondo-2 rounded-xl px-4 py-4">
@@ -206,11 +180,11 @@ export default function GroupProfileEdit({
               aria-labelledby={id("accepting-label")}
               aria-describedby={id("accepting-hint")}
               onClick={() => set("isAcceptingBookings", !group.isAcceptingBookings)}
-              className={`relative mt-0.5 h-7 w-12 shrink-0 transition-colors duration-150 ${group.isAcceptingBookings ? "bg-acento" : "bg-fondo-3"}`}
+              className={`relative mt-0.5 h-7 w-12 shrink-0 rounded-full transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento ${group.isAcceptingBookings ? "bg-acento" : "bg-fondo-3"}`}
             >
               <span
                 aria-hidden
-                className={`absolute left-0 top-1 size-5 transition-transform duration-150 ${group.isAcceptingBookings ? "translate-x-6 bg-fondo" : "translate-x-1 bg-tinta-2"}`}
+                className={`absolute left-0 top-1 size-5 rounded-full transition-transform duration-150 ${group.isAcceptingBookings ? "translate-x-6 bg-fondo" : "translate-x-1 bg-tinta-2"}`}
               />
             </button>
           </div>

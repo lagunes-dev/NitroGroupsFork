@@ -15,5 +15,6 @@ namespace NitroGroups.Core.Groups.Infrastructure.Persistence
         public DbSet<MusicGenre> MusicGenres => Set<MusicGenre>();
         public DbSet<GroupGenre> GroupGenres => Set<GroupGenre>();
         public DbSet<GroupMedia> GroupMedia => Set<GroupMedia>();
+        public DbSet<GroupMembershipRequest> GroupMembershipRequests => Set<GroupMembershipRequest>();
     }
 }
