@@ -125,35 +125,32 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 
 **Lo que falta decidir y no decido solo**: cómo se entrega ese tramo de 194 commits. Pushear y abrir PRs siguen siendo decisiones del usuario.
 
-## Plan de entrega en 6 PRs (T64, S27)
+## Entrega abierta en 6 PRs (T64, S27)
 
-Extiende el plan de `odd/tasks/mvp-arquitectura.md` (12 PRs, hasta `fb399da`, posición 100 de la rama).
-Las seis ramas **ya existen en el repo local**, encadenadas: cada una tiene como base el tip de la
-anterior y se mergean en ese orden. **Ninguna está pusheada ni tiene PR abierto**: el push y el PR son
-decisión del usuario (la rama local va 89 commits adelante de su upstream).
+Las seis PRs **están abiertas** en `lagunes-dev/NitroGroupsFork`, apiladas contra `develop` (que ya
+contiene el plan viejo: `git rev-list --count origin/develop..fb399da` = 0). Se mergean en el orden de la
+tabla; cada una tiene como base la rama de la anterior.
 
 | PR | Rama | Base → tip | Commits | Archivos | Líneas autoradas | Tema |
 |---|---|---|---|---|---|---|
-| #13 | `stack/13-pulido-ui` | `fb399da` → `2ae3435` | 51 | 214 | 15.709 | pulido de UI (#101–#151) |
-| #14 | `stack/14-ux-membresias` | `2ae3435` → `9fab418` | 17 | 48 | 1.541 | UX de membresías (#152–#168) |
-| #15 | `stack/15-ola-2a-perfil-musico` | `9fab418` → `e96f997` | 20 | 67 | 3.689 | perfil de músico (#169–#188) |
-| #16 | `stack/16-ola-2b-agenda-gigs` | `e96f997` → `656bba4` | 18 | 90 | 4.130 | agenda de gigs (#189–#206) |
-| #17 | `stack/17-ola-3-descubrimiento` | `656bba4` → `3aafd5c` | 75 | 265 | 15.294 | directorio, logística y reseñas (#207–#281) |
-| #18 | `stack/18-rondas-6-8` | `3aafd5c` → `bb55a27` | 35 | 97 | 4.878 | arreglos de las rondas 6-8 y T59–T64 (#282–#316) |
+| [#17](https://github.com/lagunes-dev/NitroGroupsFork/pull/17) | `stack/13-pulido-ui` | `162c3fd` → `2ae3435` | 36 | 123 | 7.278 | pulido de UI |
+| [#18](https://github.com/lagunes-dev/NitroGroupsFork/pull/18) | `stack/14-ux-membresias` | `2ae3435` → `9fab418` | 17 | 48 | 1.541 | UX de membresías |
+| [#19](https://github.com/lagunes-dev/NitroGroupsFork/pull/19) | `stack/15-ola-2a-perfil-musico` | `9fab418` → `e96f997` | 20 | 67 | 3.689 | perfil de músico |
+| [#20](https://github.com/lagunes-dev/NitroGroupsFork/pull/20) | `stack/16-ola-2b-agenda-gigs` | `e96f997` → `656bba4` | 18 | 90 | 4.130 | agenda de gigs |
+| [#21](https://github.com/lagunes-dev/NitroGroupsFork/pull/21) | `stack/17-ola-3-descubrimiento` | `656bba4` → `3aafd5c` | 75 | 265 | 15.294 | directorio, logística y reseñas |
+| [#22](https://github.com/lagunes-dev/NitroGroupsFork/pull/22) | `stack/18-rondas-6-8` | `3aafd5c` → `b5e96c8` | 36 | 97 | 4.878 | arreglos de las rondas 6-8 y T59–T64 |
 
-**Total extendido: 216 commits y 45.241 líneas autoradas** sobre las 12 PRs del plan viejo.
-Medición: posiciones en `git rev-list --reverse origin/master..HEAD`; líneas con `git diff --numstat
-<base> <tip>` **excluyendo** lock files, `*.Designer.cs` y los snapshots de migración, que son generados.
+**Total: 202 commits y 36.810 líneas autoradas** sobre `develop`, que es exactamente
+`git rev-list --count origin/develop..HEAD`. Medición: `git diff --numstat <base> <tip>` **excluyendo**
+lock files, `*.Designer.cs` y los snapshots de migración, que son generados.
 
-Orden de lectura: el de la tabla, porque están encadenadas. Cada PR se lee como un tramo de producto
-cerrado. **Las seis superan las 400 líneas**, igual que 11 de las 12 anteriores: cada una pide
-`size:exception` con su motivo medido (migraciones generadas, módulos completos, reescritura de
-pantallas). No se pueden partir más sin romper el encadenado ni la coherencia del tramo.
+Las seis llevan la etiqueta `size:exception` (creada en el repo para esto): todas superan las 400 líneas
+por motivos estructurales medidos, igual que las PRs anteriores del proyecto. No se pueden partir más sin
+romper el encadenado ni la coherencia del tramo.
 
 **Por qué 6 y no 5**: la primera versión metía el pulido de UI dentro de la PR de membresías y daba una
-sola PR de 17.102 líneas donde el pulido —la época en que se arreglaron T31, T34 y T45, justo donde están
-las lecciones de "tests verdes y roto en pantalla"— tapaba la parte con decisiones de producto reales.
-Separado en `2ae3435`, cada PR tiene un foco revisable y un motivo propio para la excepción de tamaño.
+sola PR de 17.102 líneas donde el pulido —la época de T31, T34 y T45, justo donde están las lecciones de
+"tests verdes y roto en pantalla"— tapaba la parte con decisiones de producto reales.
 
 ## Log
 
@@ -268,3 +265,5 @@ Regla del usuario: solo escribe una reseña el cliente de un evento aceptado cuy
   (3) **"No me pagaron" se mantiene como está**: reclamar un pago de un toque al que avisaste que no podías ir produce un dato incoherente y un aviso inútil para el manager. La coherencia entre el front y el back se paga en el mismo turno (criterio de L61).
   (4) **Limpieza del foco que había quedado a medias (L52)**: `components/ui/field.ts` y `Select.tsx` ya no llevan `outline-none`. Esa clase no apagaba nada —el anillo se declara sin capa en `globals.css` y gana— así que solo prometía algo que no podía cumplir. Los 3 tests de `focusRing` y los de `components/ui` siguen en verde.
   (5) **Lo que nunca se había medido, medido**: la agenda del manager con la fecha límite del anticipo muestra "Anticipo $4,000 · pendiente · para el 10 de noviembre" y "Anticipo $3,000 · recibido el 5 de noviembre de 2026", la insignia envuelve en dos líneas de 24 px y no hay desborde horizontal a 390 px.
+
+- L72 (apertura de la entrega, con dos correcciones de medición): las seis PRs quedaron abiertas como #17 a #22, apiladas y etiquetadas `size:exception` (la etiqueta no existía en el repo; se creó). Dos cosas que estaban mal en mi plan y se corrigieron antes de abrir nada: (a) `gh` resolvía el repo como el **upstream** `Henry-cmd325/NitroGroups`, así que `gh pr create` fallaba con "Head sha can't be blank"; se arregla con `--repo lagunes-dev/NitroGroupsFork` explícito. (b) `develop` **ya contenía 15 de los 51 commits** del tramo 13 (su tip es `162c3fd`), así que la base real es `develop` y el tramo mide 36 commits y 7.278 líneas, no 51 y 15.709. El total real es 202 commits y 36.810 líneas, que coincide exactamente con `origin/develop..HEAD`. Nota de método: `gh pr edit --add-label` falla en este repo (bug conocido de gh con projects clásicos); las etiquetas se aplican con `gh api -X POST repos/{repo}/issues/{n}/labels`.
