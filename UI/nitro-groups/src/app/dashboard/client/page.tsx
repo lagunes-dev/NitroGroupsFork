@@ -4,21 +4,29 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ROUTES } from "@/config/routes";
 import { bookingsService } from "@/features/bookings/bookings.service";
-import { RequestList } from "@/features/bookings/components/RequestList";
+import { ClientRequestGroups } from "@/features/bookings/components/ClientRequestGroups";
+import { pendingRequestsLine } from "@/features/bookings/summary";
+import { todayInMexico } from "@/lib/format";
 
 export default function ClientDashboardPage() {
     const requests = useQuery({ queryKey: ["event-requests", "mine"], queryFn: bookingsService.mine });
+    const pending = requests.data?.filter((r) => r.status === "Pending").length ?? 0;
+    const total = requests.data?.length ?? 0;
 
     return (
         <div className="page-frame pt-12 md:pt-16">
             <div className="flex flex-wrap items-end justify-between gap-6">
-                <h1 className="titulo">Mis solicitudes</h1>
+                <h1 className="titulo">Mis pedidos</h1>
                 <Link href={ROUTES.GROUPS.SEARCH} className="h-12 inline-flex items-center px-6 bg-acento text-acento-ink rounded-lg font-semibold no-underline hover:bg-acento-press">
                     Buscar otro grupo
                 </Link>
             </div>
 
             <div className="mt-12">
+                {/* The counts appear once the list loads: they are read aloud at that point. */}
+                <p role="status" aria-live="polite" className="sr-only">
+                    {requests.data ? pendingRequestsLine(pending, total) : ""}
+                </p>
                 {requests.isPending && <p className="text-tinta-2" aria-busy>Cargando tus solicitudes…</p>}
                 {requests.isError && (
                     <p role="alert" className="text-error">No pudimos cargar tus solicitudes. Recarga la página en un momento.</p>
@@ -31,7 +39,7 @@ export default function ClientDashboardPage() {
                         </p>
                     </div>
                 )}
-                {requests.data && requests.data.length > 0 && <RequestList requests={requests.data} viewer="Client" />}
+                {requests.data && requests.data.length > 0 && <ClientRequestGroups requests={requests.data} today={todayInMexico()} />}
             </div>
         </div>
     );

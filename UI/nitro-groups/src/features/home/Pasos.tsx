@@ -3,12 +3,6 @@
 import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { Check } from "lucide-react";
 
-interface PasosProps {
-    /** Nombre real de un grupo del catálogo, para que los ejemplos no sean genéricos. */
-    groupName: string;
-    price: string;
-}
-
 const STEPS = [
     {
         title: "Busca por fecha",
@@ -40,23 +34,23 @@ function prefersReducedMotion() {
     return window.matchMedia(REDUCED).matches;
 }
 
-/** Lo que muestra cada paso: un fragmento de la app con datos de ejemplo. */
-function Panel({ step, groupName, price }: { step: number } & PasosProps) {
+/** Lo que muestra cada paso: un fragmento de la app, sin datos que parezcan reales. */
+function Panel({ step }: { step: number }) {
     const row = "flex items-center justify-between rounded-lg bg-white/[0.03] px-4 py-3";
     switch (step) {
         case 0:
             return (
                 <div className="space-y-4">
-                    <div className="flex gap-2">
-                        {["vie 13", "sáb 14", "dom 15", "sáb 21"].map((d, i) => (
-                            <span key={d} className={`rounded-md px-3 py-1.5 text-sm ${i === 1 ? "bg-acento text-acento-ink" : "bg-white/[0.05] text-tinta-2"}`}>{d}</span>
-                        ))}
+                    <div className="rounded-lg bg-white/[0.03] px-4 py-3">
+                        <p className="text-[0.8125rem] text-tinta-2">Fecha del evento</p>
+                        <p className="mt-0.5">Solo los grupos libres ese día</p>
                     </div>
-                    <div className="space-y-2">
-                        {[groupName, "Trío Sierra", "Sonora La Luna"].map((n, i) => (
-                            <div key={n} className={row}>
-                                <span>{n}</span>
-                                <span className="text-sm text-ok">{i === 0 ? price : "Disponible"}</span>
+                    {/* Filas neutras: sugieren la lista de resultados sin nombres, fechas ni precios inventados. */}
+                    <div className="space-y-2" aria-hidden>
+                        {["w-28", "w-20", "w-24"].map((width, i) => (
+                            <div key={i} className={row}>
+                                <span className={`h-2.5 rounded-full bg-white/[0.12] ${width}`} />
+                                <span className="h-2.5 w-14 rounded-full bg-white/[0.07]" />
                             </div>
                         ))}
                     </div>
@@ -105,7 +99,7 @@ function Panel({ step, groupName, price }: { step: number } & PasosProps) {
  * el fragmento de la app de ese paso. Avanza sola; se pausa al pasar el cursor o enfocar, y con
  * movimiento reducido no avanza.
  */
-export function Pasos({ groupName, price }: PasosProps) {
+export function Pasos() {
     const id = useId();
     const [active, setActive] = useState(0);
     const [paused, setPaused] = useState(false);
@@ -157,8 +151,11 @@ export function Pasos({ groupName, price }: PasosProps) {
 
             <div id={`${id}-panel`} aria-live="polite" className="relative overflow-hidden rounded-xl superficie min-h-[22rem] grid place-items-center p-6 md:p-10">
                 <div className="resplandor resplandor-vivo w-[70%] aspect-square -right-[10%] -top-[20%]" aria-hidden />
-                <div key={active} className="aparece relative w-full max-w-md vidrio rounded-xl p-4">
-                    <Panel step={active} groupName={groupName} price={price} />
+                <div className="w-full max-w-md">
+                    <p className="mb-3 text-[0.8125rem] text-tinta-2">Ejemplo de la app</p>
+                    <div key={active} className="aparece relative w-full vidrio rounded-xl p-4">
+                        <Panel step={active} />
+                    </div>
                 </div>
             </div>
         </div>

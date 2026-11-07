@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveBackendApiBaseUrl } from "@/lib/backendBaseUrl";
 import { getSessionSecret } from "@/lib/sessionSecret";
+import { sessionUserType } from "@/lib/sessionUserType";
 
 interface LoginRequest {
     email: string;
@@ -151,6 +152,12 @@ export async function POST(request: NextRequest) {
             if (!syncResponse.ok) {
                 const syncError = await syncResponse.text();
                 console.error("User sync failed:", syncResponse.status, syncError);
+            } else {
+                // The backend answers with the stored user: its type decides where /dashboard sends them.
+                // Without this every login landed on the musician dashboard, clients included.
+                const synced = (await syncResponse.json().catch(() => null)) as { userType?: unknown } | null;
+                const type = sessionUserType(synced?.userType);
+                if (type) Object.assign(sessionData.user, { user_type: type });
             }
         } catch (syncError) {
             console.error("User sync error (non-blocking):", syncError);

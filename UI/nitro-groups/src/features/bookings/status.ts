@@ -1,4 +1,33 @@
+import { Ban, Check, CircleHelp, Clock, X, type LucideIcon } from "lucide-react";
+import type { VariantProps } from "class-variance-authority";
+import type { badgeVariants } from "@/components/ui/Badge";
 import type { EventRequest, EventRequestParty, EventRequestStatus } from "./types";
+
+type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>;
+
+/** How a status looks: the word, the chip tone and its icon (colour never travels alone). */
+export interface StatusAppearance {
+    text: string;
+    variant: BadgeVariant;
+    /** Extra classes for the tones the Badge does not ship. */
+    className?: string;
+    icon: LucideIcon;
+}
+
+const STATUS_APPEARANCE: Record<EventRequestStatus, StatusAppearance> = {
+    Pending: { text: "Pendiente", variant: "default", className: "text-acento", icon: Clock },
+    Accepted: { text: "Aceptada", variant: "ok", icon: Check },
+    Declined: { text: "Rechazada", variant: "destructive", icon: X },
+    Cancelled: { text: "Cancelada", variant: "secondary", icon: Ban },
+};
+
+/**
+ * Presentation of one status. The API sends the status as text: a value we do not know prints as it
+ * arrived, in a neutral tone, so a new transition never disguises itself as "accepted".
+ */
+export function statusAppearance(status: string): StatusAppearance {
+    return STATUS_APPEARANCE[status as EventRequestStatus] ?? { text: status.trim() || "Sin estado", variant: "secondary", icon: CircleHelp };
+}
 
 /** Cómo se nombra cada estado ante cada parte. */
 export function statusLabel(status: EventRequestStatus, viewer: EventRequestParty): string {

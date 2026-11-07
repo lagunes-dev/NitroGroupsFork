@@ -30,6 +30,21 @@ namespace NitroGroups.Core.Users.Infrastructure.Persistence.Configurations
                 .HasColumnName("is_open_to_join")
                 .HasDefaultValue(true);
 
+            builder.Property(m => m.Headline)
+                .HasMaxLength(120)
+                .HasColumnName("headline")
+                .IsRequired(false);
+
+            builder.Property(m => m.Instruments)
+                .HasMaxLength(120)
+                .HasColumnName("instruments")
+                .IsRequired(false);
+
+            builder.Property(m => m.VideoUrl)
+                .HasMaxLength(300)
+                .HasColumnName("video_url")
+                .IsRequired(false);
+
             builder.HasOne(m => m.User)
                 .WithOne(u => u.Musician)
                 .HasForeignKey<Musician>(m => m.UserId)

@@ -58,6 +58,7 @@ public class SecurityEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
         "GET api/groups/{groupId:long}/media",
         "GET api/groups/{groupId:long}/schedule",
         "GET api/groups/{id}/schedules",
+        "GET api/musicians/{userId:long}",
         "GET /openapi/{documentName}.json",
     ];
 

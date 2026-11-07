@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { availableActions, shortTime, statusLabel } from "./status";
+import { Ban, Check, CircleHelp, Clock, X } from "lucide-react";
+import { availableActions, shortTime, statusAppearance, statusLabel } from "./status";
 
 describe("availableActions", () => {
     it("el grupo responde solo solicitudes pendientes", () => {
@@ -29,6 +30,28 @@ describe("statusLabel", () => {
     it("nombra el pendiente según quién mira", () => {
         expect(statusLabel("Pending", "Client")).toBe("Esperando respuesta del grupo");
         expect(statusLabel("Pending", "Group")).toBe("Por responder");
+    });
+});
+
+describe("statusAppearance", () => {
+    it("gives each status its own word, tone and icon", () => {
+        expect(statusAppearance("Pending")).toMatchObject({ text: "Pendiente", variant: "default", className: "text-acento", icon: Clock });
+        expect(statusAppearance("Accepted")).toMatchObject({ text: "Aceptada", variant: "ok", icon: Check });
+        expect(statusAppearance("Declined")).toMatchObject({ text: "Rechazada", variant: "destructive", icon: X });
+        expect(statusAppearance("Cancelled")).toMatchObject({ text: "Cancelada", variant: "secondary", icon: Ban });
+    });
+
+    it("prints four different words", () => {
+        const words = ["Pending", "Accepted", "Declined", "Cancelled"].map((status) => statusAppearance(status).text);
+        expect(new Set(words).size).toBe(4);
+    });
+
+    it("keeps a value it does not know, without a tone that claims it is fine", () => {
+        expect(statusAppearance("Expired")).toMatchObject({ text: "Expired", variant: "secondary", icon: CircleHelp });
+    });
+
+    it("has a word for a missing status", () => {
+        expect(statusAppearance("")).toMatchObject({ text: "Sin estado", variant: "secondary" });
     });
 });
 

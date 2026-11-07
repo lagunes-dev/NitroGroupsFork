@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
@@ -50,7 +51,8 @@ export function MobileMenu() {
                 {open ? <X className="size-6" /> : <Menu className="size-6" />}
             </button>
 
-            {open && (
+            {/* Portal: dentro de la cabecera con desenfoque, position:fixed se resuelve contra ella y el panel queda de 48 px. */}
+            {open && createPortal(
                 <div id="menu-movil" onClick={(e) => { if ((e.target as HTMLElement).closest("a")) setOpen(false); }} className="fixed inset-x-0 top-14 bottom-0 z-40 bg-fondo px-[var(--gutter)] py-6 overflow-y-auto">
                     <nav aria-label="Principal">
                         <Link href={ROUTES.GROUPS.SEARCH} className={linkClass}>Explorar grupos</Link>
@@ -74,7 +76,8 @@ export function MobileMenu() {
                             </>
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body,
             )}
         </div>
     );
