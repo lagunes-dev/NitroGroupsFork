@@ -12,6 +12,7 @@ import { balanceBlock, budgetLabel, clientDepositLabel, nextStepLabel, sentLabel
 import { availableActions, shortTime, statusLabel } from "../status";
 import { threadItems, type ThreadItem } from "../thread";
 import type { EventRequest, EventRequestParty } from "../types";
+import { CheckoutNotes } from "./CheckoutNotes";
 import { ReviewForm } from "./ReviewForm";
 import { SavedReview } from "./SavedReview";
 import { RequestSignals } from "./RequestSignals";
@@ -135,6 +136,9 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
             {!deal && nextStepLabel(r, viewer) && (
                 <p className="md:col-span-12 text-tinta">{nextStepLabel(r, viewer)}</p>
             )}
+
+            {/* Ronda 9: cómo pagar, justo donde el cliente ya mira la plata: después del saldo y el anticipo. */}
+            <CheckoutNotes requestId={r.id} viewer={viewer} status={r.status} />
 
             <section className="md:col-span-8 flex flex-col gap-8" aria-label="Conversación">
                 <ol className="flex flex-col gap-6">

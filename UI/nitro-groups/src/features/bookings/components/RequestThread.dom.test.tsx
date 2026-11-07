@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RequestThread } from "./RequestThread";
@@ -8,6 +8,7 @@ import type { EventRequest } from "../types";
 const mocks = vi.hoisted(() => ({
     get: vi.fn(),
     signals: vi.fn(),
+    checkoutNotes: vi.fn(),
     accept: vi.fn(),
     decline: vi.fn(),
     cancel: vi.fn(),
@@ -18,6 +19,7 @@ vi.mock("../bookings.service", () => ({
     bookingsService: {
         get: mocks.get,
         signals: mocks.signals,
+        checkoutNotes: mocks.checkoutNotes,
         accept: mocks.accept,
         decline: mocks.decline,
         cancel: mocks.cancel,
@@ -25,6 +27,12 @@ vi.mock("../bookings.service", () => ({
     },
     apiErrorMessage: (_error: unknown, fallback: string) => fallback,
 }));
+
+/** Las notas de "cómo pagar" no son de este archivo: por defecto no hay ninguna que dibujar. */
+beforeEach(() => {
+    mocks.checkoutNotes.mockReset();
+    mocks.checkoutNotes.mockResolvedValue([]);
+});
 
 const request: EventRequest = {
     id: 11,
@@ -162,6 +170,66 @@ describe("RequestThread deal", () => {
 
         expect(await screen.findByText("Sin presupuesto")).toBeInTheDocument();
         expect(screen.queryByText("$0")).toBeNull();
+    });
+});
+
+describe("RequestThread cómo pagar (ronda 9)", () => {
+    const accepted: EventRequest = {
+        ...request,
+        status: "Accepted",
+        budget: 18000,
+        deposit: { amount: 4000, receivedAt: "2026-11-05T18:00:00Z" },
+    };
+
+    const agreement = {
+        title: "Cómo pagar",
+        body: "Acordaste el pago en efectivo con el grupo. Te atiende Pedro Vargas.",
+        userDescription: "Pagas directo al grupo; NitroGroups no cobra ni interviene.",
+        updatedOn: null,
+    };
+
+    const groupNote = {
+        title: "Instrucciones del grupo",
+        body: "Transfiere a la CLABE 0121 8000 1234 5678, BBVA.",
+        userDescription: "Pagas directo al grupo; NitroGroups no cobra ni interviene.",
+        updatedOn: "2026-11-05",
+    };
+
+    it("gives the client how to pay, right after the balance and the deposit", async () => {
+        mocks.get.mockResolvedValue(accepted);
+        mocks.checkoutNotes.mockResolvedValue([agreement, groupNote]);
+
+        renderThread("Client");
+
+        const note = await screen.findByText(groupNote.body);
+        expect(screen.getByText("Actualizado el 5 de noviembre")).toBeInTheDocument();
+        expect(mocks.checkoutNotes).toHaveBeenCalledWith(11);
+
+        // El saldo manda, y cómo pagar viene justo después: es la misma pregunta con la otra mitad.
+        const balance = screen.getByText("Falta pagar $14,000");
+        expect(balance.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("keeps the thread usable when the notes cannot be read", async () => {
+        mocks.get.mockResolvedValue(accepted);
+        mocks.checkoutNotes.mockRejectedValue(new Error("boom"));
+
+        renderThread("Client");
+
+        expect(await screen.findByText("Buscamos banda para la entrada y el vals.")).toBeInTheDocument();
+        expect(screen.queryByText(/Actualizado el/)).toBeNull();
+    });
+
+    it("never shows them to the group: the manager inbox is not where the client pays", async () => {
+        mocks.get.mockResolvedValue(accepted);
+        mocks.signals.mockResolvedValue({});
+        mocks.checkoutNotes.mockClear();
+
+        renderThread("Group");
+
+        await screen.findByRole("heading", { name: "Camila Ramos" });
+        expect(mocks.checkoutNotes).not.toHaveBeenCalled();
+        expect(screen.queryByText(agreement.body)).toBeNull();
     });
 });
 

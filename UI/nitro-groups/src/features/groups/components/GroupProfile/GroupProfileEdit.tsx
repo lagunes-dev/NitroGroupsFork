@@ -160,6 +160,12 @@ export default function GroupProfileEdit({
               helperText="Lo ven solo los integrantes activos de tu grupo, en sus toques. Si lo dejas vacío, nadie lo ve." />
           </div>
 
+          {/* Ronda 9: el grupo escribe cómo quiere que se le pague. La app no cobra: solo lo repite. */}
+          <Textarea id={id("payment")} label="Cómo pagar" rows={4} maxLength={500}
+            value={group.paymentInstructions ?? ""} onChange={(e) => set("paymentInstructions", e.target.value)}
+            placeholder="Ej. Transferencia a la CLABE 0121 8000 1234 5678, BBVA, a nombre de Mónica Salinas."
+            helperText={`${group.paymentInstructions?.length ?? 0} de 500 · Solo lo ve el cliente de un evento aceptado, junto al anticipo y el saldo.`} />
+
           <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2">
             {/* El número sale del equipo real: un campo editable acá sería un control que la app ignora. */}
             <div className="flex flex-col gap-1">

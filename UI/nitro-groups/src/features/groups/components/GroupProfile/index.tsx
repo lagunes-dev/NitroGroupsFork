@@ -18,6 +18,7 @@ const emptyGroup: MusicGroup = {
   hourlyRate: 0, minimumDurationHours: 0, setupTimeMinutes: 0,
   averageRating: 0, totalReviews: 0, viewCount: 0, bookingCount: 0,
   isVerified: false, isFeatured: false, isAcceptingBookings: false, active: false,
+  paymentInstructions: "",
 };
 
 export default function GroupProfile({ mode = "private", slug, initialGroup }: GroupProfileProps) {
@@ -83,6 +84,8 @@ export default function GroupProfile({ mode = "private", slug, initialGroup }: G
         minimumDurationHours: payload.minimumDurationHours,
         setupTimeMinutes: payload.setupTimeMinutes,
         isAcceptingBookings: payload.isAcceptingBookings,
+        // Ronda 9: se envía siempre; vacío es cómo el grupo dice que no lo cargó.
+        paymentInstructions: payload.paymentInstructions ?? "",
         profilePictureUrl: payload.profilePictureUrl,
         coverImageUrl: payload.coverImageUrl,
       };

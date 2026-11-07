@@ -29,6 +29,11 @@ export interface MusicGroup {
   active: boolean;
   profilePictureUrl?: string;
   coverImageUrl?: string;
+  /**
+   * Ronda 9: cómo quiere el grupo que se le pague. Texto libre de hasta 500 que solo lee el cliente
+   * de un evento aceptado; el perfil público no lo lleva y la app nunca cobra (D1/S18).
+   */
+  paymentInstructions?: string | null;
   genres?: GenreResponse[];
   media?: GroupMediaResponse[];
 }
