@@ -197,7 +197,28 @@ describe("Cuadre del toque (T60, S23)", () => {
     it("adds up every musician with a pay amount, whatever they answered", () => {
         // Mateo $2,000 + Ana $1,500 + Luis without a pay: the sum is what the editor already lists.
         renderEditor({ ...deal, attendees: [...(row.attendees ?? []), { userId: 8, fullName: "Eva Sol", status: "Declined", pay: 500 }] });
-        expect(settlementLines()["Debes a tus músicos"]).toBe("$4,000");
+        expect(settlementLines()["Total a tus músicos"]).toBe("$4,000");
+    });
+
+    it("labels the figure as what it is (the total he committed), not as what he still owes (ronda 11)", () => {
+        // "Debes a tus músicos" read as a live debt on the same panel where Ana is already paid.
+        renderEditor(deal);
+        expect(settlementLines()["Total a tus músicos"]).toBe("$3,500");
+        expect(screen.queryByText("Debes a tus músicos")).toBeNull();
+    });
+
+    it("states the split of the total when part of it is recorded as paid (ronda 11)", () => {
+        // Ana $1,500 paid, Mateo $2,000 pending: nobody has to subtract it in their head.
+        renderEditor(deal);
+        expect(screen.getByText("Pagado $1,500 · pendiente $2,000")).toBeInTheDocument();
+    });
+
+    it("draws no split when nothing is recorded as paid, and none for a total of zero", () => {
+        renderEditor({ ...deal, attendees: [{ userId: 5, fullName: "Mateo Ruiz", status: "Confirmed", pay: 2000 }] });
+        expect(screen.queryByText(/^Pagado \$/)).toBeNull();
+
+        renderEditor({ ...deal, attendees: [{ userId: 5, fullName: "Mateo Ruiz", status: "Confirmed", pay: 0, paidAt: "2026-12-13T16:00:00Z" }] });
+        expect(screen.queryByText(/^Pagado \$/)).toBeNull();
     });
 
     it("states the difference between the cachet and what he owes", () => {
@@ -217,7 +238,7 @@ describe("Cuadre del toque (T60, S23)", () => {
         renderEditor({ ...row, budget: null, currency: "MXN" });
         const lines = settlementLines();
         expect(lines["Cachet total"]).toBe("Sin presupuesto");
-        expect(lines["Debes a tus músicos"]).toBe("$3,500");
+        expect(lines["Total a tus músicos"]).toBe("$3,500");
         expect(lines["Diferencia"]).toBe("No se puede calcular");
     });
 
@@ -247,19 +268,19 @@ describe("Cuadre del toque follows what is typed", () => {
         if (text) await userEvent.type(box, text);
     }
 
-    it("moves 'Debes a tus músicos' and 'Diferencia' while a pay box is typed, and keeps the cachet", async () => {
+    it("moves 'Total a tus músicos' and 'Diferencia' while a pay box is typed, and keeps the cachet", async () => {
         renderEditor(deal);
         await typePay("Mateo Ruiz", "3000");
         const lines = settlementLines();
         expect(lines["Cachet total"]).toBe("$15,000");
-        expect(lines["Debes a tus músicos"]).toBe("$4,500");
+        expect(lines["Total a tus músicos"]).toBe("$4,500");
         expect(lines["Diferencia"]).toBe("$10,500");
     });
 
     it("counts a musician who had no pay as soon as an amount is typed", async () => {
         renderEditor(deal);
         await typePay("Luis Peña", "500");
-        expect(settlementLines()["Debes a tus músicos"]).toBe("$4,000");
+        expect(settlementLines()["Total a tus músicos"]).toBe("$4,000");
     });
 
     it("says the figures are the saved ones until something differs, then that they are not saved yet", async () => {
@@ -274,6 +295,18 @@ describe("Cuadre del toque follows what is typed", () => {
         expect(screen.getByText(SAVED_NOTE)).toBeInTheDocument();
     });
 
+    it("moves the paid split while a 'Pagado' box is toggled and says it is not saved yet (ronda 11)", async () => {
+        renderEditor(deal);
+        expect(screen.getByText("Pagado $1,500 · pendiente $2,000")).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole("checkbox", { name: "Pagado a Mateo Ruiz" }));
+
+        expect(screen.getByText("Pagado $3,500 · pendiente $0")).toBeInTheDocument();
+        // The split is one of the figures: it follows what is on screen, not what was saved.
+        expect(screen.getByText(TYPED_NOTE)).toBeInTheDocument();
+        expect(screen.queryByText("Pagado $1,500 · pendiente $2,000")).toBeNull();
+    });
+
     it.each([
         ["an empty box", ""],
         ["text", "abc"],
@@ -282,7 +315,7 @@ describe("Cuadre del toque follows what is typed", () => {
         renderEditor(deal);
         await typePay("Mateo Ruiz", text);
         const lines = settlementLines();
-        expect(lines["Debes a tus músicos"]).toBe("$1,500");
+        expect(lines["Total a tus músicos"]).toBe("$1,500");
         expect(lines["Diferencia"]).toBe("$13,500");
         expect(document.body.textContent).not.toMatch(/NaN/);
         expect(screen.queryByRole("alert")).toBeNull();

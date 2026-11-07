@@ -20,15 +20,31 @@ describe("CollapsibleProfile", () => {
         // grupo, y lo dice: "Ver perfil" no decía de quién era el perfil que abría.
         renderProfile();
 
-        const toggle = screen.getByRole("button", { name: "Perfil del grupo" });
-        expect(toggle).toHaveAccessibleName("Perfil del grupo");
+        const toggle = screen.getByRole("button", { name: "Ver perfil del grupo" });
+        expect(toggle).toHaveAccessibleName("Ver perfil del grupo");
         expect(screen.queryByRole("button", { name: "Ver perfil" })).toBeNull();
+    });
+
+    it("says it reveals the profile and what it holds: the phone and how the group gets paid (ronda 11)", () => {
+        // Ronda 11: reading the group phone and "cómo pagar" was undiscoverable, and the button next to
+        // it opens the form. The entry says it opens the profile and what is inside, without merging the
+        // musician's own tab with the group profile.
+        renderProfile();
+
+        const toggle = screen.getByRole("button", { name: "Ver perfil del grupo" });
+        const hint = "Incluye el teléfono del grupo y cómo pagar.";
+        expect(toggle).toHaveAccessibleDescription(hint);
+        expect(screen.getByText(hint)).toBeInTheDocument();
+        // The hint is read above the actions: it is discovered before tapping.
+        const panel = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
+        expect(document.getElementById(toggle.getAttribute("aria-describedby") ?? "")).toHaveTextContent(hint);
+        expect(panel).not.toBeNull();
     });
 
     it("starts folded on a phone so the pending work is not one screen down", () => {
         renderProfile();
 
-        const toggle = screen.getByRole("button", { name: "Perfil del grupo" });
+        const toggle = screen.getByRole("button", { name: "Ver perfil del grupo" });
         expect(toggle).toHaveAttribute("aria-expanded", "false");
 
         const panel = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
@@ -46,23 +62,26 @@ describe("CollapsibleProfile", () => {
         const user = userEvent.setup();
         renderProfile();
 
-        await user.click(screen.getByRole("button", { name: "Perfil del grupo" }));
+        await user.click(screen.getByRole("button", { name: "Ver perfil del grupo" }));
 
         const close = screen.getByRole("button", { name: "Ocultar perfil del grupo" });
         expect(close).toHaveAttribute("aria-expanded", "true");
+        // With the card on screen the hint is noise: it describes what is already being read.
+        expect(screen.queryByText("Incluye el teléfono del grupo y cómo pagar.")).toBeNull();
+        expect(close).not.toHaveAttribute("aria-describedby");
         const panel = document.getElementById(close.getAttribute("aria-controls") ?? "");
         expect(panel).toHaveClass("block");
         expect(panel).not.toHaveClass("hidden");
         expect(screen.getByText("Tarjeta del grupo")).toBeVisible();
 
         await user.click(close);
-        expect(screen.getByRole("button", { name: "Perfil del grupo" })).toHaveAttribute("aria-expanded", "false");
+        expect(screen.getByRole("button", { name: "Ver perfil del grupo" })).toHaveAttribute("aria-expanded", "false");
     });
 
     it("does not offer the summary on a wide screen, where the card is always open", () => {
         renderProfile();
 
-        const toggle = screen.getByRole("button", { name: "Perfil del grupo" });
+        const toggle = screen.getByRole("button", { name: "Ver perfil del grupo" });
         // El renglón del resumen solo existe en móvil; en escritorio el perfil se lee completo.
         expect(toggle.parentElement).toHaveClass("md:hidden");
         expect(toggle.parentElement).toHaveClass("mt-8");
@@ -94,7 +113,7 @@ describe("CollapsibleProfile · editar el perfil del grupo en un toque (ronda 10
         const edit = screen.getByRole("button", { name: EDIT });
         // Dice que edita y de qué identidad: "Editar" a secas se confunde con el perfil del músico.
         expect(edit).toHaveAccessibleName("Editar perfil del grupo");
-        expect(screen.getByRole("button", { name: "Perfil del grupo" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Ver perfil del grupo" })).toBeInTheDocument();
     });
 
     it("opens the panel and asks for the form in one press", async () => {
@@ -114,7 +133,7 @@ describe("CollapsibleProfile · editar el perfil del grupo en un toque (ronda 10
         renderWithEdit();
 
         // Ronda 10: a 390 px las dos entradas medían 36 px (Button size="sm").
-        expect(screen.getByRole("button", { name: "Perfil del grupo" })).toHaveClass("min-h-11");
+        expect(screen.getByRole("button", { name: "Ver perfil del grupo" })).toHaveClass("min-h-11");
         expect(screen.getByRole("button", { name: EDIT })).toHaveClass("min-h-11");
     });
 
@@ -200,7 +219,7 @@ describe("CollapsibleProfile · cerrar el formulario del grupo (ronda 10)", () =
 
         expect(onDiscard).toHaveBeenCalledTimes(1);
         expect(screen.queryByRole("dialog")).toBeNull();
-        const toggle = screen.getByRole("button", { name: "Perfil del grupo" });
+        const toggle = screen.getByRole("button", { name: "Ver perfil del grupo" });
         expect(toggle).toHaveAttribute("aria-expanded", "false");
         expect(document.getElementById(toggle.getAttribute("aria-controls") ?? "")).toHaveClass("hidden");
     });
@@ -209,11 +228,11 @@ describe("CollapsibleProfile · cerrar el formulario del grupo (ronda 10)", () =
         const user = userEvent.setup();
         renderProfile();
 
-        await user.click(screen.getByRole("button", { name: "Perfil del grupo" }));
+        await user.click(screen.getByRole("button", { name: "Ver perfil del grupo" }));
         await user.click(screen.getByRole("button", { name: "Ocultar perfil del grupo" }));
 
         expect(screen.queryByRole("dialog")).toBeNull();
-        expect(screen.getByRole("button", { name: "Perfil del grupo" })).toHaveAttribute("aria-expanded", "false");
+        expect(screen.getByRole("button", { name: "Ver perfil del grupo" })).toHaveAttribute("aria-expanded", "false");
     });
 
     it("holds 44 px on the two answers of the confirmation", async () => {

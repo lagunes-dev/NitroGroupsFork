@@ -72,7 +72,7 @@ describe("musician dashboard at 390 px", () => {
     it("keeps the profile folded above the tabs so the pending work is on the first screen", async () => {
         renderPage();
 
-        const toggle = await screen.findByRole("button", { name: "Perfil del grupo" });
+        const toggle = await screen.findByRole("button", { name: "Ver perfil del grupo" });
         expect(toggle).toHaveAttribute("aria-expanded", "false");
 
         const panel = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
@@ -94,7 +94,7 @@ describe("musician dashboard at 390 px", () => {
         const user = userEvent.setup();
         renderPage();
 
-        await user.click(await screen.findByRole("button", { name: "Perfil del grupo" }));
+        await user.click(await screen.findByRole("button", { name: "Ver perfil del grupo" }));
 
         const close = screen.getByRole("button", { name: "Ocultar perfil del grupo" });
         expect(close).toHaveAttribute("aria-expanded", "true");
@@ -144,7 +144,7 @@ describe("musician dashboard at 390 px", () => {
         await user.click(screen.getByRole("button", { name: "Cerrar sin guardar" }));
 
         // Closing the editor for real returns to reading, and the entry names the card again.
-        const entry = await screen.findByRole("button", { name: "Perfil del grupo" });
+        const entry = await screen.findByRole("button", { name: "Ver perfil del grupo" });
         expect(entry).toHaveAttribute("aria-expanded", "false");
 
         await user.click(screen.getByRole("button", { name: "Editar perfil del grupo" }));

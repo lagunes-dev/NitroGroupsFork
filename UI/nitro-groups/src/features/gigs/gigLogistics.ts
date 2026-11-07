@@ -181,13 +181,19 @@ export function buildPayBody(pay: Record<string, string>, paid: Record<string, b
     return { payments };
 }
 
-/** "Mateo Músico $2,000" per attendee with a pay, for the manager's row only. */
+/**
+ * "Mateo Músico $1,500 pagado · Miguel Miembro $1,500 pendiente de pago", per attendee with a pay, for
+ * the manager's row only. Every row says whether it was paid: a figure with no state reads as paid.
+ */
 export function attendeePayLines(attendees: GroupGigPayload["attendees"]): string[] {
     const lines: string[] = [];
     for (const attendee of attendees ?? []) {
         const text = amountText(attendee.pay);
         const name = (attendee.fullName ?? "").trim();
-        if (text && name) lines.push(`${name} ${formatPrice(Number(text))}${isRecorded(attendee.paidAt) ? " pagado" : ""}`);
+        if (text && name) {
+            const state = isRecorded(attendee.paidAt) ? "pagado" : "pendiente de pago";
+            lines.push(`${name} ${formatPrice(Number(text))} ${state}`);
+        }
     }
     return lines;
 }
@@ -213,6 +219,11 @@ export interface GigSettlement {
     cachet: string;
     /** "$3,500": every attendee with a pay amount, whatever they answered. "$0" when there is none. */
     owed: string;
+    /**
+     * "Pagado $1,500 · pendiente $2,000" once part of the total is recorded as paid, so nobody has to
+     * subtract it in their head. Null when nothing is paid yet or when a zero pay leaves no split.
+     */
+    paidSplit: string | null;
     /** "$11,500", "-$1,500", or "No se puede calcular" without a cachet. Never stated as an error. */
     difference: string;
     /** Says whether the figures are the saved ones or follow what is being typed. */
@@ -231,37 +242,91 @@ function typedPayments(pay: Record<string, string>): Map<string, number> {
     return new Map(buildPayBody(pay).payments.map((payment) => [String(payment.userId), payment.amount]));
 }
 
-function samePayments(a: Map<string, number>, b: Map<string, number>): boolean {
-    return a.size === b.size && [...a].every(([userId, amount]) => b.get(userId) === amount);
+/** One pay row of the settlement: what it is worth and whether it already went out. */
+interface PayEntry {
+    amount: number;
+    paid: boolean;
+}
+
+/**
+ * The pay rows as the API last saved them. Same reading as `initialLogisticsForm`, so the split and the
+ * "Pagado" boxes can never disagree about who was paid.
+ */
+function savedPayEntries(row: Pick<GroupGigPayload, "attendees">): Map<string, PayEntry> {
+    const savedPaid = initialLogisticsForm({ attendees: row.attendees }).paid;
+    const entries = new Map<string, PayEntry>();
+    for (const attendee of row.attendees ?? []) {
+        const key = userKey(attendee.userId);
+        const amount = readAmount(attendee.pay);
+        if (key && amount !== null) entries.set(key, { amount, paid: savedPaid[key] === true });
+    }
+    return entries;
+}
+
+/** The pay rows as the editor would save them: the typed amount and its "Pagado" box. */
+function typedPayEntries(
+    row: Pick<GroupGigPayload, "attendees">,
+    typedPay: Record<string, string>,
+    typedPaid: Record<string, boolean> | undefined
+): Map<string, PayEntry> {
+    const saved = savedPayEntries(row);
+    const entries = new Map<string, PayEntry>();
+    for (const [userId, amount] of typedPayments(typedPay)) {
+        const checked = typedPaid ? typedPaid[userId] : saved.get(userId)?.paid;
+        entries.set(userId, { amount, paid: checked === true });
+    }
+    return entries;
+}
+
+function samePayState(a: Map<string, PayEntry>, b: Map<string, PayEntry>): boolean {
+    return a.size === b.size && [...a].every(([userId, entry]) => b.get(userId)?.amount === entry.amount && b.get(userId)?.paid === entry.paid);
+}
+
+/**
+ * The split of the total once something is recorded as paid: "Pagado $1,500 · pendiente $2,000".
+ * Null when nothing went out — nobody needs "Pagado $0" — and the app judges nothing (D1, D2).
+ */
+function paidSplitLabel(entries: Map<string, PayEntry>, currency: string): string | null {
+    let owed = 0;
+    let paid = 0;
+    for (const entry of entries.values()) {
+        owed += entry.amount;
+        if (entry.paid) paid += entry.amount;
+    }
+    if (paid <= 0) return null;
+    const paidMoney = formatPrice(paid, currency) ?? NO_AMOUNT;
+    const pendingMoney = formatPrice(owed - paid, currency) ?? NO_AMOUNT;
+    return `Pagado ${paidMoney} · pendiente ${pendingMoney}`;
 }
 
 /**
  * The cuadre of one gig. Without `typedPay` it reads the saved row; with it (the editor's pay boxes,
  * as typed) the owed sum and the difference follow the boxes while the cachet stays the saved budget.
- * An empty or unreadable box is no pay. Un cero no es un cachet.
+ * `typedPaid` is those same boxes' "Pagado" state, so the split follows them too. An empty or
+ * unreadable box is no pay. Un cero no es un cachet.
  */
 export function gigSettlement(
     row: Pick<GroupGigPayload, "budget" | "currency" | "attendees">,
-    typedPay?: Record<string, string>
+    typedPay?: Record<string, string>,
+    typedPaid?: Record<string, boolean>
 ): GigSettlement {
     const currency = typeof row.currency === "string" && row.currency.trim() ? row.currency : "MXN";
     const budget = readAmount(row.budget);
     const cachet = budget !== null && budget > 0 ? budget : null;
 
+    const saved = savedPayEntries(row);
+    const entries = typedPay ? typedPayEntries(row, typedPay, typedPaid) : saved;
     let owed = 0;
-    let note = NOTE_SAVED;
-    if (typedPay) {
-        const typed = typedPayments(typedPay);
-        for (const amount of typed.values()) owed += amount;
-        if (!samePayments(typed, typedPayments(initialLogisticsForm({ attendees: row.attendees }).pay))) note = NOTE_TYPED;
-    } else {
-        for (const attendee of row.attendees ?? []) owed += readAmount(attendee.pay) ?? 0;
-    }
+    for (const entry of entries.values()) owed += entry.amount;
+
+    // The split is one of these figures: it is not saved either while the boxes differ from the row.
+    const note = typedPay && !samePayState(entries, saved) ? NOTE_TYPED : NOTE_SAVED;
 
     const difference = cachet === null ? NO_DIFFERENCE : (formatPrice(cachet - owed, currency) ?? NO_DIFFERENCE);
     return {
         cachet: budgetLabel({ budget: cachet, currency }),
         owed: formatPrice(owed, currency) ?? NO_AMOUNT,
+        paidSplit: paidSplitLabel(entries, currency),
         difference,
         note,
     };
@@ -272,6 +337,30 @@ type BalanceRow = Pick<
     GroupGigPayload,
     "budget" | "currency" | "deposit" | "balanceReceivedAt" | "balanceDueDate" | "eventDate"
 >;
+
+/**
+ * The cachet the manager agreed, stated in the row (ronda 11): "Cachet total $14,000", or the same
+ * "Sin presupuesto" the rest of the app says when the client left it empty. A zero is not a cachet, so
+ * it never prints a figure that would let the manager judge an anticipo against money nobody agreed.
+ */
+export function agendaCachetLabel(row: Pick<GroupGigPayload, "budget" | "currency">): string {
+    const currency = typeof row.currency === "string" && row.currency.trim() ? row.currency : "MXN";
+    const budget = readAmount(row.budget);
+    const money = budget !== null && budget > 0 ? formatPrice(budget, currency) : null;
+    return money ? `Cachet total ${money}` : budgetLabel({ budget, currency });
+}
+
+/**
+ * The balance the manager agreed: the cachet minus the anticipo he set, whatever landed yet. Null when
+ * either figure is missing or when the anticipo already covers the cachet, because the app never
+ * computes money that does not exist.
+ */
+function agreedBalance(row: BalanceRow): number | null {
+    const budget = readAmount(row.budget);
+    const deposit = readAmount(row.deposit?.amount);
+    if (budget === null || budget <= 0 || deposit === null) return null;
+    return budget - deposit;
+}
 
 /**
  * Whether the deal is already settled: the deposit landed and covers the cachet, so there is no balance
@@ -300,6 +389,11 @@ function nothingOwed(row: BalanceRow): boolean {
  * the balance is counted against a deposit that already landed, and until then only the deadline is
  * known. Same voice as the deposit's line: noun, state, deadline. Nothing is computed from money that
  * has not arrived.
+ *
+ * Ronda 11: the amount is what the manager AGREED (cachet minus the anticipo he set), not money that
+ * arrived, so the line reads "Saldo $10,000 · pendiente" while the deposit is still pending — the
+ * deposit's own state already says nothing is paid. A cachet or an anticipo that does not exist draws
+ * no figure: only the deadline, or nothing.
  */
 export function agendaBalanceLabel(row: BalanceRow): string | null {
     const currency = typeof row.currency === "string" && row.currency.trim() ? row.currency : "MXN";
@@ -320,5 +414,12 @@ export function agendaBalanceLabel(row: BalanceRow): string | null {
     // Nada que anunciar: el trato está saldado, o no hay plazo que decir de un saldo que no existe.
     if (nothingOwed(row)) return null;
     const due = dueDateLabel(row.balanceDueDate);
+    const agreed = agreedBalance(row);
+    if (agreed !== null) {
+        // The agreed anticipo already covers the cachet: no balance to state, even with a deadline loaded.
+        if (agreed <= 0) return null;
+        const money = formatPrice(agreed, currency);
+        if (money) return due ? `Saldo ${money} · pendiente · ${due}` : `Saldo ${money} · pendiente`;
+    }
     return due ? `Saldo · pendiente · ${due}` : null;
 }

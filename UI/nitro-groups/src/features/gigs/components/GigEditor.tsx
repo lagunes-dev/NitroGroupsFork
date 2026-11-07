@@ -70,7 +70,7 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
     const setPay = (userId: string, value: string) => setForm((f) => ({ ...f, pay: { ...f.pay, [userId]: value } }));
     const setPaid = (userId: string, value: boolean) => setForm((f) => ({ ...f, paid: { ...f.paid, [userId]: value } }));
     const balanceState = recordedStateLabel(form.balanceReceived, row.balanceReceivedAt, { done: "Saldo recibido", pending: "Saldo pendiente" });
-    const settlement = gigSettlement(row, form.pay);
+    const settlement = gigSettlement(row, form.pay, form.paid);
     const settlementId = `${idPrefix}-cuadre`;
 
     return (
@@ -95,8 +95,10 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                         <dd className="tabular text-lg text-tinta">{settlement.cachet}</dd>
                     </div>
                     <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                        <dt className="text-tinta-2">Debes a tus músicos</dt>
+                        {/* Ronda 11: the label says what the figure is, not what it means: "Debes" read as a live debt. */}
+                        <dt className="text-tinta-2">Total a tus músicos</dt>
                         <dd className="tabular text-lg text-tinta">{settlement.owed}</dd>
+                        {settlement.paidSplit && <p className="w-full text-sm text-tinta-2">{settlement.paidSplit}</p>}
                     </div>
                     <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                         <dt className="text-tinta-2">Diferencia</dt>

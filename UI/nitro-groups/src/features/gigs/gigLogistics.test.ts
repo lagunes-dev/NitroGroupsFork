@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
     SETLIST_MAX,
     agendaBalanceLabel,
+    agendaCachetLabel,
     attendeePayLines,
     buildDetailsBody,
     buildPayBody,
@@ -189,7 +190,8 @@ describe("buildPayBody", () => {
 });
 
 describe("attendeePayLines", () => {
-    it("lists only the attendees that have a pay", () => {
+    it("lists only the attendees that have a pay, each one with its state (ronda 11)", () => {
+        // A figure with no state reads as paid. Every row says whether it was paid.
         expect(
             attendeePayLines([
                 { userId: 5, fullName: "Mateo Músico", pay: 2000 },
@@ -197,16 +199,16 @@ describe("attendeePayLines", () => {
                 { userId: 7, fullName: "Luis", pay: 0 },
                 { userId: 8, fullName: "Eva", pay: -3 },
             ])
-        ).toEqual(["Mateo Músico $2,000", "Luis $0"]);
+        ).toEqual(["Mateo Músico $2,000 pendiente de pago", "Luis $0 pendiente de pago"]);
     });
 
-    it("marks the ones already paid, in words (T48)", () => {
+    it("says paid or pending in words, paid first when both are on the line (T48, ronda 11)", () => {
         expect(
             attendeePayLines([
                 { userId: 5, fullName: "Mateo", pay: 2000, paidAt: "2026-12-13T16:00:00Z" },
                 { userId: 6, fullName: "Ana", pay: 1500, paidAt: null },
             ])
-        ).toEqual(["Mateo $2,000 pagado", "Ana $1,500"]);
+        ).toEqual(["Mateo $2,000 pagado", "Ana $1,500 pendiente de pago"]);
     });
 
     it("copes with a missing list", () => {
@@ -252,18 +254,36 @@ describe("agendaBalanceLabel", () => {
         ).toBeNull();
     });
 
-    it("draws no balance line while the deposit has not landed and no deadline was loaded", () => {
-        // Sin anticipo recibido no hay trato que cuadrar: el saldo se calcula contra la plata que entró.
-        expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 7800, receivedAt: null } })).toBeNull();
+    it("draws no balance line without an anticipo loaded, and states the agreed one without a deadline", () => {
+        // Ronda 11: with an agreed anticipo and no deadline, the figure is still said ("Saldo $6,200 ·
+        // pendiente"); what is never invented is a figure against an anticipo nobody set.
+        expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 7800, receivedAt: null } })).toBe("Saldo $6,200 · pendiente");
         expect(agendaBalanceLabel({ ...DEAL, deposit: null })).toBeNull();
     });
 
-    it("states the balance deadline while the deposit has not landed (ronda 10)", () => {
-        // El plazo es un dato que el manager cargó, no una cuenta contra dinero que no llegó: se dice
-        // igual que el del anticipo, y el monto espera a que el anticipo entre.
+    it("states the balance amount while the deposit has not landed (ronda 11)", () => {
+        // The figure comes from what the manager AGREED (cachet and anticipo), not from money received:
+        // the deposit state already says whether it landed, and the balance line cannot read as paid.
         expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 4000, receivedAt: null }, balanceDueDate: "2026-11-15" })).toBe(
+            "Saldo $10,000 · pendiente · para el 15 de noviembre de 2026"
+        );
+        expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 4000, receivedAt: null } })).toBe("Saldo $10,000 · pendiente");
+    });
+
+    it("never computes a balance from money that does not exist (ronda 11)", () => {
+        // No cachet, or zero, means no figure: only the deadline the manager loaded is left to say.
+        for (const budget of [null, 0]) {
+            expect(
+                agendaBalanceLabel({ ...DEAL, budget, deposit: { amount: 4000, receivedAt: null }, balanceDueDate: "2026-11-15" }),
+                String(budget)
+            ).toBe("Saldo · pendiente · para el 15 de noviembre de 2026");
+        }
+        // Nor without an anticipo loaded: a difference against one nobody set is not a balance.
+        expect(agendaBalanceLabel({ ...DEAL, deposit: null, balanceDueDate: "2026-11-15" })).toBe(
             "Saldo · pendiente · para el 15 de noviembre de 2026"
         );
+        // A pending anticipo that already covers the cachet leaves no balance to announce.
+        expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 15000, receivedAt: null }, balanceDueDate: "2026-11-15" })).toBeNull();
     });
 
     it("states the balance deadline even without a cachet to compare against", () => {
@@ -296,5 +316,29 @@ describe("agendaBalanceLabel", () => {
     it("has nothing to say without a cachet to compare against", () => {
         expect(agendaBalanceLabel({ ...DEAL, budget: null })).toBeNull();
         expect(agendaBalanceLabel({ ...DEAL, budget: 0 })).toBeNull();
+    });
+
+    it("reads an agreed deposit written as text and a missing currency as pesos", () => {
+        expect(agendaBalanceLabel({ ...DEAL, budget: "14000", currency: null, deposit: { amount: "4000", receivedAt: null } })).toBe(
+            "Saldo $10,000 · pendiente"
+        );
+    });
+});
+
+/**
+ * Ronda 11: the agenda row never said the cachet total, so the manager could not judge whether an
+ * anticipo made sense without opening the editor.
+ */
+describe("agendaCachetLabel", () => {
+    it("states the cachet total the manager agreed", () => {
+        expect(agendaCachetLabel({ budget: 14000, currency: "MXN" })).toBe("Cachet total $14,000");
+        expect(agendaCachetLabel({ budget: "14000", currency: null })).toBe("Cachet total $14,000");
+    });
+
+    it("says 'Sin presupuesto' for a cachet that is absent or zero, never a $0", () => {
+        for (const budget of [null, undefined, 0, -1]) {
+            expect(agendaCachetLabel({ budget, currency: "MXN" }), String(budget)).toBe("Sin presupuesto");
+        }
+        expect(agendaCachetLabel({})).toBe("Sin presupuesto");
     });
 });

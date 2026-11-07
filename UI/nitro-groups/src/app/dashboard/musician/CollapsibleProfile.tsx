@@ -3,6 +3,9 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 
+/** What the folded profile holds, so reading the payment data is not blind (ronda 11). */
+const PROFILE_HINT = "Incluye el teléfono del grupo y cómo pagar.";
+
 /**
  * T42: a 390 px el perfil del grupo ocupa una pantalla entera y la bandeja arranca debajo, así que
  * el manager abría el panel y no veía su trabajo pendiente. Debajo de `md` el perfil queda plegado
@@ -21,6 +24,11 @@ import { Button } from "@/components/ui/Button";
  * Ronda 10 (destructive close): while the editor is open the panel shows the group form, not the profile
  * card, so the entry names what is really on screen. And closing it must not throw the draft away
  * silently: `editing` turns on the confirmation and `onDiscard` is the only path that discards.
+ *
+ * Ronda 11: reading the group's phone and "cómo pagar" was undiscoverable behind a noun — the entry gave
+ * no hint of what it held, and the button next to it is the write form. The entry now says it reveals the
+ * profile and, while folded, a hint names the two fields it holds. Nothing is merged: the musician's own
+ * "Perfil" tab stays the musician's, and the payment text keeps its home in the profile.
  */
 export function CollapsibleProfile({ title, children, editAction, editing = false, onDiscard }: {
     title: string;
@@ -35,6 +43,7 @@ export function CollapsibleProfile({ title, children, editAction, editing = fals
     const [open, setOpen] = useState(false);
     const [confirmingClose, setConfirmingClose] = useState(false);
     const panelId = useId();
+    const hintId = useId();
     const dialogTitleId = useId();
     const dialogDetailId = useId();
     const keepEditingRef = useRef<HTMLButtonElement>(null);
@@ -70,10 +79,13 @@ export function CollapsibleProfile({ title, children, editAction, editing = fals
         toggleRef.current?.focus();
     };
 
-    // The name describes what is expanded on screen: the form while editing, the card otherwise.
+    // The name describes what is expanded on screen: the form while editing, the card otherwise. Closed
+    // in the read view it also says it reveals the profile: the neighbouring button writes it.
     const entryLabel = open
         ? (editing ? "Ocultar el formulario del grupo" : "Ocultar perfil del grupo")
-        : (editing ? "Formulario del grupo" : "Perfil del grupo");
+        : (editing ? "Formulario del grupo" : "Ver perfil del grupo");
+    // The hint only helps folded: with the card on screen it describes what is already being read.
+    const showHint = !editing && !open;
 
     return (
         <div>
@@ -83,6 +95,11 @@ export function CollapsibleProfile({ title, children, editAction, editing = fals
             */}
             <div className="mt-8 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 md:hidden">
                 <p className="type-heading min-w-0 break-words text-xl text-tinta">{title}</p>
+                {showHint && (
+                    <p id={hintId} className="basis-full text-sm leading-5 text-tinta-2">
+                        {PROFILE_HINT}
+                    </p>
+                )}
                 <Button
                     ref={toggleRef}
                     variant="outline"
@@ -90,6 +107,7 @@ export function CollapsibleProfile({ title, children, editAction, editing = fals
                     className="min-h-11 shrink-0"
                     aria-expanded={open}
                     aria-controls={panelId}
+                    aria-describedby={showHint ? hintId : undefined}
                     onClick={toggle}
                 >
                     {entryLabel}
