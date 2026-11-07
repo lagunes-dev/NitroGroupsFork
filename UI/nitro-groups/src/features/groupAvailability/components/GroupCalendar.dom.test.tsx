@@ -22,6 +22,10 @@ vi.mock("../services/groupAvailability.service", () => ({
     },
 }));
 
+/** La agenda del grupo alimenta los días con toque confirmado: acá se sustituye su lectura. */
+const agenda = vi.hoisted(() => ({ forGroup: vi.fn() }));
+vi.mock("@/features/gigs/gigs.service", () => ({ gigsService: { forGroup: agenda.forGroup } }));
+
 /** Lunes de la semana de `date`: el locale español abre la semana en lunes. */
 function weekStart(date: Date): Date {
     const monday = new Date(date);
@@ -63,6 +67,8 @@ beforeEach(() => {
     getGroupSchedules.mockResolvedValue([]);
     createBusySchedule.mockReset();
     createBusySchedule.mockResolvedValue({ id: "busy_99" });
+    agenda.forGroup.mockReset();
+    agenda.forGroup.mockResolvedValue([]);
 });
 
 describe("GroupCalendar keeps what it already did", () => {
@@ -223,7 +229,8 @@ describe("GroupCalendar blocks a day from the agenda", () => {
 
     it("tells the day-block control which days already have a confirmed gig (ronda 10)", async () => {
         const user = userEvent.setup();
-        // El calendario ya recibe esos días; el control que bloquea tiene que verlos igual.
+        // El calendario y el control leen la misma agenda: el día marcado es el día avisado.
+        agenda.forGroup.mockResolvedValue([{ id: 5, eventDate: today }]);
         renderCalendar([today]);
 
         const control = await screen.findByRole("button", { name: `Bloquear el día ${longDayName(today)}` });
@@ -232,6 +239,54 @@ describe("GroupCalendar blocks a day from the agenda", () => {
 
         const dialog = await screen.findByRole("dialog", { name: "Bloquear este día" });
         expect(within(dialog).getByText(/Ese día ya tienes un toque confirmado/)).toBeInTheDocument();
+    });
+});
+
+/**
+ * Ronda 10: la semana del 30 nov al 6 dic pintaba el 4 dic como "Toque confirmado" y además como
+ * "0:00 Disponible". Un manager lee la noche como libre, así que la disponibilidad se calla en un día
+ * que ya tiene toque, y el marcador del toque no se toca.
+ */
+describe("GroupCalendar · un día con toque confirmado no se pinta como disponible (ronda 10)", () => {
+    /** Una fila de `GET api/groups/{id}/schedules` que marca un día entero como disponible. */
+    function availableDay(day: string) {
+        const start = new Date(`${day}T00:00:00`);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
+        return { id: "avail_3", title: "Disponible", start: start.toISOString(), end: end.toISOString(), isAvailable: true };
+    }
+
+    it("leaves the day to the confirmed gig instead of painting it as available", async () => {
+        const gigDay = isoDay(today);
+        getGroupSchedules.mockResolvedValue([availableDay(gigDay)]);
+        const calendar = renderCalendar([gigDay]);
+
+        const chips = await waitFor(() => {
+            const found = Array.from(calendar.container.querySelectorAll(".fc-event"));
+            expect(found.length).toBeGreaterThan(0);
+            return found;
+        });
+
+        // El toque confirmado sigue ahí: es el dato que explica por qué el día no está libre.
+        expect(chips.some((chip) => chip.textContent?.trim() === "Toque confirmado")).toBe(true);
+        // Y la disponibilidad de ese día no se pinta: una noche con toque no está disponible.
+        expect(chips.filter((chip) => chip.textContent?.includes("Disponible"))).toHaveLength(0);
+    });
+
+    it("still paints the availability of the days around it", async () => {
+        const tomorrow = addDays(today, 1);
+        getGroupSchedules.mockResolvedValue([availableDay(isoDay(tomorrow))]);
+        const calendar = renderCalendar([isoDay(today)]);
+
+        const marker = await waitFor(() => {
+            const found = Array.from(calendar.container.querySelectorAll(".fc-event")).find((chip) =>
+                chip.textContent?.includes("Disponible")
+            );
+            expect(found).toBeDefined();
+            return found as HTMLElement;
+        });
+
+        expect(marker.closest("[data-date]")?.getAttribute("data-date")).toBe(isoDay(tomorrow));
     });
 });
 

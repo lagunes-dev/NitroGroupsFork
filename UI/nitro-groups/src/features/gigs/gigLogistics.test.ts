@@ -252,10 +252,35 @@ describe("agendaBalanceLabel", () => {
         ).toBeNull();
     });
 
-    it("draws no balance line while the deposit has not landed", () => {
+    it("draws no balance line while the deposit has not landed and no deadline was loaded", () => {
         // Sin anticipo recibido no hay trato que cuadrar: el saldo se calcula contra la plata que entró.
         expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 7800, receivedAt: null } })).toBeNull();
         expect(agendaBalanceLabel({ ...DEAL, deposit: null })).toBeNull();
+    });
+
+    it("states the balance deadline while the deposit has not landed (ronda 10)", () => {
+        // El plazo es un dato que el manager cargó, no una cuenta contra dinero que no llegó: se dice
+        // igual que el del anticipo, y el monto espera a que el anticipo entre.
+        expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 4000, receivedAt: null }, balanceDueDate: "2026-11-15" })).toBe(
+            "Saldo · pendiente · para el 15 de noviembre de 2026"
+        );
+    });
+
+    it("states the balance deadline even without a cachet to compare against", () => {
+        expect(agendaBalanceLabel({ ...DEAL, budget: null, balanceDueDate: "2026-11-15" })).toBe(
+            "Saldo · pendiente · para el 15 de noviembre de 2026"
+        );
+    });
+
+    it("never announces a balance deadline once nothing is owed", () => {
+        // El anticipo cubre el cachet: hay plazo cargado, pero no queda saldo que anunciar.
+        expect(
+            agendaBalanceLabel({
+                ...DEAL,
+                deposit: { amount: 14000, receivedAt: "2026-11-04T18:00:00Z" },
+                balanceDueDate: "2026-11-15",
+            })
+        ).toBeNull();
     });
 
     it("keeps saying the balance arrived once the group recorded it (T48)", () => {

@@ -1,4 +1,4 @@
-import { balanceBlock, budgetLabel, receivedDate } from "@/features/bookings/deposit";
+import { balanceBlock, budgetLabel, dueDateLabel, receivedDate } from "@/features/bookings/deposit";
 import { formatPrice, isIsoDate } from "@/lib/format";
 import { gigTimeLabel } from "./viewModel";
 import type { GroupGigPayload } from "./types";
@@ -274,6 +274,19 @@ type BalanceRow = Pick<
 >;
 
 /**
+ * Whether the deal is already settled: the deposit landed and covers the cachet, so there is no balance
+ * left to announce. False whenever the figures cannot be compared, which is exactly when the deadline
+ * still has something to say.
+ */
+function nothingOwed(row: BalanceRow): boolean {
+    const deposit = readAmount(row.deposit?.amount);
+    const landed = typeof row.deposit?.receivedAt === "string" && row.deposit.receivedAt.trim().length > 0;
+    const budget = readAmount(row.budget);
+    if (!landed || deposit === null || budget === null || budget <= 0) return false;
+    return budget - deposit <= 0;
+}
+
+/**
  * The balance line of the manager's row (S18, S23, S24): what the client still owes — "Falta pagar
  * $6,200 · para el 15 de noviembre", or "Falta pagar $6,200" when the group loaded no deadline — and,
  * once the group recorded the arrival, "Saldo recibido el …". Null when there is nothing to state, so
@@ -282,6 +295,11 @@ type BalanceRow = Pick<
  * The money, the dates and the wording come from the deal helpers and from nothing else: this only
  * decides when they apply. The manager reads the client's own line on purpose — it is the same debt,
  * said one way — and the app still charges, validates and judges nothing (D1, D2).
+ *
+ * Ronda 10: the deadline is a fact the manager loaded, so it is said even while the amount is not —
+ * the balance is counted against a deposit that already landed, and until then only the deadline is
+ * known. Same voice as the deposit's line: noun, state, deadline. Nothing is computed from money that
+ * has not arrived.
  */
 export function agendaBalanceLabel(row: BalanceRow): string | null {
     const currency = typeof row.currency === "string" && row.currency.trim() ? row.currency : "MXN";
@@ -298,5 +316,9 @@ export function agendaBalanceLabel(row: BalanceRow): string | null {
         },
         "Client"
     );
-    return block?.balance ?? null;
+    if (block?.balance) return block.balance;
+    // Nada que anunciar: el trato está saldado, o no hay plazo que decir de un saldo que no existe.
+    if (nothingOwed(row)) return null;
+    const due = dueDateLabel(row.balanceDueDate);
+    return due ? `Saldo · pendiente · ${due}` : null;
 }

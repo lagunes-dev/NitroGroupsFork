@@ -31,6 +31,25 @@ export function shortDayName(day: string): string | null {
 }
 
 /**
+ * What a surface that knows the agenda can say about the confirmed gigs of one day: the gig is there,
+ * it is not, or the agenda could not be read and therefore nothing can be claimed (round 10).
+ */
+export type DayGigFact = "confirmed" | "none" | "unknown";
+
+/**
+ * The fact of one day, read only from what the agenda says. "unknown" is the honest answer after a
+ * failed read: silence would be read as "you have no gig that day", which is the lie round 10 found.
+ * A gig already known is said even when the last read failed.
+ */
+export function confirmedGigFact(
+    day: string,
+    read: { days: readonly string[]; failed: boolean }
+): DayGigFact {
+    if (read.days.includes(day)) return "confirmed";
+    return read.failed ? "unknown" : "none";
+}
+
+/**
  * Bloques que reclaman el día entero: son los que el botón deshace. Un bloqueo parcial (un ensayo de
  * 10 a 12) no vuelve el día "bloqueado", así que el control sigue ofreciendo bloquearlo completo y no
  * borra lo que ya estaba marcado.

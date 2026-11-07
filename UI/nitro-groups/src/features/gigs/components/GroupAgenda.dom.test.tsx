@@ -25,7 +25,7 @@ const gig = {
     locationText: "Hacienda San Gabriel, Tlaquepaque",
     budget: 14000,
     currency: "MXN",
-    deposit: { amount: 7800, receivedAt: "2026-11-04T18:00:00Z" },
+    deposit: { amount: 7800, receivedAt: "2026-11-04T18:00:00Z" as string | null },
     balanceDueDate: "2026-11-15" as string | null,
     balanceReceivedAt: null as string | null,
     attendees: [{ userId: 5, fullName: "Mateo", status: "Confirmed", pay: 2000 }],
@@ -72,6 +72,16 @@ describe("GroupAgenda · el renglón del manager dice el saldo del cliente", () 
         renderAgenda({ ...gig, balanceReceivedAt: "2026-12-13T18:00:00Z" });
 
         expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026")).toBeInTheDocument();
+        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+    });
+
+    it("states the balance deadline while the deposit has not landed (ronda 10)", () => {
+        // El manager cargó la fecha límite del saldo; el monto espera al anticipo, el plazo no.
+        renderAgenda({ ...gig, deposit: { amount: 4000, receivedAt: null }, balanceDueDate: "2026-11-15" });
+
+        expect(screen.getByText("Saldo · pendiente · para el 15 de noviembre de 2026")).toBeInTheDocument();
+        // La misma voz que el anticipo, que ya se leía, y ningún monto inventado.
+        expect(screen.getByText("Anticipo $4,000 · pendiente")).toBeInTheDocument();
         expect(screen.queryByText(/Falta pagar/)).toBeNull();
     });
 });
