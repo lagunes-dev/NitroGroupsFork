@@ -286,7 +286,7 @@ describe("agendaBalanceLabel", () => {
     it("keeps saying the balance arrived once the group recorded it (T48)", () => {
         expect(
             agendaBalanceLabel({ ...DEAL, balanceReceivedAt: "2026-12-13T18:00:00Z", balanceDueDate: "2026-11-15" })
-        ).toBe("Saldo recibido el 13 de diciembre de 2026");
+        ).toBe("Saldo recibido el 13 de diciembre de 2026 · $6,200");
     });
 
     it("reads a cachet that arrives as text and a missing currency as pesos", () => {

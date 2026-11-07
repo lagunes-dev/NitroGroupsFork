@@ -71,7 +71,7 @@ describe("GroupAgenda · el renglón del manager dice el saldo del cliente", () 
     it("keeps the recorded arrival when the group marked the balance as received", () => {
         renderAgenda({ ...gig, balanceReceivedAt: "2026-12-13T18:00:00Z" });
 
-        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026")).toBeInTheDocument();
+        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026 · $6,200")).toBeInTheDocument();
         expect(screen.queryByText(/Falta pagar/)).toBeNull();
     });
 
