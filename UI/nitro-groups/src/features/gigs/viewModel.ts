@@ -18,7 +18,7 @@ export const CALL_TIME_PENDING = "Llegada sin definir";
 export const SETLIST_PENDING = "Setlist sin cargar";
 export const PAY_PENDING = "Tu pago sin definir";
 /** Heading of the block that says who plays the gig with the caller (S22). */
-export const TEAMMATES_HEADING = "Con quién tocás";
+export const TEAMMATES_HEADING = "Con quién tocas";
 
 /** A gig whose date is behind us: it asks for nothing and says what it is. */
 export const PAST_GIG_LINE = "Este toque ya pasó";
