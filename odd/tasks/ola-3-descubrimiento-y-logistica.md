@@ -125,7 +125,7 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 
 **Lo que falta decidir y no decido solo**: cómo se entrega ese tramo de 194 commits. Pushear y abrir PRs siguen siendo decisiones del usuario.
 
-## Entrega abierta en 6 PRs (T64, S27)
+## Entrega en 6 PRs (T64, S27) — mergeadas, con una consolidación pendiente
 
 Las seis PRs **están abiertas** en `lagunes-dev/NitroGroupsFork`, apiladas contra `develop` (que ya
 contiene el plan viejo: `git rev-list --count origin/develop..fb399da` = 0). Se mergean en el orden de la
@@ -267,3 +267,5 @@ Regla del usuario: solo escribe una reseña el cliente de un evento aceptado cuy
   (5) **Lo que nunca se había medido, medido**: la agenda del manager con la fecha límite del anticipo muestra "Anticipo $4,000 · pendiente · para el 10 de noviembre" y "Anticipo $3,000 · recibido el 5 de noviembre de 2026", la insignia envuelve en dos líneas de 24 px y no hay desborde horizontal a 390 px.
 
 - L72 (apertura de la entrega, con dos correcciones de medición): las seis PRs quedaron abiertas como #17 a #22, apiladas y etiquetadas `size:exception` (la etiqueta no existía en el repo; se creó). Dos cosas que estaban mal en mi plan y se corrigieron antes de abrir nada: (a) `gh` resolvía el repo como el **upstream** `Henry-cmd325/NitroGroups`, así que `gh pr create` fallaba con "Head sha can't be blank"; se arregla con `--repo lagunes-dev/NitroGroupsFork` explícito. (b) `develop` **ya contenía 15 de los 51 commits** del tramo 13 (su tip es `162c3fd`), así que la base real es `develop` y el tramo mide 36 commits y 7.278 líneas, no 51 y 15.709. El total real es 202 commits y 36.810 líneas, que coincide exactamente con `origin/develop..HEAD`. Nota de método: `gh pr edit --add-label` falla en este repo (bug conocido de gh con projects clásicos); las etiquetas se aplican con `gh api -X POST repos/{repo}/issues/{n}/labels`.
+
+- L73 (los seis merges no llegaron todos a `develop`, y cómo se arregla): el usuario mergeó las seis PRs. Pero un encadenado así sólo llega a `develop` por la primera: las demás se mergean **en su rama padre**. Verificado tras el fetch: `develop` (`86361da`) sólo tiene el tramo 13; le faltan 18/38/56/131/**167** commits según la rama que se compare, y `stack/17-ola-3-descubrimiento` (`d4f6ec8`) recibió en cascada los merges de #18 a #22, así que es la que contiene la unión de los cinco tramos. El merge contra `develop` está **verificado limpio** con `git merge-tree --write-tree` (cero `CONFLICT`). Se abrió la **PR #23** (417 archivos, 35.525 inserciones) que lleva esa unión a `develop`: es contabilidad del encadenado, no trabajo nuevo — cada tramo ya fue revisado y mergeado en su PR. Regla para la próxima vez: **un stack se mergea de abajo hacia arriba, esperando que la anterior esté en la rama destino antes de mergear la siguiente**; si se mergean todas de golpe, el contenido se queda en las ramas padre.
