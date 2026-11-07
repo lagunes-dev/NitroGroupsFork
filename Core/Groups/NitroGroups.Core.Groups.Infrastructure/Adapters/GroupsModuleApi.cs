@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using NitroGroups.Core.Groups.Domain.Entities;
 using NitroGroups.Core.Groups.Infrastructure.Persistence;
 using NitroGroups.Shared.Contracts.Groups.Responses;
 using NitroGroups.Shared.Contracts.Modules;
@@ -39,6 +40,22 @@ namespace NitroGroups.Core.Groups.Infrastructure.Adapters
         /// <summary>Un teléfono vacío o solo con espacios no es un dato: el contrato dice null.</summary>
         private static string? NormalizePhone(string? phone)
             => string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+
+        public async Task<GroupPaymentInstructions?> GetPaymentInstructionsAsync(long groupId, CancellationToken cancellationToken = default)
+        {
+            var row = await context.Groups.AsNoTracking()
+                .Where(g => g.Id == groupId)
+                .Select(g => new { g.PaymentInstructions, g.PaymentInstructionsUpdatedAt })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            // Se normaliza en el borde del módulo, igual que el teléfono: ningún consumidor recibe
+            // una cadena en blanco y dibuja una nota vacía.
+            var text = Group.NormalizePaymentInstructions(row?.PaymentInstructions);
+
+            return text is null
+                ? null
+                : new GroupPaymentInstructions(text, row!.PaymentInstructionsUpdatedAt);
+        }
 
         public async Task<bool> CanManageGroupAsync(long groupId, long userId, CancellationToken cancellationToken = default)
         {

@@ -97,7 +97,7 @@ function TeamMemberRow({ member: m }: { member: TeamMemberView }) {
                 </div>
                 {/* El oficio ocupa un renglón: el texto completo queda en el `title`. */}
                 {m.craftLabel && (
-                    <p className="truncate text-sm text-tinta-2" title={m.craftLabel}>
+                    <p className="line-clamp-2 break-words text-sm text-tinta-2" title={m.craftLabel}>
                         {m.craftLabel}
                     </p>
                 )}

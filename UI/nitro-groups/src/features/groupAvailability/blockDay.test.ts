@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ScheduleEventDto } from "./services/groupAvailability.service";
-import { dayBounds, longDayName, wholeDayBlocks } from "./blockDay";
+import { confirmedGigFact, dayBounds, longDayName, shortDayName, wholeDayBlocks } from "./blockDay";
 
 const DAY = "2026-11-19";
 
@@ -22,6 +22,29 @@ describe("dayBounds", () => {
     it("has no bounds for something that is not a day", () => {
         expect(dayBounds("19/11/2026")).toBeNull();
         expect(dayBounds("2026-02-30")).toBeNull();
+    });
+});
+
+/** Whether the day of a confirmed gig can be stated: done, nothing, or not known yet. */
+describe("confirmedGigFact", () => {
+    const read = (days: string[], failed = false) => ({ days, failed });
+
+    it("says the day has a confirmed gig when the agenda lists it", () => {
+        expect(confirmedGigFact(DAY, read([DAY]))).toBe("confirmed");
+    });
+
+    it("says the day is free only when the agenda was actually read", () => {
+        expect(confirmedGigFact(DAY, read([]))).toBe("none");
+        expect(confirmedGigFact(DAY, read(["2026-11-20"]))).toBe("none");
+    });
+
+    it("does not claim the day is free when the agenda could not be read", () => {
+        // El silencio se lee como "no tengo toque": sin lectura, el diálogo tiene que decirlo.
+        expect(confirmedGigFact(DAY, read([], true))).toBe("unknown");
+    });
+
+    it("keeps a gig it already knows even when the last read failed", () => {
+        expect(confirmedGigFact(DAY, read([DAY], true))).toBe("confirmed");
     });
 });
 
@@ -58,6 +81,19 @@ describe("wholeDayBlocks", () => {
             DAY
         );
         expect(blocks.map((block) => block.id)).toEqual(["busy_1", "busy_3"]);
+    });
+});
+
+describe("shortDayName", () => {
+    it("says the short day in abbreviated Spanish, without the year", () => {
+        expect(shortDayName(DAY)).toBe("jue 19 nov");
+        expect(shortDayName("2026-12-24")).toBe("jue 24 dic");
+    });
+
+    it("has nothing to say about an invalid day", () => {
+        expect(shortDayName("2026-02-30")).toBeNull();
+        expect(shortDayName("no-es-fecha")).toBeNull();
+        expect(shortDayName("")).toBeNull();
     });
 });
 

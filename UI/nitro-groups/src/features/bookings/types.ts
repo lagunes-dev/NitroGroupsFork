@@ -50,6 +50,11 @@ export interface EventRequest {
      * accepted gig. The client's list never carries it and keeps rendering exactly as it did.
      */
     dateClash?: DateClashSignal | null;
+    /**
+     * Ronda 10: the group's payment method in one line, for the client's row. Only on the client's
+     * list and only for accepted requests; missing when the group wrote nothing.
+     */
+    paymentMethod?: string | null;
     /** D7: only on the client's payloads. True when the accepted event already happened and has no review. */
     canReview?: boolean;
     review?: EventReview | null;

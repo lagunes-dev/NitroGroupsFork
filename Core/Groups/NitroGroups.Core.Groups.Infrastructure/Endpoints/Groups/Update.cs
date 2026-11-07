@@ -23,6 +23,7 @@ namespace NitroGroups.Core.Groups.Infrastructure.Endpoints.Groups
                 var result = await mediator.SendCommandAsync<UpdateGroupCommand, Result<GroupResponse>>(command);
                 return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
             })
+            .AddEndpointFilter<ValidationFilter<UpdateGroupRequest>>()
             .RequireGroupManager("id")
             .WithTags("Groups");
         }

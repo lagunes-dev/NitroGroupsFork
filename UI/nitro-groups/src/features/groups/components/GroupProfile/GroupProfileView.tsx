@@ -96,6 +96,14 @@ export default function GroupProfileView({ group, isPublic, toggleEdit }: GroupP
         ))}
       </dl>
 
+      {/*
+        Ronda 10: the manager could only read the group phone and "cómo pagar" inside the edit form,
+        three screens down a 5,572 px document. The API already sends both, so reading shows them,
+        compact, next to the city they belong to. The payment text is the group's own words: never a
+        control, truncated to two lines with the whole text on the element.
+      */}
+      {!isPublic && <ContactFacts group={group} />}
+
       {gaps.length > 0 && (
         <div className="mt-4 flex flex-col gap-3 rounded-[12px] bg-fondo-2 p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 md:px-6">
           <p className="text-tinta">
@@ -116,5 +124,45 @@ export default function GroupProfileView({ group, isPublic, toggleEdit }: GroupP
         </section>
       )}
     </header>
+  );
+}
+
+/** Phone and payment text: the two fields the manager used to open the form to check (ronda 10). */
+function ContactFacts({ group }: { group: MusicGroup }) {
+  const phone = group.phone?.trim() ?? "";
+  const payment = group.paymentInstructions?.trim() ?? "";
+
+  return (
+    <dl
+      aria-label="Teléfono y forma de pago"
+      className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 rounded-[12px] bg-fondo-2 px-5 py-4 sm:grid-cols-2 md:px-6"
+    >
+      <div className="min-w-0">
+        <dt className="text-sm leading-5 text-tinta-2">Teléfono del grupo</dt>
+        <dd className="mt-1 min-w-0">
+          <p className={`type-heading break-words text-lg leading-7 tabular ${phone ? "text-tinta" : "text-tinta-2"}`}>
+            {phone || "Sin definir"}
+          </p>
+          <p className="mt-1 text-sm leading-5 text-tinta-2">
+            Lo ven solo los integrantes activos de tu grupo, en sus toques.
+          </p>
+        </dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-sm leading-5 text-tinta-2">Cómo pagar</dt>
+        <dd className="mt-1 min-w-0">
+          <p
+            title={payment || undefined}
+            className={`break-words text-tinta ${payment ? "line-clamp-2" : "text-tinta-2"}`}
+          >
+            {payment || "Sin definir"}
+          </p>
+          <p className="mt-1 text-sm leading-5 text-tinta-2">
+            Lo ve solo el cliente de un evento aceptado.
+          </p>
+        </dd>
+      </div>
+    </dl>
   );
 }

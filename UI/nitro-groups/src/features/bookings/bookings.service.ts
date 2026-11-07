@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api-client";
+import type { CheckoutNotePayload } from "./checkoutNotes";
 import type { EventRequestSignals } from "./signals";
 import type { CreateEventRequestBody, EventRequest, EventRequestStatus, EventReview } from "./types";
 
@@ -28,6 +29,13 @@ export const bookingsService = {
     /** D7: the client's review of an accepted event that already happened (one per event). */
     review: async (id: number, body: { rating: number; comment?: string }) =>
         (await apiClient.post<EventReview>(`/event-requests/${id}/review`, body)).data,
+
+    /**
+     * Ronda 9: cómo pagar. Solo el cliente de un evento aceptado lo puede leer; cualquier otro caso
+     * responde 404, igual que el detalle del pedido. La app no cobra ni interviene.
+     */
+    checkoutNotes: async (id: number) =>
+        (await apiClient.get<CheckoutNotePayload[]>(`/event-requests/${id}/checkout-notes`)).data,
 
     /** D6: the day clash and the budget comparison of one request of that group. */
     signals: async (groupId: number, id: number) =>

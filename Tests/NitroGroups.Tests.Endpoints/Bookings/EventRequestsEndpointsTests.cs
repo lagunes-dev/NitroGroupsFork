@@ -260,6 +260,29 @@ public class EventRequestsEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
         Assert.Equal([.. LegacyKeys, "balanceReceivedAt", "balanceDueDate"], item.EnumerateObject().Select(property => property.Name));
     }
 
+    // Ronda 10: la fila del cliente responde "cómo pago" sin abrir el hilo, en una línea y al final
+    // del contrato; sin método escrito por el grupo, el campo no viaja.
+    [Fact]
+    public async Task Mias_LaFilaDelClienteLlevaElMetodoDePagoAlFinal_SinMetodoNoViaja()
+    {
+        var withMethod = Row();
+        withMethod.Status = EventRequestStatus.Accepted;
+        withMethod.PaymentMethod = "Transfiere a la CLABE 0121 8000 1234 5678, BBVA.";
+        _mediator.SendQueryAsync<GetMyEventRequestsQuery, List<EventRequestResponse>>(Arg.Any<GetMyEventRequestsQuery>())
+            .Returns([withMethod, Row()]);
+
+        var response = await _client.GetAsync("api/event-requests/mine");
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var row = json.RootElement[0];
+        Assert.Equal("Transfiere a la CLABE 0121 8000 1234 5678, BBVA.", row.GetProperty("paymentMethod").GetString());
+        Assert.Equal(
+            [.. LegacyKeys, "balanceReceivedAt", "balanceDueDate", "paymentMethod"],
+            row.EnumerateObject().Select(property => property.Name));
+        // Un null no viaja: la fila sin método queda exactamente como estaba.
+        Assert.False(json.RootElement[1].TryGetProperty("paymentMethod", out _));
+    }
+
     // T48 (S18): el cliente ve cuándo se recibió su saldo, y nunca lo que se le paga a los músicos.
     [Fact]
     public async Task Mias_ElClienteVeElSaldoRecibido_PeroNuncaElPagoNiLaFechaDePagoDeLosMusicos()

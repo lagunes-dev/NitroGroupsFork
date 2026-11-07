@@ -38,12 +38,34 @@ export function useGroupGigs(groupId: number | null | undefined) {
 }
 
 /**
+ * Days that already have a confirmed gig, for marking the group calendar, with the state of the read.
+ * The block-day control needs all three: a day is only "free" once the agenda was actually read.
+ */
+export interface ConfirmedGigDayRead {
+    /** `YYYY-MM-DD` of every confirmed gig; empty while nothing is known or there is none. */
+    days: string[];
+    /** The agenda has not answered yet: the caller must say nothing about a day rather than guess. */
+    isReading: boolean;
+    /** The agenda could not be read: whoever needed it must say so instead of claiming a day is free. */
+    failed: boolean;
+}
+
+/**
+ * The confirmed gig days as one read, so no surface has to be told them by hand (round 10: the inbox
+ * control was never told, and the same dialog then said two different things depending on the tab).
+ */
+export function useConfirmedGigDayRead(groupId: number | null | undefined): ConfirmedGigDayRead {
+    const { data, isPending, isError } = useGroupGigs(groupId);
+    const days = useMemo(() => confirmedGigDates(data ?? []), [data]);
+    return { days, isReading: isPending, failed: isError && data === undefined };
+}
+
+/**
  * Days that already have a confirmed gig, for marking the group calendar. Shares the cache with the
  * agenda tab, so opening both costs one request. Without data it returns an empty list.
  */
 export function useConfirmedGigDates(groupId: number | null | undefined): string[] {
-    const { data } = useGroupGigs(groupId);
-    return useMemo(() => confirmedGigDates(data ?? []), [data]);
+    return useConfirmedGigDayRead(groupId).days;
 }
 
 /**

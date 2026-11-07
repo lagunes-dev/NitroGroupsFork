@@ -8,10 +8,11 @@ import { eventTypeLabel } from "@/lib/eventTypeLabel";
 import { formatEventDate } from "@/lib/format";
 import { dateSearchHref } from "@/features/search/searchParams";
 import { apiErrorMessage, bookingsService } from "../bookings.service";
-import { balanceBlock, budgetLabel, clientDepositLabel, nextStepLabel, sentLabel } from "../deposit";
+import { balanceBlock, budgetLabel, clientDepositLabel, nextStepLabel, nothingLeftToPay, sentLabel } from "../deposit";
 import { availableActions, shortTime, statusLabel } from "../status";
 import { threadItems, type ThreadItem } from "../thread";
 import type { EventRequest, EventRequestParty } from "../types";
+import { CheckoutNotes } from "./CheckoutNotes";
 import { ReviewForm } from "./ReviewForm";
 import { SavedReview } from "./SavedReview";
 import { RequestSignals } from "./RequestSignals";
@@ -38,6 +39,20 @@ function Detail({ label, value }: { label: string; value: string | null | undefi
         <div>
             <dt className="text-sm text-tinta-2">{label}</dt>
             <dd className="mt-1 text-lg tabular">{value}</dd>
+        </div>
+    );
+}
+
+/**
+ * El próximo paso con su encabezado, en una sola forma: con saldo al lado o sin él (ronda 11). Antes el
+ * encabezado solo existía cuando el bloque de saldo se dibujaba, así que el evento del anticipo que
+ * vencía en tres días decía el paso sin título y el evento del saldo lo decía con título.
+ */
+function NextStep({ step }: { step: string }) {
+    return (
+        <div>
+            <p className="text-sm text-tinta-2">Próximo paso</p>
+            <p className="mt-1 text-tinta">{step}</p>
         </div>
     );
 }
@@ -78,6 +93,7 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
     const failed = [accept, decline, cancel, send].find((m) => m.isError);
     const busy = [accept, decline, cancel, send].some((m) => m.isPending);
     const deal = balanceBlock(r, viewer);
+    const nextStep = nextStepLabel(r, viewer);
     const title = viewer === "Client" ? r.groupName : r.clientName;
 
     return (
@@ -115,8 +131,9 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                 <section className="md:col-span-12 rounded-xl bg-fondo-2 p-5" aria-label="Saldo y próximo paso">
                     <p className="text-2xl font-semibold tabular text-tinta">{deal.balance}</p>
                     {deal.purpose && <p className="mt-1 text-tinta-2">{deal.purpose}</p>}
-                    <p className="mt-4 text-sm text-tinta-2">Próximo paso</p>
-                    <p className="mt-1 text-tinta">{deal.nextStep}</p>
+                    <div className="mt-4">
+                        <NextStep step={deal.nextStep} />
+                    </div>
                 </section>
             )}
 
@@ -131,10 +148,23 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                 <Detail label="Anticipo" value={clientDepositLabel(r, viewer)?.replace(/^Anticipo /, "") ?? null} />
             </dl>
 
-            {/* Sin saldo que decir no hay bloque: el próximo paso sigue como párrafo suelto. */}
-            {!deal && nextStepLabel(r, viewer) && (
-                <p className="md:col-span-12 text-tinta">{nextStepLabel(r, viewer)}</p>
+            {/* Ronda 11: sin bloque de saldo igual hay un paso que decir, con su encabezado. */}
+            {!deal && nextStep && (
+                <section className="md:col-span-12 rounded-xl bg-fondo-2 p-5" aria-label="Próximo paso">
+                    <NextStep step={nextStep} />
+                </section>
             )}
+
+            {/* Ronda 9: cómo pagar, justo donde el cliente ya mira la plata: después del saldo y el anticipo.
+                Ronda 10: se calla cuando no queda nada por pagar, como la línea del saldo. */}
+            <CheckoutNotes
+                requestId={r.id}
+                viewer={viewer}
+                status={r.status}
+                settled={nothingLeftToPay(r)}
+                eventType={r.eventType}
+                eventDate={r.eventDate}
+            />
 
             <section className="md:col-span-8 flex flex-col gap-8" aria-label="Conversación">
                 <ol className="flex flex-col gap-6">

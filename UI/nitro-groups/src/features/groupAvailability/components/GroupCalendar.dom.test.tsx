@@ -4,7 +4,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import GroupCalendar, { type GroupCalendarMode } from "./GroupCalendar";
-import { dayBounds, longDayName } from "../blockDay";
+import { dayBounds, longDayName, shortDayName } from "../blockDay";
 import { todayInMexico } from "@/lib/format";
 
 const { getGroupSchedules, createBusySchedule } = vi.hoisted(() => ({
@@ -21,6 +21,10 @@ vi.mock("../services/groupAvailability.service", () => ({
         removeBusySchedule: vi.fn(),
     },
 }));
+
+/** La agenda del grupo alimenta los días con toque confirmado: acá se sustituye su lectura. */
+const agenda = vi.hoisted(() => ({ forGroup: vi.fn() }));
+vi.mock("@/features/gigs/gigs.service", () => ({ gigsService: { forGroup: agenda.forGroup } }));
 
 /** Lunes de la semana de `date`: el locale español abre la semana en lunes. */
 function weekStart(date: Date): Date {
@@ -63,6 +67,8 @@ beforeEach(() => {
     getGroupSchedules.mockResolvedValue([]);
     createBusySchedule.mockReset();
     createBusySchedule.mockResolvedValue({ id: "busy_99" });
+    agenda.forGroup.mockReset();
+    agenda.forGroup.mockResolvedValue([]);
 });
 
 describe("GroupCalendar keeps what it already did", () => {
@@ -192,9 +198,10 @@ describe("GroupCalendar blocks a day from the agenda", () => {
         renderCalendar();
 
         const control = await screen.findByRole("button", { name: `Bloquear el día ${longDayName(today)}` });
-        expect(control).toHaveTextContent("Bloquear el día");
+        // La etiqueta visible nombra el mismo día, corto (ronda 9); el nombre accesible sigue siendo el largo.
+        expect(control).toHaveTextContent(`Bloquear el ${shortDayName(today) ?? ""}`);
+        expect(control).not.toHaveTextContent("Bloquear el día");
         expect(control).toHaveClass("min-h-11");
-
         // El control no ofrece nada hasta leer el día: primero se habilita y recién ahí se opera.
         await waitFor(() => expect(control).toBeEnabled());
 
@@ -218,5 +225,89 @@ describe("GroupCalendar blocks a day from the agenda", () => {
 
         await waitFor(() => expect(calendar.firstVisibleDay()).not.toBeNull());
         expect(screen.queryByRole("button", { name: /Bloquear el día/ })).toBeNull();
+    });
+
+    it("tells the day-block control which days already have a confirmed gig (ronda 10)", async () => {
+        const user = userEvent.setup();
+        // El calendario y el control leen la misma agenda: el día marcado es el día avisado.
+        agenda.forGroup.mockResolvedValue([{ id: 5, eventDate: today }]);
+        renderCalendar([today]);
+
+        const control = await screen.findByRole("button", { name: `Bloquear el día ${longDayName(today)}` });
+        await waitFor(() => expect(control).toBeEnabled());
+        await user.click(control);
+
+        const dialog = await screen.findByRole("dialog", { name: "Bloquear este día" });
+        expect(within(dialog).getByText(/Ese día ya tienes un toque confirmado/)).toBeInTheDocument();
+    });
+});
+
+/**
+ * Ronda 10: la semana del 30 nov al 6 dic pintaba el 4 dic como "Toque confirmado" y además como
+ * "0:00 Disponible". Un manager lee la noche como libre, así que la disponibilidad se calla en un día
+ * que ya tiene toque, y el marcador del toque no se toca.
+ */
+describe("GroupCalendar · un día con toque confirmado no se pinta como disponible (ronda 10)", () => {
+    /** Una fila de `GET api/groups/{id}/schedules` que marca un día entero como disponible. */
+    function availableDay(day: string) {
+        const start = new Date(`${day}T00:00:00`);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
+        return { id: "avail_3", title: "Disponible", start: start.toISOString(), end: end.toISOString(), isAvailable: true };
+    }
+
+    it("leaves the day to the confirmed gig instead of painting it as available", async () => {
+        const gigDay = isoDay(today);
+        getGroupSchedules.mockResolvedValue([availableDay(gigDay)]);
+        const calendar = renderCalendar([gigDay]);
+
+        const chips = await waitFor(() => {
+            const found = Array.from(calendar.container.querySelectorAll(".fc-event"));
+            expect(found.length).toBeGreaterThan(0);
+            return found;
+        });
+
+        // El toque confirmado sigue ahí: es el dato que explica por qué el día no está libre.
+        expect(chips.some((chip) => chip.textContent?.trim() === "Toque confirmado")).toBe(true);
+        // Y la disponibilidad de ese día no se pinta: una noche con toque no está disponible.
+        expect(chips.filter((chip) => chip.textContent?.includes("Disponible"))).toHaveLength(0);
+    });
+
+    it("still paints the availability of the days around it", async () => {
+        const tomorrow = addDays(today, 1);
+        getGroupSchedules.mockResolvedValue([availableDay(isoDay(tomorrow))]);
+        const calendar = renderCalendar([isoDay(today)]);
+
+        const marker = await waitFor(() => {
+            const found = Array.from(calendar.container.querySelectorAll(".fc-event")).find((chip) =>
+                chip.textContent?.includes("Disponible")
+            );
+            expect(found).toBeDefined();
+            return found as HTMLElement;
+        });
+
+        expect(marker.closest("[data-date]")?.getAttribute("data-date")).toBe(isoDay(tomorrow));
+    });
+});
+
+/**
+ * Ronda 9: a 390 px la celda del día medía 42 px y los botones Hoy/Mes/Semana/Día 43 px. El calendario
+ * es de FullCalendar y su hoja se inyecta en runtime, así que el tamaño se sube con utilidades que
+ * apuntan a sus clases; jsdom no mide píxeles, así que acá se fija la decisión, no la medida.
+ */
+describe("GroupCalendar · 44 px en los controles de decisión", () => {
+    it("raises the day cells and the toolbar buttons to at least 44 px", async () => {
+        const calendar = renderCalendar();
+
+        await waitFor(() => expect(calendar.firstVisibleDay()).not.toBeNull());
+        const wrapper = calendar.container.querySelector(".ng-calendario");
+        expect(wrapper).not.toBeNull();
+        // El `!` no es adorno: la hoja de FullCalendar entra sin capa y su `min-height: 100%` gana
+        // contra `@layer utilities` (la misma trampa del anillo de foco, T50/L50).
+        expect(wrapper).toHaveClass("[&_.fc-daygrid-day-frame]:min-h-11!");
+        expect(wrapper).toHaveClass("[&_.fc-button]:min-h-11");
+        // Los dos controles existen de verdad dentro del contenedor que los agranda.
+        expect(calendar.container.querySelector(".fc-daygrid-day-frame")).not.toBeNull();
+        expect(screen.getAllByRole("button", { name: /Mes|Semana|Día|Hoy/ }).length).toBeGreaterThan(0);
     });
 });

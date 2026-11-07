@@ -151,13 +151,13 @@ function Rows({ rows, busy, onAction }: {
                             actions.accept || actions.decline || actions.cancel ? (
                                 <>
                                     {actions.accept && (
-                                        <Button size="sm" disabled={busy} onClick={() => onAction("accept", r)} aria-label={`Aceptar solicitud de ${r.counterpartName}`}>Aceptar</Button>
+                                        <Button size="sm" className="min-h-11" disabled={busy} onClick={() => onAction("accept", r)} aria-label={`Aceptar solicitud de ${r.counterpartName}`}>Aceptar</Button>
                                     )}
                                     {actions.decline && (
-                                        <Button size="sm" variant="outline" disabled={busy} onClick={() => onAction("decline", r)} aria-label={`Rechazar solicitud de ${r.counterpartName}`}>Rechazar</Button>
+                                        <Button size="sm" className="min-h-11" variant="outline" disabled={busy} onClick={() => onAction("decline", r)} aria-label={`Rechazar solicitud de ${r.counterpartName}`}>Rechazar</Button>
                                     )}
                                     {actions.cancel && (
-                                        <Button size="sm" variant="outline" disabled={busy} onClick={() => onAction("cancel", r)} aria-label={`Cancelar invitación a ${r.counterpartName}`}>Cancelar invitación</Button>
+                                        <Button size="sm" className="min-h-11" variant="outline" disabled={busy} onClick={() => onAction("cancel", r)} aria-label={`Cancelar invitación a ${r.counterpartName}`}>Cancelar invitación</Button>
                                     )}
                                 </>
                             ) : null

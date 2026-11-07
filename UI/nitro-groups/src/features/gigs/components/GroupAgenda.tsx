@@ -2,10 +2,10 @@
 
 import { useRef, useState } from "react";
 import { Alert, AlertDescription, Badge, Button } from "@/components/ui";
-import { depositLabel, receivedDate } from "@/features/bookings/deposit";
+import { depositLabel } from "@/features/bookings/deposit";
 import { compareGigsByDate } from "../agenda";
 import { useGroupGigNotices, useGroupGigs } from "../gigs.queries";
-import { attendeePayLines } from "../gigLogistics";
+import { attendeePayLines, agendaBalanceLabel } from "../gigLogistics";
 import { attendanceCountLabel, attendeeSummary, declinedLabel, unansweredLabel } from "../groupAgenda";
 import { noticesByGig, type NoticePayload } from "../notices";
 import type { GroupGigPayload } from "../types";
@@ -18,8 +18,8 @@ function GigRow({ row, groupId, notices }: { row: GroupGigPayload; groupId: numb
     const summary = attendeeSummary(row.attendees);
     const deposit = depositLabel(row.deposit);
     const pays = attendeePayLines(row.attendees);
-    const balanceDate = row.balanceReceivedAt ? receivedDate(row.balanceReceivedAt) : null;
-    const balance = row.balanceReceivedAt ? (balanceDate ? `Saldo recibido el ${balanceDate}` : "Saldo recibido") : null;
+    // Ronda 9: el renglón dice el saldo del cliente y su fecha límite, igual que el editor del manager.
+    const balance = agendaBalanceLabel(row);
     const [editing, setEditing] = useState(false);
     const [notice, setNotice] = useState("");
     const editButton = useRef<HTMLButtonElement>(null);

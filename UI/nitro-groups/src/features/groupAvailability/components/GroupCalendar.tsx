@@ -18,6 +18,7 @@ import esLocale from "@fullcalendar/core/locales/es";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { todayInMexico } from "@/lib/format";
+import { withoutAvailabilityOnBookedDays } from "../bookedDays";
 import { formatRangeLabel } from "./formatRange";
 import { BlockDayControl } from "./BlockDayControl";
 
@@ -89,16 +90,23 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
   });
 
   // Los colores vienen fijos de la API; aquí se cambian por clases del sistema (globals.css → .fc).
+  const bookedDays = useMemo(() => new Set(confirmedGigDays ?? []), [confirmedGigDays]);
   const events = useMemo<EventInput[]>(
     () =>
-      (serverEvents as EventInput[]).map((ev) => ({
+      /*
+       * Ronda 10: un día con toque confirmado no está disponible. La semana del 30 nov al 6 dic pintaba
+       * el 4 dic como "Toque confirmado" y además como "0:00 Disponible", y un manager la leía libre. La
+       * marca de disponibilidad se calla en ese día; el marcador del toque se queda, porque es el dato que
+       * explica por qué el día no está libre.
+       */
+      withoutAvailabilityOnBookedDays(serverEvents, bookedDays).map((ev) => ({
         ...ev,
         backgroundColor: undefined,
         borderColor: undefined,
         textColor: undefined,
         classNames: [String(ev.id ?? "").startsWith(BUSY_ID_PREFIX) ? "ng-busy" : "ng-available"],
       })),
-    [serverEvents],
+    [serverEvents, bookedDays],
   );
 
   // Toques confirmados: fichas de día completo, no editables, para no confundirlas con la disponibilidad.
@@ -221,6 +229,7 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
             {isPrivate
               ? "Cuentas como disponible salvo en lo que marques. Arrastra sobre las horas para bloquearlas, mueve un bloque para ajustarlo o tócalo para quitarlo."
               : "El grupo está disponible salvo en los bloques marcados."}
+            {isPrivate && (confirmedGigDays?.length ?? 0) > 0 && " Los días con un toque confirmado no se marcan como disponibles."}
           </p>
         </div>
         <ul aria-label="Leyenda" className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-tinta-2">
@@ -248,9 +257,13 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
       {/*
         S26: un día también se bloquea desde la agenda, sin arrastrar sobre la rejilla. Va aquí arriba,
         antes del calendario, porque un arrastre no se puede hacer con el teclado. Solo en la vista
-        privada: la agenda pública del grupo no se edita.
+        privada: la agenda pública del grupo no se edita. Ronda 10: el control lee por su cuenta los días
+        con toque confirmado, así que la bandeja —que monta este mismo control desde otra pestaña— avisa
+        igual que el calendario.
       */}
-      {isPrivate && <BlockDayControl groupId={groupId} initialDay={todayInMexico()} className="mt-8" />}
+      {isPrivate && (
+        <BlockDayControl groupId={groupId} initialDay={todayInMexico()} className="mt-8" />
+      )}
 
       {mutationFailed && (
         <Alert variant="destructive" className="mt-6">
@@ -258,7 +271,15 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
         </Alert>
       )}
 
-      <div className="mt-8">
+      {/*
+        Ronda 9: a 390 px la celda del día medía 42 px y los botones de la barra (Hoy / Mes / Semana /
+        Día) 43 px. FullCalendar inyecta su hoja en runtime y sin capa, así que sus medidas se suben
+        desde acá, apuntando a sus clases. El `!` de la celda no es adorno: ese `min-height` choca con
+        el `min-height: 100%` de FullCalendar, que al no estar en una capa gana contra `@layer
+        utilities` (la misma trampa del anillo de foco, T50). Los botones no lo necesitan porque
+        FullCalendar no les fija altura.
+      */}
+      <div className="ng-calendario mt-8 [&_.fc-button]:min-h-11 [&_.fc-daygrid-day-frame]:min-h-11!">
         {isLoading ? (
           <div aria-busy className="grid h-[480px] place-items-center bg-fondo-2">
             <p role="status" className="text-tinta-2">Cargando calendario…</p>

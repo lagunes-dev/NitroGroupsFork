@@ -19,6 +19,12 @@ namespace NitroGroups.Shared.Contracts.Groups.Requests
         public decimal? HourlyRate { get; set; }
         public int MinimumDurationHours { get; set; } = 2;
         public int SetupTimeMinutes { get; set; } = 30;
+
+        /// <summary>
+        /// Cómo quiere el grupo que se le pague (ronda 9, D1/S18): texto libre de hasta 500
+        /// caracteres. Solo lo lee el cliente de un evento aceptado, en el hilo del pedido.
+        /// </summary>
+        public string? PaymentInstructions { get; set; }
         public bool IsAcceptingBookings { get; set; } = true;
         public bool Active { get; set; } = true;
     }
