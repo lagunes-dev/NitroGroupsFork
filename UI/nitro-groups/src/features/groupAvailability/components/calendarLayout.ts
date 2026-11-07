@@ -20,3 +20,19 @@ export const CALENDAR_SCROLLER_CLASS = "ng-semana-scroll overflow-x-auto overscr
  * a discovery. In a wide window the grid fits and there is nothing to say.
  */
 export const CALENDAR_SWIPE_HINT = "Desliza el calendario para ver la semana completa.";
+
+/**
+ * Where the day starts and where it ends (round 12).
+ *
+ * The week and the day view drew 08:00 to 22:30 —30 slots— and stopped there: "A gig ending 23:00/01:00
+ * cannot be blocked, and 'drag across midnight' is impossible by construction." A group that plays
+ * weddings works past midnight, so the day ends at 02:00 the next morning.
+ *
+ * 08:00 stays: the alignment the calendar already had is what every existing block sits on. Past 24:00 is
+ * the same day's column, which is what makes a 23:00 → 01:00 block one gesture instead of two.
+ */
+export const CALENDAR_DAY_START = "08:00:00";
+export const CALENDAR_DAY_END = "26:00:00";
+
+/** Said next to the grid's own hint, so the late night is a documented place and not a discovery. */
+export const CALENDAR_LATE_NIGHT_HINT = "El día llega hasta las 02:00 del día siguiente: arrastra hasta ahí para bloquear la madrugada.";

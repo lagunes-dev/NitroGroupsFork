@@ -8,20 +8,31 @@ import interactionPlugin from "@fullcalendar/interaction";
 import type { DateSelectArg, EventChangeArg, EventInput, DatesSetArg, EventClickArg } from "@fullcalendar/core";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-/** La API antepone "busy_" al id de los horarios ocupados (el resto son bloques de disponibilidad). */
-const BUSY_ID_PREFIX = "busy_";
-/** Marcador de un día con toque confirmado: no es un bloque del calendario y no se puede mover. */
-const GIG_ID_PREFIX = "gig_";
-import { groupAvailabilityService as schedulesService, type CreateBusyScheduleRequest, type UpdateAvailabilityRequest, type UpdateBusyScheduleRequest } from "../services/groupAvailability.service";
+import { groupAvailabilityService as schedulesService, type CreateBusyScheduleRequest } from "../services/groupAvailability.service";
+import { useGroupGigs } from "@/features/gigs/gigs.queries";
+import { blockKindOf, planBlockDrag } from "../blockMove";
+import { gigDayList, gigHourBlocks, GIG_BLOCK_TITLE } from "../gigBlocks";
+import { useBlockMove } from "../hooks/useBlockMove";
+import { MoveBlockDialog } from "./MoveBlockDialog";
 
 import esLocale from "@fullcalendar/core/locales/es";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { todayInMexico } from "@/lib/format";
-import { withoutAvailabilityOnBookedDays } from "../bookedDays";
+import { keepWholeDayBlocksInTheirColumn, withoutAvailabilityOnBookedDays } from "../bookedDays";
 import { BlockDayControl } from "./BlockDayControl";
 import { BlockSlotDialog } from "./BlockSlotDialog";
-import { CALENDAR_GRID_MIN_WIDTH_CLASS, CALENDAR_SCROLLER_CLASS, CALENDAR_SWIPE_HINT } from "./calendarLayout";
+import {
+  CALENDAR_DAY_END,
+  CALENDAR_DAY_START,
+  CALENDAR_GRID_MIN_WIDTH_CLASS,
+  CALENDAR_LATE_NIGHT_HINT,
+  CALENDAR_SCROLLER_CLASS,
+  CALENDAR_SWIPE_HINT,
+} from "./calendarLayout";
+
+/** Marcador de un día con toque confirmado: no es un bloque del calendario y no se puede mover. */
+const GIG_ID_PREFIX = "gig_";
 
 export type GroupCalendarMode = "public" | "private";
 
@@ -70,15 +81,13 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["schedules", groupId] })
   });
 
-  const updateAvailability = useMutation({
-    mutationFn: (req: { id: string, data: UpdateAvailabilityRequest }) => schedulesService.updateAvailability(groupId, req.id, req.data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["schedules", groupId] })
-  });
-
-  const updateBusy = useMutation({
-    mutationFn: (req: { id: string, data: UpdateBusyScheduleRequest }) => schedulesService.updateBusySchedule(groupId, req.id, req.data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["schedules", groupId] })
-  });
+  /*
+   * Ronda 12: mover un bloque ya no escribe. `useBlockMove` guarda la pregunta y es el único que escribe,
+   * y solo cuando el manager confirma. Las dos mutaciones que antes vivían acá escribían al soltar el
+   * arrastre; ahora no hay una segunda puerta de escritura que se pueda saltar la pregunta.
+   */
+  const blockMove = useBlockMove(groupId);
+  const { pending: pendingMove, cancel: cancelMove } = blockMove;
 
   const deleteAvailability = useMutation({
     mutationFn: (id: string) => schedulesService.removeAvailability(groupId, id),
@@ -91,7 +100,17 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
   });
 
   // Los colores vienen fijos de la API; aquí se cambian por clases del sistema (globals.css → .fc).
-  const bookedDays = useMemo(() => new Set(confirmedGigDays ?? []), [confirmedGigDays]);
+  /*
+   * Ronda 12: la rejilla solo sabía el día del toque, así que sus horas no se veían y el manager podía
+   * arrastrar sobre su propio toque sin enterarse hasta el diálogo. La agenda se lee acá —la misma
+   * consulta y la misma clave que abre la pestaña de la agenda, así que no cuesta un pedido más— y aporta
+   * las horas reales. Solo la vista privada la lee: la agenda del grupo es del manager.
+   */
+  const gigAgenda = useGroupGigs(isPrivate ? groupId : null);
+  const gigRows = useMemo(() => gigAgenda.data ?? [], [gigAgenda.data]);
+  const gigDays = useMemo(() => gigDayList(confirmedGigDays ?? [], gigRows), [confirmedGigDays, gigRows]);
+
+  const bookedDays = useMemo(() => new Set(gigDays), [gigDays]);
   const events = useMemo<EventInput[]>(
     () =>
       /*
@@ -99,23 +118,35 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
        * el 4 dic como "Toque confirmado" y además como "0:00 Disponible", y un manager la leía libre. La
        * marca de disponibilidad se calla en ese día; el marcador del toque se queda, porque es el dato que
        * explica por qué el día no está libre.
+       *
+       * Ronda 12: el día se extiende hasta la madrugada, así que un bloqueo de día entero se pintaba también
+       * como una franja al final de la columna anterior. `keepWholeDayBlocksInTheirColumn` lo deja en su día.
        */
-      withoutAvailabilityOnBookedDays(serverEvents, bookedDays).map((ev) => ({
+      keepWholeDayBlocksInTheirColumn(withoutAvailabilityOnBookedDays(serverEvents, bookedDays)).map((ev) => ({
         ...ev,
         backgroundColor: undefined,
         borderColor: undefined,
         textColor: undefined,
-        classNames: [String(ev.id ?? "").startsWith(BUSY_ID_PREFIX) ? "ng-busy" : "ng-available"],
+        classNames: [blockKindOf(String(ev.id ?? "")) === "busy" ? "ng-busy" : "ng-available"],
       })),
     [serverEvents, bookedDays],
   );
 
-  // Toques confirmados: fichas de día completo, no editables, para no confundirlas con la disponibilidad.
+  /*
+   * Toques confirmados, en las dos formas que el calendario ya tenía que saber pintar: la ficha del día,
+   * que no se toca, y desde la ronda 12 el bloque de sus horas reales.
+   *
+   * El bloque no se puede arrastrar —`editable: false`, y FullCalendar no le pone la clase que marca lo
+   * arrastrable— porque esas horas no son del manager para editar acá: son un dato que explica por qué el
+   * día no está libre. El borde discontinuo lo dice sin palabras. Los `!` de las clases no son adorno:
+   * FullCalendar inyecta su hoja sin capa y su `.fc-h-event { border: 1px solid }` gana contra
+   * `@layer utilities`, la misma trampa del anillo de foco (L50).
+   */
   const gigEvents = useMemo<EventInput[]>(
-    () =>
-      (confirmedGigDays ?? []).map((day) => ({
+    () => [
+      ...gigDays.map((day) => ({
         id: `${GIG_ID_PREFIX}${day}`,
-        title: "Toque confirmado",
+        title: GIG_BLOCK_TITLE,
         start: day,
         allDay: true,
         editable: false,
@@ -125,28 +156,43 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
         borderColor: "var(--ok)",
         textColor: "var(--fondo)",
       })),
-    [confirmedGigDays],
+      ...gigHourBlocks(gigRows).map((block) => ({
+        id: block.id,
+        title: GIG_BLOCK_TITLE,
+        start: block.start,
+        end: block.end,
+        editable: false,
+        startEditable: false,
+        durationEditable: false,
+        backgroundColor: "var(--fondo-2)",
+        borderColor: "var(--ok)",
+        textColor: "var(--tinta)",
+        classNames: ["ng-gig-block", "border-2!", "border-dashed!"],
+      })),
+    ],
+    [gigDays, gigRows],
   );
 
   const calendarEvents = useMemo<EventInput[]>(() => [...events, ...gigEvents], [events, gigEvents]);
 
   // El aviso refleja solo el último cambio enviado: si el siguiente sale bien, desaparece.
-  const lastMutation = [createBusy, updateAvailability, updateBusy, deleteAvailability, deleteBusy]
+  const lastMutation = [createBusy, deleteAvailability, deleteBusy]
     .reduce((latest, m) => (m.submittedAt > latest.submittedAt ? m : latest));
-  const mutationFailed = lastMutation.isError;
+  const mutationFailed = lastMutation.isError || blockMove.failed;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setPendingSelect(null);
         setPendingDelete(null);
+        cancelMove();
       }
     };
-    if (pendingSelect || pendingDelete) {
+    if (pendingSelect || pendingDelete || pendingMove) {
       window.addEventListener("keydown", onKey);
       return () => window.removeEventListener("keydown", onKey);
     }
-  }, [pendingSelect, pendingDelete]);
+  }, [pendingSelect, pendingDelete, pendingMove, cancelMove]);
 
   const confirmMarkUnavailable = () => {
     if (!pendingSelect) return;
@@ -168,40 +214,22 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
 
   const handleEventChange = (changeInfo: EventChangeArg) => {
     if (!isPrivate) return;
-    
-    if (!changeInfo.event.start || !changeInfo.event.end) {
-      changeInfo.revert();
-      return;
-    }
 
-    if (changeInfo.event.id.startsWith("avail_")) {
-      updateAvailability.mutate({
-        id: changeInfo.event.id,
-        data: {
-          start: changeInfo.event.start.toISOString(),
-          end: changeInfo.event.end.toISOString()
-        }
-      });
-    } else if (changeInfo.event.id.startsWith("busy_")) {
-      updateBusy.mutate({
-        id: changeInfo.event.id,
-        data: {
-          start: changeInfo.event.start.toISOString(),
-          end: changeInfo.event.end.toISOString()
-        }
-      });
-    }
+    /*
+     * Ronda 12: soltar un bloque escribía de inmediato. Ahora la rejilla vuelve a donde estaba y lo que
+     * queda es la pregunta del diálogo: nada se escribe hasta que el manager confirma.
+     */
+    const move = planBlockDrag(changeInfo);
+    if (move) blockMove.request(move);
   };
 
   const handleEventClick = (clickInfo: EventClickArg) => {
     if (!isPrivate) return;
     const id = clickInfo.event.id;
     const title = clickInfo.event.title || "Evento";
-    if (id.startsWith("avail_")) {
-      setPendingDelete({ id, title, kind: "avail" });
-    } else if (id.startsWith("busy_")) {
-      setPendingDelete({ id, title, kind: "busy" });
-    }
+    const kind = blockKindOf(id);
+    if (!kind) return;
+    setPendingDelete({ id, title, kind });
   };
 
   const confirmDelete = () => {
@@ -228,9 +256,10 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
           <h2 id="calendario-titulo" className="sr-only">Calendario</h2>
           <p className="text-tinta-2">
             {isPrivate
-              ? "Cuentas como disponible salvo en lo que marques. Arrastra sobre las horas para bloquearlas, mueve un bloque para ajustarlo o tócalo para quitarlo."
+              ? "Cuentas como disponible salvo en lo que marques. Arrastra sobre las horas para bloquearlas, mueve un bloque y confirma a dónde va, o tócalo para quitarlo."
               : "El grupo está disponible salvo en los bloques marcados."}
-            {isPrivate && (confirmedGigDays?.length ?? 0) > 0 && " Los días con un toque confirmado no se marcan como disponibles."}
+            {isPrivate && ` ${CALENDAR_LATE_NIGHT_HINT}`}
+            {isPrivate && (gigDays.length > 0) && " Los días con un toque confirmado no se marcan como disponibles."}
           </p>
         </div>
         <ul aria-label="Leyenda" className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-tinta-2">
@@ -246,7 +275,7 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
             <span aria-hidden className="size-3 bg-fondo-2" />
             Sin marcar: disponible
           </li>
-          {(confirmedGigDays?.length ?? 0) > 0 && (
+          {(gigDays.length > 0) && (
             <li className="inline-flex items-center gap-2">
               <span aria-hidden className="size-3 bg-ok" />
               Toque confirmado
@@ -308,8 +337,8 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
                 }}
                 height="auto"
                 nowIndicator
-                slotMinTime="08:00:00"
-                slotMaxTime="23:00:00"
+                slotMinTime={CALENDAR_DAY_START}
+                slotMaxTime={CALENDAR_DAY_END}
                 editable={isPrivate}
                 eventStartEditable={isPrivate}
                 eventDurationEditable={isPrivate}
@@ -340,6 +369,21 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
           isSaving={createBusy.isPending}
           onCancel={() => setPendingSelect(null)}
           onConfirm={confirmMarkUnavailable}
+        />
+      )}
+
+      {/*
+        Ronda 12: la pregunta que deja un arrastre. El bloque solo se mueve cuando se confirma acá; hasta
+        entonces la rejilla lo muestra donde estaba.
+      */}
+      {pendingMove && (
+        <MoveBlockDialog
+          title={pendingMove.title}
+          from={pendingMove.from}
+          to={pendingMove.to}
+          isSaving={blockMove.isSaving}
+          onCancel={cancelMove}
+          onConfirm={blockMove.confirm}
         />
       )}
 

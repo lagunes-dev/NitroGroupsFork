@@ -6,6 +6,8 @@ import {
     gigNoteText,
     isPastDay,
     longDayName,
+    PAST_DAY_NOTE,
+    pastRangeRefusal,
     rangeGigFact,
     shortDayName,
     wholeDayBlocks,
@@ -119,6 +121,38 @@ describe("isPastDay", () => {
     it("has nothing to say about something that is not a day", () => {
         expect(isPastDay("24/10/2026", TODAY)).toBe(false);
         expect(isPastDay("2026-10-24", "no-es-fecha")).toBe(false);
+    });
+});
+
+/**
+ * Ronda 12: "I can block a day that already passed (Oct 20 and Oct 24, drag 19:00→21:00) — no past
+ * notice, button enabled. The day form refuses the same day." La regla ya existía para el formulario;
+ * esta es la misma regla, en un solo lugar, para la reja y para cualquier otra puerta a un bloque.
+ */
+describe("pastRangeRefusal", () => {
+    const TODAY = "2026-11-07";
+
+    it("refuses a dragged range whose day already passed, with the day form's own sentence", () => {
+        expect(pastRangeRefusal(at("2026-10-20", 19), at("2026-10-20", 21), TODAY)).toBe(PAST_DAY_NOTE);
+        expect(pastRangeRefusal(at("2026-10-24", 19), at("2026-10-24", 21), TODAY)).toBe(PAST_DAY_NOTE);
+    });
+
+    it("allows today and any later day: only the past is behind us", () => {
+        expect(pastRangeRefusal(at(TODAY, 9), at(TODAY, 11), TODAY)).toBeNull();
+        expect(pastRangeRefusal(at("2026-12-04", 19), at("2026-12-04", 21), TODAY)).toBeNull();
+    });
+
+    it("allows a night that starts today and ends after midnight", () => {
+        // La madrugada del día siguiente no es pasado, aunque su último instante caiga en otro día.
+        expect(pastRangeRefusal(at(TODAY, 23), at("2026-11-08", 1), TODAY)).toBeNull();
+    });
+
+    it("has nothing to refuse when the bounds cannot be read", () => {
+        expect(pastRangeRefusal("no-es-fecha", "no-es-fecha", TODAY)).toBeNull();
+    });
+
+    it("says exactly what the day form says", () => {
+        expect(PAST_DAY_NOTE).toBe("Este día ya pasó. Elige hoy o una fecha siguiente.");
     });
 });
 

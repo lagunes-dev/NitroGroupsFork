@@ -4,6 +4,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BlockSlotDialog } from "./BlockSlotDialog";
+import { PAST_DAY_NOTE } from "../blockDay";
 
 /**
  * La agenda del grupo es la única fuente de los días con toque confirmado: el diálogo del arrastre la
@@ -28,7 +29,7 @@ function gigRow(eventDate: string) {
     return { id: 1, eventDate };
 }
 
-function renderDialog() {
+function renderDialog(bounds: { start: string; end: string } = { start: START, end: END }) {
     const onConfirm = vi.fn();
     const onCancel = vi.fn();
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -36,8 +37,8 @@ function renderDialog() {
         <QueryClientProvider client={client}>
             <BlockSlotDialog
                 groupId={GROUP}
-                start={START}
-                end={END}
+                start={bounds.start}
+                end={bounds.end}
                 isSaving={false}
                 onCancel={onCancel}
                 onConfirm={onConfirm}
@@ -127,5 +128,40 @@ describe("ronda 11 · el diálogo del arrastre dice si ese día ya tiene un toqu
         expect(confirm).toHaveClass("min-h-11");
         expect(cancel.className).not.toMatch(/outline-none/);
         expect(confirm.className).not.toMatch(/outline-none/);
+    });
+});
+
+/**
+ * Ronda 12: "Calendar: I can block a day that already passed (Oct 20 and Oct 24, drag 19:00→21:00).
+ * Dialog: 'Bloquear este horario | martes 20 de octubre, 19:00 a 21:30' — no past notice, button
+ * enabled. The day form refuses the same day." El arrastre lee la misma regla que el formulario del día.
+ */
+describe("ronda 12 · el arrastre no bloquea un día que ya pasó", () => {
+    /** 20 de octubre de 2026, 19:00–21:30: el arrastre del informe, en hora local. */
+    const PAST = {
+        start: new Date(2026, 9, 20, 19, 0).toISOString(),
+        end: new Date(2026, 9, 20, 21, 30).toISOString(),
+    };
+
+    it("says the day already passed with the day form's sentence and does not offer to block it", () => {
+        renderDialog(PAST);
+
+        const dialog = screen.getByRole("dialog", { name: "Bloquear este horario" });
+        const note = within(dialog).getByText(PAST_DAY_NOTE);
+        // El botón apagado con la razón como descripción: quien lo lee con un lector de pantalla la oye.
+        const confirm = within(dialog).getByRole("button", { name: "Bloquear horario" });
+        expect(confirm).toBeDisabled();
+        expect(confirm.getAttribute("aria-describedby")?.split(" ")).toContain(note.id);
+    });
+
+    it("still offers to block today", async () => {
+        const today = new Date();
+        const start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 9, 0).toISOString();
+        const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 11, 0).toISOString();
+        renderDialog({ start, end });
+
+        const dialog = screen.getByRole("dialog", { name: "Bloquear este horario" });
+        expect(within(dialog).queryByText(PAST_DAY_NOTE)).toBeNull();
+        expect(within(dialog).getByRole("button", { name: "Bloquear horario" })).toBeEnabled();
     });
 });

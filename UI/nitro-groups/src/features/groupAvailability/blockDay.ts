@@ -104,6 +104,20 @@ export function isPastDay(day: string, today: string): boolean {
 export const PAST_DAY_NOTE = "Este día ya pasó. Elige hoy o una fecha siguiente.";
 
 /**
+ * The same rule for a range instead of a day (round 12): dragging over 20 October was the only door into
+ * a block that the day form had already closed. Every door asks here, so the two cannot disagree again.
+ *
+ * What decides is the day the range starts on — a night that starts tonight and ends at 01:00 is not the
+ * past, and the hours it covers are its own business. A bound we cannot read is no refusal: the calendar
+ * never opened a block over something it could not read.
+ */
+export function pastRangeRefusal(start: string, end: string, today: string): string | null {
+    const [first] = daysCoveredBy(start, end);
+    if (!first) return null;
+    return isPastDay(first, today) ? PAST_DAY_NOTE : null;
+}
+
+/**
  * Bloques que reclaman el día entero: son los que el botón deshace. Un bloqueo parcial (un ensayo de
  * 10 a 12) no vuelve el día "bloqueado", así que el control sigue ofreciendo bloquearlo completo y no
  * borra lo que ya estaba marcado.

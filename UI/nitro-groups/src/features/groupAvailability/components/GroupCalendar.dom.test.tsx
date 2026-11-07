@@ -7,18 +7,23 @@ import GroupCalendar, { type GroupCalendarMode } from "./GroupCalendar";
 import { dayBounds, longDayName, shortDayName } from "../blockDay";
 import { todayInMexico } from "@/lib/format";
 
-const { getGroupSchedules, createBusySchedule } = vi.hoisted(() => ({
-    getGroupSchedules: vi.fn(),
-    createBusySchedule: vi.fn(),
-}));
-vi.mock("../services/groupAvailability.service", () => ({
-    groupAvailabilityService: {
-        getGroupSchedules,
-        createBusySchedule,
+const { getGroupSchedules, createBusySchedule, updateAvailability, updateBusySchedule, removeAvailability, removeBusySchedule } =
+    vi.hoisted(() => ({
+        getGroupSchedules: vi.fn(),
+        createBusySchedule: vi.fn(),
         updateAvailability: vi.fn(),
         updateBusySchedule: vi.fn(),
         removeAvailability: vi.fn(),
         removeBusySchedule: vi.fn(),
+    }));
+vi.mock("../services/groupAvailability.service", () => ({
+    groupAvailabilityService: {
+        getGroupSchedules,
+        createBusySchedule,
+        updateAvailability,
+        updateBusySchedule,
+        removeAvailability,
+        removeBusySchedule,
     },
 }));
 
@@ -48,6 +53,11 @@ function isoDay(date: Date): string {
 const today = new Date();
 const firstWeek = weekStart(today);
 
+/** "2026-11-09 19:00", en hora local: como la API entrega un bloque. */
+function at(date: Date, hour: number, minute = 0): string {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, minute).toISOString();
+}
+
 function renderCalendar(confirmedGigDays: string[] = [], mode: GroupCalendarMode = "private") {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const view = render(
@@ -67,6 +77,10 @@ beforeEach(() => {
     getGroupSchedules.mockResolvedValue([]);
     createBusySchedule.mockReset();
     createBusySchedule.mockResolvedValue({ id: "busy_99" });
+    updateAvailability.mockReset();
+    updateBusySchedule.mockReset();
+    removeAvailability.mockReset();
+    removeBusySchedule.mockReset();
     agenda.forGroup.mockReset();
     agenda.forGroup.mockResolvedValue([]);
 });
@@ -349,5 +363,139 @@ describe("GroupCalendar · a 390 px la semana no recorta sus fichas (ronda 11)",
         const hint = screen.getByText("Desliza el calendario para ver la semana completa.");
         // Debajo de `lg` la rejilla mide más que la pantalla: ahí se dice; en escritorio no hay nada que decir.
         expect(hint).toHaveClass("lg:hidden");
+    });
+});
+
+/**
+ * Ronda 12: "Dec 4 19:00–21:30 is painted in nothing; the only trace is a 27 px all-day chip. A
+ * rehearsal is painted 17:00→20:00. So I can drag right on top of my own gig's hours and only learn
+ * about it from the confirmation dialog." El toque confirmado se pinta en la rejilla por sus horas
+ * reales, sin parecer un bloque que el manager pueda arrastrar, y la ficha de día completo se queda.
+ */
+describe("ronda 12 · el toque confirmado se pinta por sus horas reales", () => {
+    const GIG = { id: 9, eventDate: isoDay(today), startTime: "19:00:00", durationHours: 2.5 };
+
+    it("paints the confirmed gig in its own column, with the hours it really has", async () => {
+        agenda.forGroup.mockResolvedValue([GIG]);
+        const calendar = renderCalendar();
+
+        const block = await waitFor(() => {
+            const found = calendar.container.querySelector(".ng-gig-block");
+            expect(found).not.toBeNull();
+            return found as HTMLElement;
+        });
+
+        // Cae en la columna del día del toque, no en cualquier parte de la semana.
+        expect(block.closest("[data-date]")?.getAttribute("data-date")).toBe(isoDay(today));
+        // Y dice sus horas: 19:00 a 21:30, las del toque, no un chip sin hora.
+        expect(block.textContent).toContain("Toque confirmado");
+        expect(block.textContent).toContain("19:00");
+        expect(block.textContent).toContain("21:30");
+    });
+
+    it("does not look like a block the manager can drag, because it is not hers to edit here", async () => {
+        agenda.forGroup.mockResolvedValue([GIG]);
+        const calendar = renderCalendar();
+
+        const block = await waitFor(() => {
+            const found = calendar.container.querySelector(".ng-gig-block");
+            expect(found).not.toBeNull();
+            return found as HTMLElement;
+        });
+
+        // Borde discontinuo: se lee como un dato del calendario, no como un bloque propio.
+        expect(block.className).toContain("border-dashed");
+        // Y de verdad no se puede mover: FullCalendar marca así lo que se arrastra.
+        expect(block.className).not.toContain("fc-event-draggable");
+    });
+
+    it("keeps the all-day chip, once, for the same gig", async () => {
+        agenda.forGroup.mockResolvedValue([GIG]);
+        // El día llega por prop y además por la agenda: una ficha, no dos.
+        const calendar = renderCalendar([isoDay(today)]);
+
+        const chips = await waitFor(() => {
+            const found = Array.from(calendar.container.querySelectorAll(".fc-event"));
+            expect(found.length).toBeGreaterThan(0);
+            return found;
+        });
+
+        const dayChips = chips.filter((chip) => chip.textContent?.trim() === "Toque confirmado");
+        expect(dayChips).toHaveLength(1);
+        expect(chips.some((chip) => chip.classList.contains("ng-gig-block"))).toBe(true);
+    });
+
+    it("does not paint hours for a gig the manager never timed", async () => {
+        agenda.forGroup.mockResolvedValue([{ ...GIG, startTime: null }]);
+        const calendar = renderCalendar([isoDay(today)]);
+
+        await waitFor(() => expect(calendar.firstVisibleDay()).not.toBeNull());
+        await waitFor(() =>
+            expect(Array.from(calendar.container.querySelectorAll(".fc-event")).some((chip) =>
+                chip.textContent?.includes("Toque confirmado")
+            )).toBe(true)
+        );
+        // Sin hora de inicio no se inventa una altura: el dato honesto sigue siendo la ficha del día.
+        expect(calendar.container.querySelector(".ng-gig-block")).toBeNull();
+    });
+});
+
+/**
+ * Ronda 12: "Week and Día view render exactly 08:00 … 22:30 (30 slots, no vertical scroll) — drag at
+ * 22:00 gives '22:00 a 22:30', the last one. A gig ending 23:00/01:00 cannot be blocked." El día se
+ * extiende hasta la madrugada, sin perder el arranque de las 08:00.
+ */
+describe("ronda 12 · la noche después de las 22:30 también se puede bloquear", () => {
+    /** Los horarios que la rejilla dibuja, en orden: es la evidencia de dónde termina el día. */
+    function slotTimes(container: HTMLElement): string[] {
+        return Array.from(container.querySelectorAll(".fc-timegrid-slot-label")).map(
+            (cell) => cell.getAttribute("data-time") ?? ""
+        );
+    }
+
+    it("starts at 08:00 and keeps going past midnight, so a late-night block has a place", async () => {
+        const calendar = renderCalendar();
+
+        await waitFor(() => expect(calendar.firstVisibleDay()).not.toBeNull());
+        const times = slotTimes(calendar.container);
+
+        // El arranque no se mueve: la alineación de las 08:00 se conserva.
+        expect(times[0]).toBe("08:00:00");
+        // 08:00 a 02:00 del día siguiente, en medias horas: 36 filas, no las 30 que llegaban a 22:30.
+        expect(times).toHaveLength(36);
+        expect(times).toContain("23:00:00");
+        expect(times[times.length - 1]).toBe("01:30:00");
+    });
+});
+
+/**
+ * Ronda 12: la regla del pasado se aplica a las puertas nuevas, y no se lleva por delante lo que ya se
+ * podía hacer: un bloque que ya quedó en el pasado se sigue pudiendo quitar, porque ese estado sí se
+ * puede cambiar.
+ */
+describe("ronda 12 · un bloque pasado se sigue pudiendo quitar", () => {
+    it("lifts a block that already happened when the manager taps it", async () => {
+        const user = userEvent.setup();
+        // El miércoles de la semana pasada: siempre detrás de hoy, mire cuando mire el reloj.
+        const lastWeek = addDays(firstWeek, -3);
+        getGroupSchedules.mockResolvedValue([
+            { id: "busy_7", title: "Ensayo", start: at(lastWeek, 19), end: at(lastWeek, 21) },
+        ]);
+        const calendar = renderCalendar();
+
+        await waitFor(() => expect(calendar.firstVisibleDay()).toBe(isoDay(firstWeek)));
+        await user.click(screen.getByRole("button", { name: "Semana antes" }));
+        await waitFor(() => expect(calendar.firstVisibleDay()).toBe(isoDay(addDays(firstWeek, -7))), { timeout: 3000 });
+
+        const chip = await waitFor(() => {
+            const found = Array.from(calendar.container.querySelectorAll(".fc-event")).find((event) =>
+                event.textContent?.includes("Ensayo")
+            );
+            expect(found).toBeDefined();
+            return found as HTMLElement;
+        });
+        await user.click(chip);
+
+        expect(await screen.findByRole("dialog", { name: "Quitar «Ensayo»" })).toBeInTheDocument();
     });
 });

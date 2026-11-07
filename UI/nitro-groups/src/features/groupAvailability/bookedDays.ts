@@ -1,4 +1,5 @@
 import type { ScheduleEventDto } from "./services/groupAvailability.service";
+import { CALENDAR_DAY_START } from "./components/calendarLayout";
 
 /** `YYYY-MM-DD` of a local instant: the same day the calendar column shows. */
 const LOCAL_DAY = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
@@ -50,5 +51,37 @@ export function withoutAvailabilityOnBookedDays(
     return events.filter((event) => {
         if (!event.isAvailable) return true;
         return !daysCoveredBy(event.start, event.end).some((day) => bookedDays.has(day));
+    });
+}
+
+/** `YYYY-MM-DD` del instante solo si cae exactamente a la medianoche local; `null` si no. */
+function midnightDay(instant: string): string | null {
+    const at = new Date(instant);
+    if (Number.isNaN(at.getTime())) return null;
+    if (at.getHours() !== 0 || at.getMinutes() !== 0 || at.getSeconds() !== 0) return null;
+    return localDay(at);
+}
+
+const [OPENING_HOUR, OPENING_MINUTE] = CALENDAR_DAY_START.split(":").map(Number);
+
+/**
+ * Ronda 12: el día del calendario ahora sigue hasta las 02:00 del día siguiente, y un bloqueo que reclama
+ * días enteros ("No disponible", "Disponible") empieza a la medianoche del suyo; con la columna extendida
+ * FullCalendar lo parte y pinta sus dos primeras horas al final de la columna del día ANTERIOR. Es decir:
+ * el bloqueo de mañana aparecía en el día de hoy, que es la fuga que esta ronda no puede permitir.
+ *
+ * El bloqueo se pinta desde la hora en que el día abre: el manager ve la columna entera, como hasta
+ * ahora, y el día que se bloqueó es el único que se pinta. El dato guardado no cambia —eso lo escriben el
+ * arrastre y el control del día— ni tampoco la regla que desactiva la disponibilidad de un día con toque.
+ * Un bloqueo parcial de la madrugada (00:00 a 03:00) no es de este caso: ese sí vive en la noche.
+ */
+export function keepWholeDayBlocksInTheirColumn(events: readonly ScheduleEventDto[]): ScheduleEventDto[] {
+    return events.map((event) => {
+        const startDay = midnightDay(event.start);
+        const endDay = midnightDay(event.end);
+        if (!startDay || !endDay || endDay <= startDay) return event;
+
+        const [year, month, date] = startDay.split("-").map(Number);
+        return { ...event, start: new Date(year, month - 1, date, OPENING_HOUR, OPENING_MINUTE).toISOString() };
     });
 }
