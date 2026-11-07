@@ -70,7 +70,8 @@ public sealed class CreateEventRequestCommandHandler(
         await unitOfWork.OutboxService.SaveEventsAsync(request.DomainEvents);
         request.ClearDomainEvents();
 
-        var response = await EventRequestResponses.BuildAsync(request, groups, users, includeMessages: true, cancellationToken);
+        var response = await EventRequestResponses.BuildAsync(
+            request, groups, users, unitOfWork.EventReviews, time, command.ClientUserId, includeMessages: true, cancellationToken);
         return BookingResult<EventRequestResponse>.Success(response);
     }
 }

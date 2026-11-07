@@ -154,8 +154,12 @@ export default function GroupProfileEdit({
           <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2">
             <Input id={id("location")} label="Ciudad" value={group.locationText} onChange={(e) => set("locationText", e.target.value)}
               placeholder="Ciudad, estado" autoComplete="address-level2" />
-            <Input id={id("members")} label="Integrantes" type="number" inputMode="numeric" min={1} value={group.numMembers || ""}
-              onChange={(e) => set("numMembers", parseInt(e.target.value) || 0)} className="tabular" />
+            {/* El número sale del equipo real: un campo editable acá sería un control que la app ignora. */}
+            <div className="flex flex-col gap-1">
+              <p className="text-sm text-tinta-2">Integrantes</p>
+              <p className="tabular type-heading text-xl text-tinta">{group.numMembers || 0}</p>
+              <p className="text-sm text-tinta-2">Lo cuenta el equipo: se suma solo cuando alguien entra o sale.</p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2">

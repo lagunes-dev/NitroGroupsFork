@@ -39,6 +39,17 @@ public class EventRequest : AuditableModel
     public DateTime? RespondedAt { get; private set; }
     public string? ResponseMessage { get; private set; }
 
+    /// <summary>Lista de canciones en texto libre; la edita el manager del toque aceptado.</summary>
+    public string? Setlist { get; private set; }
+
+    public TimeOnly? CallTime { get; private set; }
+
+    /// <summary>Anticipo acordado, solo como dato (la app no cobra).</summary>
+    public decimal? DepositAmount { get; private set; }
+
+    /// <summary>Cuándo se recibió el anticipo; null mientras no se haya recibido.</summary>
+    public DateTime? DepositReceivedAt { get; private set; }
+
     public List<EventRequestMessage> Messages { get; set; } = [];
 
     /// <summary>Respuestas de asistencia de los miembros del grupo (una por usuario).</summary>
@@ -115,6 +126,20 @@ public class EventRequest : AuditableModel
         attendance.Status = status;
         return attendance;
     }
+
+    public void SetSetlist(string? setlist)
+        => Setlist = string.IsNullOrWhiteSpace(setlist) ? null : setlist.Trim();
+
+    public void SetCallTime(TimeOnly? callTime) => CallTime = callTime;
+
+    public void SetDepositAmount(decimal? amount) => DepositAmount = amount;
+
+    /// <summary>
+    /// Marca el anticipo como recibido (fija la fecha si estaba vacía, sin moverla si ya la había)
+    /// o lo marca como no recibido (limpia la fecha).
+    /// </summary>
+    public void SetDepositReceived(bool received, DateTime nowUtc)
+        => DepositReceivedAt = received ? DepositReceivedAt ?? nowUtc : null;
 
     /// <summary>Agrega un mensaje de una de las partes y avisa a la otra.</summary>
     public EventRequestMessage PostMessage(long senderUserId, EventRequestParty senderParty, string body, DateTime nowUtc)

@@ -19,7 +19,8 @@ public sealed record UpdateMyMusicianProfileCommand(
     string? Instruments,
     int? YearsExperience,
     string? VideoUrl,
-    bool? IsOpenToJoin) : ICommand<Result<MusicianProfileResponse>>;
+    bool? IsOpenToJoin,
+    string? City = null) : ICommand<Result<MusicianProfileResponse>>;
 
 public sealed class UpdateMyMusicianProfileCommandHandler(
     IUnitOfWorkUser unitOfWork,
@@ -50,7 +51,8 @@ public sealed class UpdateMyMusicianProfileCommandHandler(
             command.Instruments,
             command.YearsExperience,
             command.VideoUrl,
-            command.IsOpenToJoin);
+            command.IsOpenToJoin,
+            command.City);
 
         unitOfWork.Musicians.Update(musician);
         await unitOfWork.CompleteAsync();

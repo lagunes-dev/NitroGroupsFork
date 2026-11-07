@@ -11,7 +11,7 @@ import { ROUTES } from "@/config/routes";
 import { LogoutButton } from "@/components/auth";
 import { UserTypeEnum } from "@/features/groups/types/User";
 import { usePendingMembership } from "@/hooks/usePendingMembership";
-import { PUBLIC_LINKS, dashboardEntries } from "./navigation";
+import { PUBLIC_LINKS, dashboardEntries, directoryEntry } from "./navigation";
 import { NavCount } from "./NavCount";
 
 export function MobileMenu() {
@@ -35,6 +35,7 @@ export function MobileMenu() {
 
     if (isLoading) return null;
 
+    const directory = directoryEntry(pending.hasGroup);
     const entries = dashboardEntries(user?.userType === UserTypeEnum.Musician, pending);
     const linkClass = "block py-3 text-2xl type-heading text-tinta no-underline";
 
@@ -56,6 +57,7 @@ export function MobileMenu() {
                 <div id="menu-movil" onClick={(e) => { if ((e.target as HTMLElement).closest("a")) setOpen(false); }} className="fixed inset-x-0 top-14 bottom-0 z-40 bg-fondo px-[var(--gutter)] py-6 overflow-y-auto">
                     <nav aria-label="Principal">
                         <Link href={ROUTES.GROUPS.SEARCH} className={linkClass}>Explorar grupos</Link>
+                        {auth0User && directory && <Link href={directory.href} className={linkClass}>{directory.label}</Link>}
                         {auth0User ? (
                             entries.map((e) => (
                                 <Link key={e.label} href={e.href} className={linkClass}>{e.label}<NavCount count={e.count} /></Link>

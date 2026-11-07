@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { InviteToMyGroup } from "@/features/membership/components/InviteToMyGroup";
 import { PublicMusicianProfile } from "@/features/musicians/components/PublicMusicianProfile";
 import { parseMusicianId, toMusicianProfile } from "@/features/musicians/profileView";
 import type { MusicianProfileResponse } from "@/features/musicians/types";
@@ -47,5 +48,11 @@ export default async function MusicianPublicPage({ params }: Props) {
     const raw = await loadMusician(userId);
     if (!raw) notFound();
 
-    return <PublicMusicianProfile profile={toMusicianProfile(raw)} />;
+    const profile = toMusicianProfile(raw);
+    return (
+        <PublicMusicianProfile
+            profile={profile}
+            inviteAction={<InviteToMyGroup musicianUserId={profile.userId} musicianName={profile.fullName || "este músico"} isOpenToJoin={profile.isOpenToJoin} />}
+        />
+    );
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+    CITY_MAX,
     HEADLINE_MAX,
     INSTRUMENTS_MAX,
     PROFILE_FIELD_ORDER,
@@ -16,6 +17,7 @@ const empty: ProfileFormValues = {
     headline: "",
     shortBio: "",
     instruments: "",
+    city: "",
     yearsExperience: "",
     videoUrl: "",
     isOpenToJoin: false,
@@ -25,6 +27,7 @@ const filled: ProfileFormValues = {
     headline: "Guitarrista de bodas",
     shortBio: "Toco cumbia y bolero.",
     instruments: "Guitarra, bajo",
+    city: "Guadalajara",
     yearsExperience: "12",
     videoUrl: "https://youtu.be/abc",
     isOpenToJoin: true,
@@ -91,6 +94,20 @@ describe("validateProfileForm", () => {
     });
 });
 
+describe("city", () => {
+    it("is optional and accepts exactly the column limit", () => {
+        expect(CITY_MAX).toBe(80);
+        expect(validateProfileForm({ ...empty, city: "" })).toEqual({});
+        expect(validateProfileForm({ ...empty, city: "a".repeat(CITY_MAX) })).toEqual({});
+    });
+
+    it("rejects more than the limit with a message naming it", () => {
+        expect(validateProfileForm({ ...empty, city: "a".repeat(CITY_MAX + 1) })).toEqual({
+            city: `La ciudad no puede pasar de ${CITY_MAX} caracteres.`,
+        });
+    });
+});
+
 describe("firstInvalidField", () => {
     it("returns null when nothing is wrong", () => {
         expect(firstInvalidField({})).toBeNull();
@@ -103,7 +120,7 @@ describe("firstInvalidField", () => {
     });
 
     it("only considers fields that exist in the form", () => {
-        expect(PROFILE_FIELD_ORDER).toEqual(["headline", "instruments", "yearsExperience", "videoUrl", "shortBio"]);
+        expect(PROFILE_FIELD_ORDER).toEqual(["headline", "instruments", "city", "yearsExperience", "videoUrl", "shortBio"]);
     });
 });
 
@@ -115,6 +132,7 @@ describe("profileFormValues", () => {
             headline: "Guitarrista",
             shortBio: "Toco desde los quince.",
             instruments: "Guitarra, bajo",
+            city: "Guadalajara",
             yearsExperience: 12,
             videoUrl: "https://youtu.be/abc",
             isOpenToJoin: true,
@@ -123,6 +141,7 @@ describe("profileFormValues", () => {
             headline: "Guitarrista",
             shortBio: "Toco desde los quince.",
             instruments: "Guitarra, bajo",
+            city: "Guadalajara",
             yearsExperience: "12",
             videoUrl: "https://youtu.be/abc",
             isOpenToJoin: true,
@@ -141,6 +160,7 @@ describe("toUpdateRequest", () => {
             headline: "Guitarrista",
             shortBio: "Toco cumbia y bolero.",
             instruments: "Guitarra, bajo",
+            city: "Guadalajara",
             yearsExperience: 12,
             videoUrl: "https://youtu.be/abc",
             isOpenToJoin: true,
@@ -152,10 +172,16 @@ describe("toUpdateRequest", () => {
             headline: "",
             shortBio: "",
             instruments: "Guitarra, bajo",
+            city: "Guadalajara",
             yearsExperience: 12,
             videoUrl: "",
             isOpenToJoin: true,
         });
+    });
+
+    it("sends the city trimmed, and an empty one to clear it", () => {
+        expect(toUpdateRequest({ ...filled, city: "  Puebla " }).city).toBe("Puebla");
+        expect(toUpdateRequest({ ...filled, city: "   " }).city).toBe("");
     });
 
     it("omits years of experience when the field is empty, so the server keeps what it has", () => {

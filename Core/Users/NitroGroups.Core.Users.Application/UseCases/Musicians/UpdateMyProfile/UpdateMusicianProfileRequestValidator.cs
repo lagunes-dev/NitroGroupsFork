@@ -24,6 +24,10 @@ public sealed class UpdateMusicianProfileRequestValidator : AbstractValidator<Up
             .MaximumLength(300)
             .WithMessage("VideoUrl cannot exceed 300 characters.");
 
+        RuleFor(request => request.City)
+            .MaximumLength(80)
+            .WithMessage("City cannot exceed 80 characters.");
+
         RuleFor(request => request.YearsExperience)
             .GreaterThanOrEqualTo(0)
             .WithMessage("YearsExperience must be a non-negative value.");

@@ -33,7 +33,7 @@ public class EventRequestCommandHandlersIntegrationTests : IClassFixture<Integra
 
     private CancelEventRequestCommandHandler CancelHandler(BookingsDbContext context)
         => new(_fixture.CreateBookingsUnitOfWork(context, _fixture.CreateBookingsOutbox(context)),
-            _scenario.Groups, _scenario.Users);
+            _scenario.Groups, _scenario.Users, _scenario.Time);
 
     private PostEventRequestMessageCommandHandler MessageHandler(BookingsDbContext context)
         => new(_fixture.CreateBookingsUnitOfWork(context, _fixture.CreateBookingsOutbox(context)),

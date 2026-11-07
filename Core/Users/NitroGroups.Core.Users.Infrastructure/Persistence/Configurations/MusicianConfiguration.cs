@@ -45,6 +45,11 @@ namespace NitroGroups.Core.Users.Infrastructure.Persistence.Configurations
                 .HasColumnName("video_url")
                 .IsRequired(false);
 
+            builder.Property(m => m.City)
+                .HasMaxLength(80)
+                .HasColumnName("city")
+                .IsRequired(false);
+
             builder.HasOne(m => m.User)
                 .WithOne(u => u.Musician)
                 .HasForeignKey<Musician>(m => m.UserId)

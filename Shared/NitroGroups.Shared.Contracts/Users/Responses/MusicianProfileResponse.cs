@@ -14,6 +14,7 @@ namespace NitroGroups.Shared.Contracts.Users.Responses
         public string? Headline { get; set; }
         public string? ShortBio { get; set; }
         public string? Instruments { get; set; }
+        public string? City { get; set; }
         public int YearsExperience { get; set; }
         public string? ProfilePictureUrl { get; set; }
         public string? VideoUrl { get; set; }

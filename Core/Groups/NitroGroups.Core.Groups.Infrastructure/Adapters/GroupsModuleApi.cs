@@ -28,7 +28,7 @@ namespace NitroGroups.Core.Groups.Infrastructure.Adapters
 
             return await context.Groups.AsNoTracking()
                 .Where(g => ids.Contains(g.Id))
-                .Select(g => new GroupSummary(g.Id, g.Slug, g.GroupName, g.Email, g.OwnerUserId, g.IsAcceptingBookings, g.ProfilePictureUrl, g.Active))
+                .Select(g => new GroupSummary(g.Id, g.Slug, g.GroupName, g.Email, g.OwnerUserId, g.IsAcceptingBookings, g.ProfilePictureUrl, g.Active, g.BasePrice, g.Currency))
                 .ToDictionaryAsync(g => g.Id, cancellationToken);
         }
 
@@ -58,6 +58,13 @@ namespace NitroGroups.Core.Groups.Infrastructure.Adapters
 
             return managers.Distinct().ToList();
         }
+
+        public async Task<IReadOnlyList<long>> GetActiveMemberUserIdsAsync(long groupId, CancellationToken cancellationToken = default)
+            => await context.GroupMembers.AsNoTracking()
+                .Where(m => m.GroupId == groupId && m.IsActive)
+                .Select(m => m.UserId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
 
         public async Task<IReadOnlyList<GroupMembershipSummary>> GetUserGroupMembershipsAsync(
             long userId,

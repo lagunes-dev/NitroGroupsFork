@@ -40,7 +40,8 @@ namespace NitroGroups.Core.Users.Infrastructure.Endpoints.Musicians
                         request.Instruments,
                         request.YearsExperience,
                         request.VideoUrl,
-                        request.IsOpenToJoin);
+                        request.IsOpenToJoin,
+                        request.City);
 
                     var result = await mediator.SendCommandAsync<UpdateMyMusicianProfileCommand, Result<MusicianProfileResponse>>(command);
 

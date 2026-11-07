@@ -1,3 +1,5 @@
+import type { DepositPayload } from "@/features/bookings/deposit";
+
 /** The two answers `POST api/gigs/{id}/attendance` accepts. */
 export type GigAnswer = "Confirmed" | "Declined";
 
@@ -22,6 +24,12 @@ export interface GigPayload {
     role?: string | null;
     /** `"Confirmed"`, `"Declined"` or `null` when the caller has not answered. */
     attendance?: string | null;
+    /** `HH:mm:ss`: when the musicians must be at the venue. */
+    callTime?: string | null;
+    /** Free text with line breaks. */
+    setlist?: string | null;
+    /** What the caller is paid for this gig. Only ever the caller's own amount; informational. */
+    myPay?: number | string | null;
 }
 
 /** A member and their answer, as the manager view lists them. Never carries an email. */
@@ -29,9 +37,12 @@ export interface AttendeePayload {
     userId?: number | string | null;
     fullName?: string | null;
     status?: string | null;
+    /** What this member is paid for the gig. Manager view only; informational. */
+    pay?: number | string | null;
 }
 
 /** Manager row: the same gig plus who answered. */
 export interface GroupGigPayload extends GigPayload {
     attendees?: AttendeePayload[] | null;
+    deposit?: DepositPayload | null;
 }

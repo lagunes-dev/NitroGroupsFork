@@ -98,6 +98,8 @@ public class GroupTeamEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
                     FullName = "Mateo Ruiz",
                     Role = "Manager",
                     ProfilePictureUrl = null,
+                    Instruments = "Bajo",
+                    City = "Guadalajara, Jalisco",
                     JoinedAt = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc)
                 }
             ]));
@@ -114,13 +116,16 @@ public class GroupTeamEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
         var member = Assert.Single(json.RootElement.EnumerateArray());
         // El orden de las propiedades de un objeto JSON no importa; el conjunto sí.
         Assert.Equal(
-            new[] { "userId", "fullName", "role", "profilePictureUrl", "joinedAt" }.Order(StringComparer.Ordinal),
+            new[] { "userId", "fullName", "role", "profilePictureUrl", "instruments", "city", "joinedAt" }.Order(StringComparer.Ordinal),
             member.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
         // Mismo id que usa el perfil público del músico (/musicians/{userId}).
         Assert.Equal(400, member.GetProperty("userId").GetInt64());
         Assert.Equal("Mateo Ruiz", member.GetProperty("fullName").GetString());
         Assert.Equal("Manager", member.GetProperty("role").GetString());
         Assert.Equal(JsonValueKind.Null, member.GetProperty("profilePictureUrl").ValueKind);
+        // Lo que toca y dónde vive: sin esto el renglón del equipo no tiene oficio que mostrar.
+        Assert.Equal("Bajo", member.GetProperty("instruments").GetString());
+        Assert.Equal("Guadalajara, Jalisco", member.GetProperty("city").GetString());
         Assert.Equal(
             new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc),
             member.GetProperty("joinedAt").GetDateTime().ToUniversalTime());

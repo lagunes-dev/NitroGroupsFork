@@ -25,6 +25,7 @@ export interface MusicianProfileView {
     headline: string | null;
     shortBio: string | null;
     instruments: string[];
+    city: string | null;
     yearsExperience: number | null;
     photoUrl: string | null;
     /** Only ever an http(s) link, so it is safe in an `href`. */
@@ -74,6 +75,7 @@ export function toMusicianProfile(payload: MusicianProfileResponse): MusicianPro
         headline: text(payload.headline),
         shortBio: text(payload.shortBio),
         instruments: splitInstruments(payload.instruments),
+        city: text(payload.city),
         yearsExperience: years(payload.yearsExperience),
         photoUrl: text(payload.profilePictureUrl),
         videoUrl: videoUrl && isHttpUrl(videoUrl) ? videoUrl : null,

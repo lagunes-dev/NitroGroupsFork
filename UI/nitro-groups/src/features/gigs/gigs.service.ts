@@ -1,4 +1,6 @@
 import { apiClient } from "@/lib/api-client";
+import type { DetailsBody, PayBody } from "./gigLogistics";
+import type { GigNoticeKind, NoticePayload } from "./notices";
 import type { GigAnswer, GigPayload, GroupGigPayload } from "./types";
 
 /**
@@ -15,4 +17,25 @@ export const gigsService = {
 
     /** `GET api/groups/{groupId}/gigs`: the manager's view, the same rows plus who answered. */
     forGroup: async (groupId: number) => (await apiClient.get<GroupGigPayload[]>(`/groups/${groupId}/gigs`)).data,
+
+    /** `PUT api/groups/{groupId}/gigs/{id}/details`: setlist, call time and deposit; the API updates only what is sent. */
+    saveDetails: async (groupId: number, id: number, body: DetailsBody) =>
+        (await apiClient.put(`/groups/${groupId}/gigs/${id}/details`, body)).data,
+
+    /** `PUT api/groups/{groupId}/gigs/{id}/pay`: replaces what each musician is paid for the gig (informational). */
+    savePay: async (groupId: number, id: number, body: PayBody) => (await apiClient.put(`/groups/${groupId}/gigs/${id}/pay`, body)).data,
+
+    /**
+     * `POST api/groups/{groupId}/gigs/{id}/notices`: the musician tells the group that the gig is
+     * missing its call time, its pay or its setlist. The body is the kind and nothing else; sending
+     * the same kind twice in a day answers the first notice instead of creating another.
+     */
+    notify: async (groupId: number, id: number, kind: GigNoticeKind) =>
+        (await apiClient.post<NoticePayload>(`/groups/${groupId}/gigs/${id}/notices`, { kind })).data,
+
+    /** `GET api/groups/{groupId}/gig-notices`: what the group received, newest first. Manager only. */
+    groupNotices: async (groupId: number) => (await apiClient.get<NoticePayload[]>(`/groups/${groupId}/gig-notices`)).data,
+
+    /** `GET api/me/gig-notices/today`: the caller's own notices of today, so a slot is not offered twice. */
+    myNoticesToday: async () => (await apiClient.get<NoticePayload[]>("/me/gig-notices/today")).data,
 };

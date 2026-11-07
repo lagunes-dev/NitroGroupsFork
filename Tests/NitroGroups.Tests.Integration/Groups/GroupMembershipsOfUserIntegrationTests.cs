@@ -10,7 +10,8 @@ namespace NitroGroups.Tests.Integration.Groups;
 
 /// <summary>
 /// S6: the caller's active memberships (<c>GET api/users/me/memberships</c>) and the group the user
-/// manages (<c>GET api/users/{userId}/groups</c>), which only counts active Owner/Manager rows.
+/// manages (<c>GET api/users/{userId}/groups</c>), which only counts active Owner/Manager rows. A
+/// user who exists without such a row gets "no group" (success with null), not a failure (T22).
 /// </summary>
 public class GroupMembershipsOfUserIntegrationTests : IClassFixture<IntegrationTestFixture>
 {
@@ -23,7 +24,7 @@ public class GroupMembershipsOfUserIntegrationTests : IClassFixture<IntegrationT
 
     private Task<Result<GroupResponse?>> ManagedGroup(
         GroupMembershipTestHarness app, long userId)
-        => new GetGroupByUserIdQueryHandler(app.UnitOfWork, _fixture.CreateMapper())
+        => new GetGroupByUserIdQueryHandler(app.UnitOfWork, _fixture.CreateMapper(), app.Users)
             .Handle(new GetGroupByUserIdQuery(userId), CancellationToken.None);
 
     private static async Task<List<GroupMembershipSummary>> Memberships(
@@ -103,8 +104,9 @@ public class GroupMembershipsOfUserIntegrationTests : IClassFixture<IntegrationT
         await AddMemberAsync(app, groupId, userId, GroupMemberRole.Member, GroupMembershipTestHarness.Now);
 
         var managed = await ManagedGroup(app, userId);
-        Assert.True(managed.IsFailure);
-        Assert.Equal("No se encontro ningun grupo que perteneciera al usuario", managed.Error);
+        // El usuario existe: "no tengo grupo" viaja como success sin grupo, no como error (T22).
+        Assert.True(managed.IsSuccess, managed.Error);
+        Assert.Null(managed.Value);
 
         var membership = Assert.Single(await Memberships(app, userId));
         Assert.Equal(groupId, membership.GroupId);
@@ -120,7 +122,8 @@ public class GroupMembershipsOfUserIntegrationTests : IClassFixture<IntegrationT
         await AddMemberAsync(app, formerGroupId, userId, GroupMemberRole.Owner, GroupMembershipTestHarness.Now, active: false);
 
         var managed = await ManagedGroup(app, userId);
-        Assert.True(managed.IsFailure);
+        Assert.True(managed.IsSuccess, managed.Error);
+        Assert.Null(managed.Value);
         Assert.Empty(await Memberships(app, userId));
     }
 

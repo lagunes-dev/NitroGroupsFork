@@ -21,8 +21,9 @@ describe("toTeamView", () => {
                 roleLabel: "Dueño",
                 profileHref: "/musicians/10",
                 profilePictureUrl: "https://x/y.png",
-                joinedLabel: "Se unió el domingo, 4 de octubre de 2026",
+                joinedLabel: "Se unió el 4 de octubre de 2026",
                 joinedAt: "2026-10-04T18:00:00Z",
+                craftLabel: null,
             },
         ]);
     });
@@ -130,5 +131,22 @@ describe("section labels", () => {
 describe("teamQueryKey", () => {
     it("scopes the team query to one group", () => {
         expect(teamQueryKey(7)).toEqual(["group-team", 7]);
+    });
+});
+
+describe("craftLabel", () => {
+    const base = { userId: 12, fullName: "Beto Bravo", role: "Member", profilePictureUrl: null, joinedAt: "2026-10-04T18:00:00Z" };
+
+    it("says what the musician plays and where he lives", () => {
+        expect(toTeamView([{ ...base, instruments: "Bajo", city: "Guadalajara, Jalisco" }])[0].craftLabel).toBe(
+            "Bajo · Guadalajara, Jalisco"
+        );
+        expect(toTeamView([{ ...base, instruments: "Bajo", city: null }])[0].craftLabel).toBe("Bajo");
+        expect(toTeamView([{ ...base, instruments: "  ", city: "Puebla, Puebla" }])[0].craftLabel).toBe("Puebla, Puebla");
+    });
+
+    it("stays empty when the musician has not loaded his profile", () => {
+        expect(toTeamView([{ ...base, instruments: null, city: null }])[0].craftLabel).toBeNull();
+        expect(toTeamView([base])[0].craftLabel).toBeNull();
     });
 });

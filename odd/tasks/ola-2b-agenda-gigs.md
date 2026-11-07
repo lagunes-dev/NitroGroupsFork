@@ -54,3 +54,16 @@ Documento ODD. Rama `feat/membership-ux`. Contrato de API fijado abajo para que 
 - D5 Canal de contacto cliente → músico (mensaje directo o formulario): define el negocio cómo se contacta y quién paga la comisión.
 - D6 Señales de decisión en el hilo (distancia, choque de fecha, tarifa): depende de D2 (paga por miembro) y de fijar tarifa base por grupo.
 - D7 Colapsar la ficha del grupo en el panel móvil para que "Por responder" quede visible sin scroll: es UI, se toma cuando se retome el panel.
+
+## Cierre de la ronda 2 (correcciones aplicadas)
+
+- `e1359e5`, `a64a7dd`: pestaña "Equipo" con la lista real ("El equipo (5)"), cada músico con nombre enlazado a su ficha pública (`/musicians/{id}`), rol como chip y fecha de alta; se refresca al aceptar una solicitud. Backend en `10f02b0` (`GET api/groups/{id}/team`, solo manager).
+- `6b5af8f`, `e679e05`: **bug de disponibilidad corregido**. Nuevo puente `IBookingsModuleApi.GetBusyGroupIdsAsync`; el buscador con fecha excluye los grupos con evento ACEPTADO ese día y recalcula el total. Sin fecha, el comportamiento no cambia (fijado con test). Verificado en vivo tras reiniciar la API: `date=2026-11-19` pasó de 4 grupos (incluido el que ya tenía la boda) a 3; sin fecha sigue en 5.
+- `656bba4`: corregidos los fixtures del resumen de asistentes que dejaban `tsc` en rojo aunque vitest pasara.
+- Verificado en navegador: Mónica ve "El equipo" con cinco músicos y cada nombre enlaza a su ficha pública.
+
+## Estado de los cuatro críticos
+
+Ronda 1 → ronda 2: Camila 3 → 6, Mateo 2 → 5, Mónica 3 → 5, Miguel 1 → 5. Promedio 2,25 → 5,25.
+
+Lo que queda para subir de 6 es, casi todo, decisión de negocio (D4-D7): directorio público de músicos, canal de contacto, señales de decisión con tarifa, y pagos/anticipos. Lo que sí es UI pendiente: colapsar la ficha del grupo en el panel móvil para que "Por responder" se vea sin scroll, y mostrar las reseñas (hoy solo el número).

@@ -1,6 +1,7 @@
-import { formatEventDate, isIsoDate } from "@/lib/format";
+import { formatEventDate, formatPrice, isIsoDate } from "@/lib/format";
 import { ROUTES } from "@/config/routes";
 import { attendanceAppearance, type AttendanceAppearance } from "./attendance";
+import { noticeSlots, type NoticeSlot } from "./notices";
 import type { GigAnswer, GigPayload } from "./types";
 
 const DATE_FALLBACK = "Fecha por definir";
@@ -9,6 +10,17 @@ const DATE_PENDING = "fecha por definir";
 const PLACE_FALLBACK = "Lugar por definir";
 const SCHEDULE_FALLBACK = "Horario por definir";
 const GROUP_FALLBACK = "Grupo sin nombre";
+/** What the card says when the manager has not loaded a slot yet: it names the state, never a fact. */
+export const CALL_TIME_PENDING = "Llegada sin definir";
+export const SETLIST_PENDING = "Setlist sin cargar";
+export const PAY_PENDING = "Tu pago sin definir";
+
+/** A gig whose date is behind us: it asks for nothing and says what it is. */
+export const PAST_GIG_LINE = "Este toque ya pasó";
+/** What a declined future gig says next, in one line: nothing else is owed. */
+export const DECLINED_NEXT_STEP = "El grupo ya lo sabe · la fecha queda libre";
+/** What a confirmed future gig says next: the app records the answer, it sends nothing else. */
+export const CONFIRMED_NEXT_STEP = "El grupo ya cuenta contigo · puedes cambiar tu respuesta cuando quieras";
 
 /** The group of a gig, ready to link. `href` is null when there is no slug to link to. */
 export interface GigGroupView {
@@ -34,6 +46,18 @@ export interface GigView {
     /** "Dueño" / "Manager" when the caller manages that group; null for a plain member or an unknown role. */
     roleLabel: string | null;
     attendance: AttendanceAppearance;
+    /** "Llegada 17:30", or null when the manager has not set a call time. */
+    callTimeLabel: string | null;
+    /** The setlist as typed (line breaks kept), or null when empty. */
+    setlist: string | null;
+    /** "Tu pago: $2,000", or null when no amount was set for the caller. */
+    payLabel: string | null;
+    /**
+     * What the musician can report: the slots that are missing, then "Llego tarde" and "No encuentro
+     * el lugar", with the ones already reported today marked. The card hides all of them for a
+     * declined or past gig.
+     */
+    notices: NoticeSlot[];
 }
 
 const HOURS = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 });
@@ -83,10 +107,30 @@ function gigRoleLabel(value: unknown): string | null {
     return null;
 }
 
-/** One row of the contract turned into view data. Missing or wrong values fall back, never throw. */
-export function toGigView(row: GigPayload): GigView {
+/** "Llegada 17:30"; null when the call time is missing or unreadable. */
+export function callTimeLabel(value: unknown): string | null {
+    const time = gigTimeLabel(value);
+    return time ? `Llegada ${time}` : null;
+}
+
+/** "Tu pago: $2,000"; null when there is no amount. A zero is an amount, a negative or non-numeric value is not. */
+export function myPayLabel(value: unknown): string | null {
+    const amount = asNumber(value);
+    if (amount === null || amount < 0) return null;
+    return `Tu pago: ${formatPrice(amount)}`;
+}
+
+/**
+ * One row of the contract turned into view data. Missing or wrong values fall back, never throw.
+ * `sentNotices` are the kinds the caller already reported today (`GET api/me/gig-notices/today`):
+ * they stop the card from offering the same notice twice.
+ */
+export function toGigView(row: GigPayload, sentNotices: readonly unknown[] = []): GigView {
     const slug = asText(row.groupSlug);
     const rawDate = asText(row.eventDate);
+    const callTime = callTimeLabel(row.callTime);
+    const payLabel = myPayLabel(row.myPay);
+    const setlist = asText(row.setlist) || null;
     return {
         id: asNumber(row.id) ?? 0,
         group: {
@@ -102,6 +146,10 @@ export function toGigView(row: GigPayload): GigView {
         durationLabel: gigDurationLabel(row.durationHours),
         roleLabel: gigRoleLabel(row.role),
         attendance: attendanceAppearance(row.attendance),
+        callTimeLabel: callTime,
+        setlist,
+        payLabel,
+        notices: noticeSlots({ callTimeLabel: callTime, payLabel, setlist }, sentNotices),
     };
 }
 

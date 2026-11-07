@@ -145,8 +145,31 @@ public class GroupTeamQueryHandlerIntegrationTests : IClassFixture<IntegrationTe
         Assert.Equal("Grupo no encontrado.", result.Error);
     }
 
-    private async Task<long> AddGroupAsync(long ownerId = 10)
+    [Fact]
+    public async Task EquipoDelGrupo_LlevaInstrumentoYCiudadDeCadaMusico_SinInventarLosQueFaltan()
     {
+        var groupId = await AddGroupAsync();
+        var withData = await AddUserAsync(
+            "Beto", "Bravo", "beto@example.com", instruments: "Bajo", city: "Guadalajara, Jalisco");
+        var withoutData = await AddUserAsync("Nadia", "Nava", "nadia.sola@example.com");
+        await AddMemberAsync(groupId, withData, GroupMemberRole.Member, Now.AddDays(-2));
+        await AddMemberAsync(groupId, withoutData, GroupMemberRole.Member, Now.AddDays(-1));
+
+        var result = await TeamAsync(groupId);
+
+        Assert.True(result.IsSuccess);
+        var beto = result.Value.Single(row => row.UserId == withData);
+        Assert.Equal("Bajo", beto.Instruments);
+        Assert.Equal("Guadalajara, Jalisco", beto.City);
+
+        // Un músico sin perfil cargado no rompe el renglón ni rellena el hueco con nada.
+        var nadia = result.Value.Single(row => row.UserId == withoutData);
+        Assert.Null(nadia.Instruments);
+        Assert.Null(nadia.City);
+        Assert.Equal("Nadia Nava", nadia.FullName);
+    }
+
+    private async Task<long> AddGroupAsync(long ownerId = 10)    {
         var group = new Group
         {
             OwnerUserId = ownerId,
@@ -161,7 +184,8 @@ public class GroupTeamQueryHandlerIntegrationTests : IClassFixture<IntegrationTe
     }
 
     private async Task<long> AddUserAsync(
-        string firstName, string lastName, string email, string? profilePictureUrl = null)
+        string firstName, string lastName, string email, string? profilePictureUrl = null,
+        string? instruments = null, string? city = null)
     {
         var user = new User($"auth0|{Guid.NewGuid():N}", email, firstName, lastName, UserType.Musician);
         if (profilePictureUrl is not null)
@@ -170,7 +194,13 @@ public class GroupTeamQueryHandlerIntegrationTests : IClassFixture<IntegrationTe
         _users.Users.Add(user);
         await _users.SaveChangesAsync();
 
-        _users.Musicians.Add(new Musician { UserId = user.Id, IsOpenToJoin = true });
+        _users.Musicians.Add(new Musician
+        {
+            UserId = user.Id,
+            IsOpenToJoin = true,
+            Instruments = instruments,
+            City = city
+        });
         await _users.SaveChangesAsync();
         return user.Id;
     }

@@ -50,7 +50,15 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
   const { data: serverEvents = [], isLoading } = useQuery({
     queryKey: ["schedules", groupId, dateRange.start, dateRange.end],
     queryFn: () => schedulesService.getGroupSchedules(groupId, dateRange.start, dateRange.end),
-    enabled: !!groupId
+    enabled: !!groupId,
+    /*
+     * La clave de la consulta lleva el rango visible y `datesSet` la mueve al navegar. Sin datos
+     * previos la consulta vuelve a "sin cargar", el aviso de carga sustituye al calendario y, al
+     * volver, FullCalendar arranca otra vez en la semana de hoy: "Semana siguiente" alternaba dos
+     * semanas y "Mes" no cambiaba de vista. Conservar la respuesta anterior mientras llega la nueva
+     * deja el calendario montado, en el rango y en la vista que la persona acaba de elegir.
+     */
+    placeholderData: (previousData) => previousData,
   });
 
   const createBusy = useMutation({

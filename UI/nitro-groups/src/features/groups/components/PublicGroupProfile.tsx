@@ -4,6 +4,10 @@ import { Photo } from "@/components/ui/Photo";
 import { ROUTES } from "@/config/routes";
 import { formatEventDate, priceLabel } from "@/lib/format";
 import type { MusicGroup } from "../types/MusicGroup";
+import type { PublicGroupTeamMember } from "../types/PublicGroupTeamMember";
+import { PublicGroupTeam } from "./PublicGroupTeam";
+import { PublicGroupReviews } from "./PublicGroupReviews";
+import type { GroupReviewsPage } from "../types/GroupReviews";
 import type { GroupMediaResponse } from "@/features/groupMedia/types/GroupMedia";
 import { RequestForm } from "@/features/bookings/components/RequestForm";
 import { JoinShortcut } from "@/features/membership/components/JoinShortcut";
@@ -30,7 +34,7 @@ function Fact({ label, value }: { label: string; value: string }) {
  * Perfil público de un grupo. La primera foto manda; el nombre en voz de cartel; la acción
  * principal es pedir una fecha. Server Component: no necesita JavaScript para leerse.
  */
-export function PublicGroupProfile({ group, requestedDate, signedIn = false }: { group: MusicGroup; requestedDate?: string; signedIn?: boolean }) {
+export function PublicGroupProfile({ group, teamMembers = [], reviews = null, requestedDate, signedIn = false }: { group: MusicGroup; teamMembers?: PublicGroupTeamMember[]; reviews?: GroupReviewsPage | null; requestedDate?: string; signedIn?: boolean }) {
     const media = [...(group.media ?? [])].sort(byOrder);
     const photos = media.filter((m) => kind(m) === "photo");
     const videos = media.filter((m) => kind(m) === "video");
@@ -120,6 +124,12 @@ export function PublicGroupProfile({ group, requestedDate, signedIn = false }: {
                     </div>
                 </section>
             )}
+
+            {/* El equipo con caras (S14): va después de la historia y antes de las fotos. */}
+            <PublicGroupTeam members={teamMembers} />
+
+            {/* S19: the opinions behind the number printed in the header. */}
+            <PublicGroupReviews groupId={group.id} initial={reviews} fallbackAverage={group.averageRating} fallbackCount={group.totalReviews} />
 
             {(gallery.length > 0 || videos.length > 0 || audios.length > 0) && (
                 <section className="page-frame mt-[var(--section-gap)]" aria-labelledby="galeria">

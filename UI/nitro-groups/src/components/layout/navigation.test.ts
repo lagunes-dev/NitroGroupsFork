@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dashboardEntries } from "./navigation";
+import { dashboardEntries, directoryEntry } from "./navigation";
 
 const none = { hasGroup: true as boolean | null, invitations: 0, joinRequests: 0, memberships: 0 };
 
@@ -27,7 +27,7 @@ describe("dashboardEntries", () => {
         const entries = dashboardEntries(true, { hasGroup: false, invitations: 2, joinRequests: 0, memberships: 1 });
         expect(entries).toEqual([
             { href: "/dashboard/musician", label: "Mi panel", count: 0 },
-            { href: "/dashboard/musician", label: "Invitaciones", count: 2 },
+            { href: "/dashboard/musician#invitaciones", label: "Invitaciones", count: 2 },
         ]);
     });
     it("does not add a second entry next to Mi grupo", () => {
@@ -36,5 +36,31 @@ describe("dashboardEntries", () => {
     });
     it("does not add Mi panel for a client", () => {
         expect(dashboardEntries(false, { ...none, hasGroup: false, memberships: 1 }).map((e) => e.label)).toEqual(["Mis pedidos"]);
+    });
+});
+
+describe("Invitaciones entries carry the tab in the hash", () => {
+    it("points at #invitaciones for a manager, a groupless musician and a member", () => {
+        const manager = dashboardEntries(true, { ...none, invitations: 1 }).find((e) => e.label === "Invitaciones");
+        const groupless = dashboardEntries(true, { ...none, hasGroup: false }).find((e) => e.label === "Invitaciones");
+        const member = dashboardEntries(true, { hasGroup: false, invitations: 2, joinRequests: 0, memberships: 1 }).find((e) => e.label === "Invitaciones");
+        expect([manager?.href, groupless?.href, member?.href]).toEqual(Array(3).fill("/dashboard/musician#invitaciones"));
+    });
+    it("leaves the other entries without a hash", () => {
+        const entries = dashboardEntries(true, { hasGroup: false, invitations: 2, joinRequests: 0, memberships: 1 });
+        expect(entries.filter((e) => e.label !== "Invitaciones").map((e) => e.href)).toEqual(["/dashboard/musician"]);
+    });
+});
+
+describe("directoryEntry", () => {
+    it("offers Músicos to a manager of a group", () => {
+        expect(directoryEntry(true)).toEqual({ href: "/musicians", label: "Músicos" });
+    });
+    it("offers nothing without a group, while it loads, or to a client", () => {
+        expect(directoryEntry(false)).toBeNull();
+        expect(directoryEntry(null)).toBeNull();
+    });
+    it("does not change the dashboard entries", () => {
+        expect(dashboardEntries(true, none).map((e) => e.label)).toEqual(["Mi grupo"]);
     });
 });

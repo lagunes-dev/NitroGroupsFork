@@ -59,7 +59,7 @@ export function TeamSection({ groupId }: { groupId: number }) {
                     <Button variant="outline" className="h-11 sm:h-10" onClick={focusMusicianSearch}>Buscar músicos para invitar</Button>
                 </div>
             ) : (
-                <ul aria-label={teamCountLabel(members.length)} aria-busy={team.isFetching} className="mt-4 flex flex-col gap-4">
+                <ul aria-label={teamCountLabel(members.length)} aria-busy={team.isFetching} className="mt-4 flex flex-col gap-3">
                     {members.map((member) => <TeamMemberRow key={member.userId} member={member} />)}
                 </ul>
             )}
@@ -68,35 +68,46 @@ export function TeamSection({ groupId }: { groupId: number }) {
 }
 
 /**
- * One member: avatar and name on the left, the role as a chip, the join date as secondary text.
- * The name is the profile link only when the id behind it is a real user.
+ * One member in the compact row the public team already uses (S7, T31): avatar and name, the craft
+ * on a single line and, below, the join date beside the role. Five line heights became three, so five
+ * members fit in a 390 px screen without losing what the manager needs to recognise someone.
  */
 function TeamMemberRow({ member: m }: { member: TeamMemberView }) {
     return (
-        <li className="superficie grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-2 rounded-[12px] p-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:p-5">
-            <Avatar name={m.fullName} src={m.profilePictureUrl} />
-            <div className="min-w-0">
-                <p className="font-semibold text-tinta">
-                    {m.profileHref ? (
-                        <Link
-                            href={m.profileHref}
-                            aria-label={`Ver el perfil de ${m.fullName}`}
-                            className="inline-flex min-h-11 max-w-full min-w-0 items-center underline decoration-acento decoration-2 underline-offset-4"
-                        >
-                            <span className="truncate">{m.fullName}</span>
-                        </Link>
-                    ) : (
-                        <span className="inline-flex min-h-11 max-w-full items-center truncate">{m.fullName}</span>
-                    )}
-                </p>
+        <li className="superficie flex min-w-0 items-center gap-3 rounded-[12px] px-4 py-2.5 sm:px-5 sm:py-3">
+            <Avatar name={m.fullName} src={m.profilePictureUrl} className="size-10" />
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                {/* El rol viaja con el nombre: en su propio renglón sumaba 28 px a cada fila a 390 px. */}
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                    <p className="min-w-0 flex-1 truncate font-semibold text-tinta">
+                        {m.profileHref ? (
+                            <Link
+                                href={m.profileHref}
+                                aria-label={`Ver el perfil de ${m.fullName}`}
+                                className="inline-flex min-h-11 max-w-full min-w-0 items-center underline decoration-acento decoration-2 underline-offset-4"
+                            >
+                                <span className="truncate">{m.fullName}</span>
+                            </Link>
+                        ) : (
+                            <span className="inline-flex min-h-11 max-w-full items-center truncate">{m.fullName}</span>
+                        )}
+                    </p>
+                    {/* The role always reads as text: the colour never carries it alone. */}
+                    <Badge className="shrink-0">Rol: {m.roleLabel}</Badge>
+                </div>
+                {/* El oficio ocupa un renglón: el texto completo queda en el `title`. */}
+                {m.craftLabel && (
+                    <p className="truncate text-sm text-tinta-2" title={m.craftLabel}>
+                        {m.craftLabel}
+                    </p>
+                )}
+                {/* La fecha de ingreso ocupa un solo renglón: partida en dos medía 40 px. */}
                 {m.joinedLabel && (
-                    <p className="text-sm text-tinta-2">
-                        {m.joinedAt ? <time dateTime={m.joinedAt}>{m.joinedLabel}</time> : m.joinedLabel}
+                    <p className="truncate text-sm text-tinta-2">
+                        {m.joinedAt ? <time dateTime={m.joinedAt}>{m.joinedLabel}</time> : <span>{m.joinedLabel}</span>}
                     </p>
                 )}
             </div>
-            {/* The role always reads as text: the colour never carries it alone. */}
-            <Badge className="col-span-2 justify-self-start sm:col-span-1 sm:justify-self-end">Rol: {m.roleLabel}</Badge>
         </li>
     );
 }

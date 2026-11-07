@@ -464,8 +464,8 @@ export default function SignupPage() {
 
                                 <RoleCard
                                     icon={PartyPopper}
-                                    title="Contratar músicos"
-                                    description="Quiero encontrar y contratar músicos para mis eventos"
+                                    title="Contratar un grupo"
+                                    description="Quiero encontrar y contratar un grupo musical para mis eventos"
                                     selected={formData.userType === "client" && isLoading}
                                     disabled={isLoading}
                                     onSelect={() => handleSelectUserType("client")}

@@ -12,14 +12,17 @@ import type { MusicianProfileView } from "./profileView";
 export const HEADLINE_MAX = 120;
 /** Column limit of `musicians.instruments`. */
 export const INSTRUMENTS_MAX = 120;
+/** Column limit of `musicians.city`. */
+export const CITY_MAX = 80;
 export { SHORT_BIO_MAX };
 
-export type ProfileField = "headline" | "instruments" | "yearsExperience" | "videoUrl" | "shortBio";
+export type ProfileField = "headline" | "instruments" | "city" | "yearsExperience" | "videoUrl" | "shortBio";
 
 /** Reading order of the form; the first invalid field in this list takes the focus. */
 export const PROFILE_FIELD_ORDER: readonly ProfileField[] = [
     "headline",
     "instruments",
+    "city",
     "yearsExperience",
     "videoUrl",
     "shortBio",
@@ -32,6 +35,7 @@ export interface ProfileFormValues {
     headline: string;
     shortBio: string;
     instruments: string;
+    city: string;
     /** Raw text of a number field: empty means "no lo digo", which is not zero. */
     yearsExperience: string;
     videoUrl: string;
@@ -44,6 +48,7 @@ export function profileFormValues(profile: MusicianProfileView): ProfileFormValu
         headline: profile.headline ?? "",
         shortBio: profile.shortBio ?? "",
         instruments: profile.instruments.join(", "),
+        city: profile.city ?? "",
         yearsExperience: profile.yearsExperience === null ? "" : String(profile.yearsExperience),
         videoUrl: profile.videoUrl ?? "",
         isOpenToJoin: profile.isOpenToJoin,
@@ -65,6 +70,10 @@ export function validateProfileForm(values: ProfileFormValues): ProfileErrors {
     }
     if (values.instruments.length > INSTRUMENTS_MAX) {
         errors.instruments = `Los instrumentos no pueden pasar de ${INSTRUMENTS_MAX} caracteres.`;
+    }
+
+    if (values.city.length > CITY_MAX) {
+        errors.city = `La ciudad no puede pasar de ${CITY_MAX} caracteres.`;
     }
 
     const years = values.yearsExperience.trim();
@@ -100,6 +109,7 @@ export function toUpdateRequest(values: ProfileFormValues): MusicianProfileUpdat
         headline: values.headline.trim(),
         shortBio: values.shortBio.trim(),
         instruments: values.instruments.trim(),
+        city: values.city.trim(),
         videoUrl: values.videoUrl.trim(),
         isOpenToJoin: values.isOpenToJoin,
     };

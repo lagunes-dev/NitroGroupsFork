@@ -4,8 +4,21 @@ import Link from "next/link";
 import { Badge, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { AttendanceTone } from "../attendance";
+import type { GigNoticeKind } from "../notices";
 import type { GigAnswer } from "../types";
-import { confirmButtonName, declineButtonName, scheduleLabel, type GigView } from "../viewModel";
+import {
+    confirmButtonName,
+    declineButtonName,
+    scheduleLabel,
+    CALL_TIME_PENDING,
+    CONFIRMED_NEXT_STEP,
+    DECLINED_NEXT_STEP,
+    PAST_GIG_LINE,
+    PAY_PENDING,
+    SETLIST_PENDING,
+    type GigView,
+} from "../viewModel";
+import { NoticeActions } from "./GigNotices";
 
 const CHIP_VARIANT: Record<AttendanceTone, "ok" | "destructive" | "secondary"> = {
     ok: "ok",
@@ -26,20 +39,31 @@ export function AttendanceChip({ attendance }: { attendance: GigView["attendance
 
 interface GigCardProps {
     gig: GigView;
+    /** True when the date is already behind us: the row asks for nothing and offers no logistics. */
+    past?: boolean;
     /** True while this row's answer is being saved: both buttons stay disabled until it lands. */
     saving: boolean;
     /** True when the last answer for this row failed: the row offers the same answer again. */
     failed: boolean;
     onAnswer: (status: GigAnswer) => void;
     onRetry: () => void;
+    /** The notice of this row that is on its way to the group, if any. */
+    notifying: GigNoticeKind | null;
+    /** True when the last notice of this row did not land. */
+    notifyFailed: boolean;
+    onNotify: (kind: GigNoticeKind) => void;
 }
 
 /**
  * One gig of the musician's agenda: the date, the group (linked to its public profile), the place and
  * the schedule, then the answer. The buttons are named with the group and the date so two rows never
  * sound alike, and they stay mounted after answering, so focus is never lost.
+ *
+ * A gig whose date already passed asks nothing: it says so, and neither the answer buttons nor the
+ * logistics notices are drawn (ronda 6, Mateo). A gig the musician declined keeps the answer buttons
+ * but says in one line what happens next.
  */
-export function GigCard({ gig, saving, failed, onAnswer, onRetry }: GigCardProps) {
+export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, notifying, notifyFailed, onNotify }: GigCardProps) {
     const answered = gig.attendance.status;
     // While saving, both buttons are inert for the pointer and for the keyboard, but they are NOT
     // `disabled`: disabling the element that has focus throws focus back to the page in some browsers.
@@ -47,6 +71,10 @@ export function GigCard({ gig, saving, failed, onAnswer, onRetry }: GigCardProps
     const guard = (status: GigAnswer) => () => {
         if (!saving) onAnswer(status);
     };
+    const declined = answered === "Declined";
+    // Un toque rechazado no pide logística (no vas) y uno pasado no pide nada de nada.
+    const skipped = declined || past;
+    const slots = skipped ? [] : gig.notices;
     return (
         <li className="superficie flex flex-col gap-4 rounded-[12px] p-4 sm:p-5">
             <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
@@ -63,41 +91,80 @@ export function GigCard({ gig, saving, failed, onAnswer, onRetry }: GigCardProps
                         {gig.roleLabel && <span className="ml-2 text-sm font-normal text-tinta-2">· {gig.roleLabel}</span>}
                     </p>
                     <p className="text-tinta-2">{gig.placeLabel}</p>
-                    <p className="tabular text-tinta-2">{scheduleLabel(gig)}</p>
+                    <p className="tabular text-tinta-2">
+                        {scheduleLabel(gig)}
+                        {gig.callTimeLabel ? (
+                            <span> · {gig.callTimeLabel}</span>
+                        ) : (
+                            !skipped && <span className="italic"> · {CALL_TIME_PENDING}</span>
+                        )}
+                    </p>
+                    {gig.payLabel ? (
+                        <p className="tabular text-tinta-2">{gig.payLabel}</p>
+                    ) : (
+                        !skipped && <p className="tabular text-tinta-2 italic">{PAY_PENDING}</p>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                     <AttendanceChip attendance={gig.attendance} />
-                    <div className="flex gap-2">
-                        <Button
-                            size="sm"
-                            className={cn(answerButton, saving && "pointer-events-none opacity-45")}
-                            variant={answered === "Confirmed" ? "default" : "outline"}
-                            aria-pressed={answered === "Confirmed"}
-                            aria-disabled={saving}
-                            aria-busy={saving}
-                            aria-label={confirmButtonName(gig)}
-                            onClick={guard("Confirmed")}
-                        >
-                            Confirmo
-                        </Button>
-                        <Button
-                            size="sm"
-                            className={cn(answerButton, saving && "pointer-events-none opacity-45")}
-                            variant={answered === "Declined" ? "destructive" : "outline"}
-                            aria-pressed={answered === "Declined"}
-                            aria-disabled={saving}
-                            aria-busy={saving}
-                            aria-label={declineButtonName(gig)}
-                            onClick={guard("Declined")}
-                        >
-                            No puedo
-                        </Button>
-                    </div>
+                    {past ? (
+                        <p className="text-sm text-tinta-2">{PAST_GIG_LINE}</p>
+                    ) : (
+                        <div className="flex gap-2">
+                            <Button
+                                size="sm"
+                                className={cn(answerButton, saving && "pointer-events-none opacity-45")}
+                                variant={answered === "Confirmed" ? "default" : "outline"}
+                                aria-pressed={answered === "Confirmed"}
+                                aria-disabled={saving}
+                                aria-busy={saving}
+                                aria-label={confirmButtonName(gig)}
+                                onClick={guard("Confirmed")}
+                            >
+                                Confirmo
+                            </Button>
+                            <Button
+                                size="sm"
+                                className={cn(answerButton, saving && "pointer-events-none opacity-45")}
+                                variant={answered === "Declined" ? "destructive" : "outline"}
+                                aria-pressed={answered === "Declined"}
+                                aria-disabled={saving}
+                                aria-busy={saving}
+                                aria-label={declineButtonName(gig)}
+                                onClick={guard("Declined")}
+                            >
+                                No puedo
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {failed && (
+            {!past && declined && <p className="text-sm text-tinta-2">{DECLINED_NEXT_STEP}</p>}
+            {!past && answered === "Confirmed" && <p className="text-sm text-tinta-2">{CONFIRMED_NEXT_STEP}</p>}
+
+            {/* Los avisos van en su propio bloque: cada uno es una acción con altura de 44 px. */}
+            <NoticeActions slots={slots} notifying={notifying} onNotify={onNotify} />
+
+            {gig.setlist ? (
+                <details>
+                    <summary className="flex min-h-11 w-fit cursor-pointer items-center text-sm font-medium text-acento">
+                        Ver setlist
+                    </summary>
+                    <p className="whitespace-pre-line pb-2 text-tinta">{gig.setlist}</p>
+                </details>
+            ) : (
+                !skipped && <p className="text-sm text-tinta-2 italic">{SETLIST_PENDING}</p>
+            )}
+
+            {!past && notifyFailed && (
+                <p role="alert" className="text-sm text-error">
+                    No pudimos enviar el aviso. Intenta de nuevo.
+                </p>
+            )}
+
+            {!past && failed && (
                 <p role="alert" className="text-sm text-error">
                     No pudimos guardar tu respuesta.{" "}
                     <Button variant="link" className="h-auto text-sm text-error" onClick={onRetry}>

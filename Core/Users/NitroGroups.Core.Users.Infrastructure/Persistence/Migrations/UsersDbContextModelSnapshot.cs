@@ -32,6 +32,11 @@ namespace NitroGroups.Core.Users.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("City")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("city");
+
                     b.Property<string>("Headline")
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)")

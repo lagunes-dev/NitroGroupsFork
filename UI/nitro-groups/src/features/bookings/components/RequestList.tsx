@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { eventTypeLabel } from "@/lib/eventTypeLabel";
-import { formatEventDate, formatPrice } from "@/lib/format";
+import { formatEventDate } from "@/lib/format";
+import { balanceLabel, budgetLabel, clientDepositLabel, nextStepLabel, sentLabel } from "../deposit";
+import { rowClashLabel } from "../signals";
 import type { EventRequest, EventRequestParty } from "../types";
 import { StatusBadge } from "./StatusBadge";
 
@@ -14,8 +16,14 @@ export function RequestList({ requests, viewer }: { requests: EventRequest[]; vi
             {requests.map((r) => {
                 const who = viewer === "Client" ? r.groupName : r.clientName;
                 // Un presupuesto vacío no es cero pesos: el cliente no lo puso.
-                const price = r.budget ? formatPrice(r.budget, r.currency) : "Sin presupuesto";
+                const price = budgetLabel(r);
+                const deposit = clientDepositLabel(r, viewer);
+                const balance = balanceLabel(r, viewer);
+                const nextStep = nextStepLabel(r, viewer);
+                const sent = sentLabel(r);
                 const what = [eventTypeLabel(r.eventType), r.locationText].filter(Boolean).join(" · ");
+                // T39: el choque que la API ya manda en la fila, con las horas del propio pedido.
+                const clash = viewer === "Group" ? rowClashLabel(r.dateClash, { startTime: r.startTime, durationHours: r.durationHours }) : null;
                 return (
                     <li key={r.id} className="relative grid gap-x-6 gap-y-2 py-6 md:grid-cols-12 md:items-baseline [&+&]:shadow-[inset_0_1px_0_var(--fondo-3)]">
                         <p className="type-heading text-xl tabular first-letter:uppercase md:col-span-3">
@@ -26,11 +34,23 @@ export function RequestList({ requests, viewer }: { requests: EventRequest[]; vi
                                 {who}
                             </Link>
                             {what && <p className="text-tinta-2">{what}</p>}
+                            {/* El día ocupado manda: sin esto el pedido imposible se lee como el mejor del mes. */}
+                            {clash && <p className="relative mt-1 text-tinta">{clash}</p>}
+                            {deposit && <p className="relative text-sm text-tinta-2">{deposit}</p>}
+                            {/* Lo que debo es la única cifra blanca de la fila: el presupuesto original baja a gris (ronda 6). */}
+                            {balance && <p className="relative tabular text-lg text-tinta">{balance}</p>}
+                            {nextStep && <p className="relative text-base text-tinta">{nextStep}</p>}
+                            {sent && <p className="relative text-sm text-tinta-2">{sent}</p>}
+                            {viewer === "Client" && r.canReview && (
+                                <Link href={`/solicitudes/${r.id}`} className="relative mt-1 inline-flex min-h-11 items-center text-acento underline-offset-4 hover:underline">
+                                    Puedes dejar tu reseña
+                                </Link>
+                            )}
                             {viewer === "Group" && r.isSelfBooked && <span className="block text-sm text-tinta-2">Cargada por el grupo</span>}
                         </div>
                         <p className="tabular md:col-span-2">
-                            <span className={price ? "block text-tinta" : "block text-tinta-2"}>{price ?? "Sin presupuesto"}</span>
-                            <span className="block text-sm text-tinta-2">{r.durationHours} h</span>
+                            <span className={balance ? "block text-[15px] text-tinta-2" : price ? "block text-tinta" : "block text-tinta-2"}>{price ?? "Sin presupuesto"}</span>
+                            <span className="block text-sm text-tinta-2">{r.durationHours} h de música</span>
                         </p>
                         <div className="md:col-span-3 md:justify-self-end">
                             <StatusBadge status={r.status} />

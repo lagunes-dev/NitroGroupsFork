@@ -85,9 +85,10 @@ public class GigsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
 
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var gig = Assert.Single(json.RootElement.EnumerateArray());
+        // El orden de las propiedades de un objeto JSON no importa; el conjunto sí.
         Assert.Equal(
-            ["id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance"],
-            gig.EnumerateObject().Select(property => property.Name));
+            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "callTime", "setlist", "myPay" }.Order(StringComparer.Ordinal),
+            gig.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
         Assert.Equal(5, gig.GetProperty("id").GetInt64());
         Assert.Equal(10, gig.GetProperty("groupId").GetInt64());
         Assert.Equal("Los Vargas", gig.GetProperty("groupName").GetString());
@@ -99,6 +100,28 @@ public class GigsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
         Assert.Equal("Salón Los Arcos, CDMX", gig.GetProperty("locationText").GetString());
         Assert.Equal("Member", gig.GetProperty("role").GetString());
         Assert.Equal(JsonValueKind.Null, gig.GetProperty("attendance").ValueKind);
+    }
+
+    [Fact]
+    public async Task MisToques_DevuelveHoraSetlistYMiPago_ConNulosCuandoNoHay()
+    {
+        var withLogistics = Gig();
+        withLogistics.CallTime = new TimeOnly(18, 30);
+        withLogistics.Setlist = "Cielito lindo";
+        withLogistics.MyPay = 1200m;
+        _mediator.SendQueryAsync<GetMyGigsQuery, List<GigResponse>>(Arg.Any<GetMyGigsQuery>())
+            .Returns([withLogistics, Gig()]);
+
+        var response = await _client.GetAsync("api/me/gigs");
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var rows = json.RootElement.EnumerateArray().ToList();
+        Assert.Equal("18:30:00", rows[0].GetProperty("callTime").GetString());
+        Assert.Equal("Cielito lindo", rows[0].GetProperty("setlist").GetString());
+        Assert.Equal(1200m, rows[0].GetProperty("myPay").GetDecimal());
+        Assert.Equal(JsonValueKind.Null, rows[1].GetProperty("callTime").ValueKind);
+        Assert.Equal(JsonValueKind.Null, rows[1].GetProperty("setlist").ValueKind);
+        Assert.Equal(JsonValueKind.Null, rows[1].GetProperty("myPay").ValueKind);
     }
 
     [Fact]

@@ -100,7 +100,7 @@ public sealed class IntegrationTestFixture : IDisposable
         => CreateBookingsUnitOfWork(context, Substitute.For<IOutboxService>());
 
     public IUnitOfWorkBookings CreateBookingsUnitOfWork(BookingsDbContext context, IOutboxService outbox)
-        => new UnitOfWorkBookings(context, outbox, new EventRequestRepository(context), new GigAttendanceRepository(context));
+        => new UnitOfWorkBookings(context, outbox, new EventRequestRepository(context), new GigAttendanceRepository(context), new GigPayRepository(context), new GigNoticeRepository(context), new EventReviewRepository(context));
 
     /// <summary>Outbox real sobre el contexto de Bookings: guarda los eventos en outbox_events.</summary>
     public IOutboxService CreateBookingsOutbox(BookingsDbContext context)

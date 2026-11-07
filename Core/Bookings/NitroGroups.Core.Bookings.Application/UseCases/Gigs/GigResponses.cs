@@ -27,7 +27,8 @@ public static class GigResponses
     public static List<GigResponse> Build(
         IReadOnlyCollection<EventRequest> gigs,
         IReadOnlyDictionary<long, GroupMembershipSummary> memberships,
-        IReadOnlyDictionary<long, GigAttendanceStatus> attendance)
+        IReadOnlyDictionary<long, GigAttendanceStatus> attendance,
+        IReadOnlyDictionary<long, decimal> myPay)
         => gigs.Select(gig =>
         {
             var membership = memberships.GetValueOrDefault(gig.GroupId);
@@ -36,7 +37,8 @@ public static class GigResponses
                 membership?.GroupName ?? string.Empty,
                 membership?.Slug ?? string.Empty,
                 membership?.Role,
-                attendance.TryGetValue(gig.Id, out var status) ? status : null);
+                attendance.TryGetValue(gig.Id, out var status) ? status : null,
+                myPay.TryGetValue(gig.Id, out var amount) ? amount : null);
         }).ToList();
 
     public static GigResponse Build(
@@ -44,16 +46,17 @@ public static class GigResponses
         string groupName,
         string groupSlug,
         GroupMemberRole? role,
-        GigAttendanceStatus? attendance)
+        GigAttendanceStatus? attendance,
+        decimal? myPay = null)
     {
-        var row = new GigResponse();
+        var row = new GigResponse { MyPay = myPay };
         Fill(row, gig, groupName, groupSlug, role, attendance);
         return row;
     }
 
     /// <summary>Copia los datos del toque en una fila de la agenda (la base que comparten las dos vistas).</summary>
     internal static void Fill(
-        GigResponse row,
+        GigBaseResponse row,
         EventRequest gig,
         string groupName,
         string groupSlug,
@@ -71,5 +74,7 @@ public static class GigResponses
         row.LocationText = gig.LocationText;
         row.Role = role?.ToString() ?? string.Empty;
         row.Attendance = attendance?.ToString();
+        row.CallTime = gig.CallTime;
+        row.Setlist = gig.Setlist;
     }
 }

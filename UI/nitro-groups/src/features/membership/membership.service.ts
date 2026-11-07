@@ -2,7 +2,7 @@ import { apiClient } from "@/lib/api-client";
 import { normalizeDirection, normalizeStatus } from "./status";
 import { openMusiciansParams } from "./search";
 import { normalizeRole } from "./roles";
-import type { GroupTeamMember, MembershipFilters, MembershipRequest, MyMembership, OpenMusician, PagedResult } from "./types";
+import type { GroupTeamMember, MembershipFilters, MembershipRequest, MyMembership, OpenMusician, PagedResult, ProfileVisits } from "./types";
 
 type WireRequest = Omit<MembershipRequest, "direction" | "status"> & { direction: unknown; status: unknown };
 
@@ -48,4 +48,16 @@ export const membershipService = {
     accept: async (id: number) => toRequest((await apiClient.post<WireRequest>(`/membership-requests/${id}/accept`)).data),
     decline: async (id: number) => toRequest((await apiClient.post<WireRequest>(`/membership-requests/${id}/decline`)).data),
     cancel: async (id: number) => toRequest((await apiClient.post<WireRequest>(`/membership-requests/${id}/cancel`)).data),
+
+    /**
+     * Leaves the manager's visit on a musician's profile (S9). The group comes from the path and the
+     * viewer from the token, so there is no body to forge, and the API records one visit per group.
+     */
+    recordProfileVisit: async (groupId: number, musicianUserId: number): Promise<void> => {
+        await apiClient.post(`/groups/${groupId}/profile-visits/${musicianUserId}`);
+    },
+
+    /** The groups that looked at the signed-in musician's profile, newest first (`/me/profile-visits`). */
+    profileVisits: async (): Promise<ProfileVisits> =>
+        (await apiClient.get<ProfileVisits>("/me/profile-visits")).data,
 };

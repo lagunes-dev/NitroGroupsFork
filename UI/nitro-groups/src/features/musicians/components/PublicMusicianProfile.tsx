@@ -1,8 +1,11 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight, ExternalLink, Play } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Photo } from "@/components/ui/Photo";
+import { MusicianClosedNotice } from "./MusicianClosedNotice";
 import { ROUTES } from "@/config/routes";
+import { RecordProfileVisit } from "@/features/membership/components/RecordProfileVisit";
 import type { MusicianProfileGroup, MusicianProfileView } from "../profileView";
 
 const ctaClass =
@@ -53,7 +56,7 @@ function GroupRow({ group }: { group: MusicianProfileGroup }) {
  * la misma jerarquía que el perfil de un grupo — foto, nombre, titular, datos en una tira, relato,
  * video, grupos y una acción clara.
  */
-export function PublicMusicianProfile({ profile }: { profile: MusicianProfileView }) {
+export function PublicMusicianProfile({ profile, inviteAction }: { profile: MusicianProfileView; inviteAction?: ReactNode }) {
     // Nombre vacío: nunca se inventa uno, pero la página necesita un título legible.
     const name = profile.fullName || "Músico";
 
@@ -61,15 +64,18 @@ export function PublicMusicianProfile({ profile }: { profile: MusicianProfileVie
         profile.instruments.length > 0 && { label: "Instrumentos", value: profile.instruments.join(", ") },
         // La API manda un entero y no distingue «sin dato» de 0, así que 0 no se presume: mismo
         // criterio que el perfil de un grupo, donde los años en cero tampoco se muestran.
+        profile.city && { label: "Ciudad", value: profile.city },
         profile.yearsExperience !== null && profile.yearsExperience > 0 && {
             label: "Experiencia",
             value: yearsText(profile.yearsExperience),
         },
-        { label: "Disponibilidad", value: profile.isOpenToJoin ? "Disponible para unirse" : "No disponible por ahora" },
+        { label: "Disponibilidad", value: profile.isOpenToJoin ? "Disponible para unirse" : "Sin invitaciones por ahora" },
     ].filter(Boolean) as { label: string; value: string }[];
 
     return (
         <article className="pb-[var(--section-gap)]">
+            {/* Invisible: deja la visita si quien mira maneja un grupo (S9). Nunca estorba. */}
+            <RecordProfileVisit musicianUserId={profile.userId} />
             <header className="page-frame pt-10 md:pt-16">
                 <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
                     <Photo
@@ -85,7 +91,7 @@ export function PublicMusicianProfile({ profile }: { profile: MusicianProfileVie
                     </div>
                 </div>
 
-                <dl className="mt-10 grid grid-cols-1 gap-x-8 gap-y-6 border-t border-linea pt-8 sm:grid-cols-3 md:mt-14">
+                <dl className="mt-10 grid grid-cols-1 gap-x-8 gap-y-6 border-t border-linea pt-8 sm:grid-cols-2 md:mt-14 lg:grid-cols-4">
                     {facts.map((fact) => (
                         <Fact key={fact.label} {...fact} />
                     ))}
@@ -140,18 +146,13 @@ export function PublicMusicianProfile({ profile }: { profile: MusicianProfileVie
                     {profile.isOpenToJoin ? (
                         <>
                             <p className="mt-3 max-w-[52ch] text-tinta-2">
-                                {name} está disponible para unirse a un grupo. Si ya tienes uno, búscalo en NitroGroups y envíale
-                                la invitación desde el equipo.
+                                {name} está abierto a unirse a un grupo. Si manejas uno, entra con tu cuenta y envía la invitación
+                                desde aquí; {name} la verá en su panel.
                             </p>
-                            <Link href={ROUTES.GROUPS.SEARCH} className={`${ctaClass} mt-6`}>
-                                Invitar a un grupo
-                            </Link>
+                            {inviteAction && <div className="mt-6 empty:hidden">{inviteAction}</div>}
                         </>
                     ) : (
-                        <p className="mt-3 max-w-[52ch] text-tinta-2">
-                            Por ahora {name} no está buscando unirse a un grupo, así que no recibe invitaciones. Su perfil sigue
-                            visible para contratarlo para un evento.
-                        </p>
+                        <MusicianClosedNotice name={name} musicianUserId={profile.userId} />
                     )}
                 </div>
             </section>

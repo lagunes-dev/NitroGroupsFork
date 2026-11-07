@@ -14,7 +14,8 @@ public sealed record CancelEventRequestCommand(long Id, long UserId) : ICommand<
 public sealed class CancelEventRequestCommandHandler(
     IUnitOfWorkBookings unitOfWork,
     IGroupsModuleApi groups,
-    IUsersModuleApi users) : ICommandHandler<CancelEventRequestCommand, BookingResult<EventRequestResponse>>
+    IUsersModuleApi users,
+    TimeProvider time) : ICommandHandler<CancelEventRequestCommand, BookingResult<EventRequestResponse>>
 {
     public async Task<BookingResult<EventRequestResponse>> Handle(CancelEventRequestCommand command, CancellationToken cancellationToken)
     {
@@ -49,7 +50,8 @@ public sealed class CancelEventRequestCommandHandler(
             return BookingResult<EventRequestResponse>.Failure(BookingErrorKind.Conflict, "La solicitud cambió mientras la cancelabas. Recarga para ver su estado actual.");
         }
 
-        var response = await EventRequestResponses.BuildAsync(request, groups, users, includeMessages: true, cancellationToken);
+        var response = await EventRequestResponses.BuildAsync(
+            request, groups, users, unitOfWork.EventReviews, time, command.UserId, includeMessages: true, cancellationToken);
         return BookingResult<EventRequestResponse>.Success(response);
     }
 }

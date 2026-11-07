@@ -8,6 +8,7 @@ const full: MusicianProfileResponse = {
     headline: "Guitarrista de bodas y eventos",
     shortBio: "Toco desde los quince.\n\nCumbia, bolero y rock.",
     instruments: "Guitarra, bajo",
+    city: " Guadalajara ",
     yearsExperience: 12,
     profilePictureUrl: "https://cdn.example.com/mateo.jpg",
     videoUrl: "https://www.youtube.com/watch?v=abc",
@@ -26,6 +27,7 @@ describe("toMusicianProfile", () => {
             headline: "Guitarrista de bodas y eventos",
             shortBio: "Toco desde los quince.\n\nCumbia, bolero y rock.",
             instruments: ["Guitarra", "bajo"],
+            city: "Guadalajara",
             yearsExperience: 12,
             photoUrl: "https://cdn.example.com/mateo.jpg",
             videoUrl: "https://www.youtube.com/watch?v=abc",
@@ -44,10 +46,15 @@ describe("toMusicianProfile", () => {
         expect(view.shortBio).toBeNull();
         expect(view.instruments).toEqual([]);
         expect(view.yearsExperience).toBeNull();
+        expect(view.city).toBeNull();
         expect(view.photoUrl).toBeNull();
         expect(view.videoUrl).toBeNull();
         expect(view.groups).toEqual([]);
         expect(view.isOpenToJoin).toBe(false);
+    });
+
+    it("treats a blank city as absent", () => {
+        expect(toMusicianProfile({ userId: 1, fullName: "Sol", city: "  " }).city).toBeNull();
     });
 
     it("treats whitespace-only text as empty", () => {

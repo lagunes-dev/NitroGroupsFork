@@ -5,11 +5,16 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ROUTES } from "@/config/routes";
 import { eventTypeLabel } from "@/lib/eventTypeLabel";
-import { formatEventDate, formatPrice } from "@/lib/format";
+import { formatEventDate } from "@/lib/format";
+import { dateSearchHref } from "@/features/search/searchParams";
 import { apiErrorMessage, bookingsService } from "../bookings.service";
+import { balanceBlock, budgetLabel, clientDepositLabel, nextStepLabel, sentLabel } from "../deposit";
 import { availableActions, shortTime, statusLabel } from "../status";
 import { threadItems, type ThreadItem } from "../thread";
 import type { EventRequest, EventRequestParty } from "../types";
+import { ReviewForm } from "./ReviewForm";
+import { SavedReview } from "./SavedReview";
+import { RequestSignals } from "./RequestSignals";
 import { StatusBadge } from "./StatusBadge";
 
 const timeFmt = new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Mexico_City" });
@@ -72,6 +77,7 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
     const actions = availableActions(r, viewer);
     const failed = [accept, decline, cancel, send].find((m) => m.isError);
     const busy = [accept, decline, cancel, send].some((m) => m.isPending);
+    const deal = balanceBlock(r, viewer);
     const title = viewer === "Client" ? r.groupName : r.clientName;
 
     return (
@@ -90,14 +96,45 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                 )}
             </header>
 
+            {/* D6: only the group sees the signals; the client's thread is untouched. */}
+            {viewer === "Group" && (
+                <div className="md:col-span-12">
+                    <RequestSignals
+                        groupId={r.groupId}
+                        requestId={r.id}
+                        viewer={viewer}
+                        currency={r.currency}
+                        startTime={r.startTime}
+                        durationHours={r.durationHours}
+                    />
+                </div>
+            )}
+
+            {/* S8: lo que el cliente debe y lo que sigue, antes de la ficha: es lo que viene a buscar. */}
+            {deal && (
+                <section className="md:col-span-12 rounded-xl bg-fondo-2 p-5" aria-label="Saldo y próximo paso">
+                    <p className="text-2xl font-semibold tabular text-tinta">{deal.balance}</p>
+                    {deal.purpose && <p className="mt-1 text-tinta-2">{deal.purpose}</p>}
+                    <p className="mt-4 text-sm text-tinta-2">Próximo paso</p>
+                    <p className="mt-1 text-tinta">{deal.nextStep}</p>
+                </section>
+            )}
+
             <dl className="md:col-span-4 grid grid-cols-2 md:grid-cols-1 gap-6 content-start">
                 <Detail label="Evento" value={eventTypeLabel(r.eventType)} />
                 <Detail label="Lugar" value={r.locationText} />
                 <Detail label="Hora de inicio" value={shortTime(r.startTime)} />
                 <Detail label="Duración" value={`${r.durationHours} ${r.durationHours === 1 ? "hora" : "horas"}`} />
                 <Detail label="Invitados" value={r.guestCount ? String(r.guestCount) : null} />
-                <Detail label="Presupuesto" value={formatPrice(r.budget, r.currency)} />
+                <Detail label="Solicitud enviada" value={sentLabel(r)?.replace(/^Solicitud enviada el /, "") ?? null} />
+                <Detail label="Presupuesto" value={budgetLabel(r)} />
+                <Detail label="Anticipo" value={clientDepositLabel(r, viewer)?.replace(/^Anticipo /, "") ?? null} />
             </dl>
+
+            {/* Sin saldo que decir no hay bloque: el próximo paso sigue como párrafo suelto. */}
+            {!deal && nextStepLabel(r, viewer) && (
+                <p className="md:col-span-12 text-tinta">{nextStepLabel(r, viewer)}</p>
+            )}
 
             <section className="md:col-span-8 flex flex-col gap-8" aria-label="Conversación">
                 <ol className="flex flex-col gap-6">
@@ -126,12 +163,26 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                     </form>
                 )}
 
+                {/* D7: only the client's own view; the group never sees the form nor the review here. */}
+                {viewer === "Client" && (r.review ? <SavedReview review={r.review} /> : r.canReview ? <ReviewForm requestId={r.id} /> : null)}
+
                 {actions.requestAgain && (
                     <div className="bg-fondo-2 rounded-xl p-5">
                         <p className="text-tinta">Esta solicitud está cerrada. Si quieres otra fecha con {r.groupName}, envíale una solicitud nueva.</p>
-                        <Link href={`${ROUTES.GROUPS.PUBLIC_PROFILE(r.groupSlug)}#solicitar`} className="mt-4 inline-flex h-12 items-center px-6 bg-acento text-acento-ink rounded-lg font-semibold no-underline hover:bg-acento-press">
-                            Pedir otra fecha
-                        </Link>
+                        <div className="mt-4 flex flex-wrap items-center gap-4">
+                            <Link href={`${ROUTES.GROUPS.PUBLIC_PROFILE(r.groupSlug)}#solicitar`} className="inline-flex h-12 items-center px-6 bg-acento text-acento-ink rounded-lg font-semibold no-underline hover:bg-acento-press">
+                                Pedir otra fecha
+                            </Link>
+                            {/* La fecha viaja con el enlace: buscar reemplazo no debería obligar a reescribirla. */}
+                            {formatEventDate(r.eventDate) && (
+                                <Link
+                                    href={dateSearchHref(r.eventDate, r.groupId)}
+                                    className="inline-flex min-h-11 items-center text-acento underline-offset-4 hover:underline"
+                                >
+                                    Ver otros grupos libres el {formatEventDate(r.eventDate)}
+                                </Link>
+                            )}
+                        </div>
                     </div>
                 )}
 

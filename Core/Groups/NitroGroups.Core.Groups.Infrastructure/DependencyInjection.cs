@@ -24,6 +24,7 @@ namespace NitroGroups.Core.Groups.Infrastructure
 
             services.AddScoped<INotificationHandler<UsersEvents.SoloMusicianCreatedEvent>, SoloMusicianCreatedEventHandler>();
             services.AddScoped<INotificationHandler<UsersEvents.MusicianWithGroupCreatedEvent>, MusicianWithGroupCreatedEventHandler>();
+            services.AddScoped<INotificationHandler<BookingsEvents.GroupReviewPostedEvent>, GroupReviewPostedEventHandler>();
 
             services.AddEndpoints(typeof(DependencyInjection).Assembly);
 
@@ -40,6 +41,7 @@ namespace NitroGroups.Core.Groups.Infrastructure
             services.AddModuleRepository<GroupsDbContext, GroupMedia>();
             services.AddScoped<IGroupSearchRepository, Repositories.GroupSearchRepository>();
             services.AddScoped<IGroupMembershipRequestRepository, Repositories.GroupMembershipRequestRepository>();
+            services.AddScoped<IProfileVisitRepository, Repositories.ProfileVisitRepository>();
             services.AddModuleUnitOfWork<IUnitOfWorkGroups, UnitOfWorkGroups, GroupsDbContext>();
             return services;
         }
