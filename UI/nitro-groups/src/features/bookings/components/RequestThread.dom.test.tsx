@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RequestThread } from "./RequestThread";
 import type { EventRequest } from "../types";
@@ -133,7 +134,7 @@ describe("RequestThread deal", () => {
         // Ronda 10: un plazo dice el año; "5 de diciembre" solo era ambiguo junto a una fecha con año.
         expect(screen.getByText("para el 5 de diciembre de 2026")).toBeInTheDocument();
         expect(screen.getByText("Próximo paso")).toBeInTheDocument();
-        expect(screen.getByText("Acuerda el saldo con el grupo para el día del evento.")).toBeInTheDocument();
+        expect(screen.getByText("Paga $14,000.")).toBeInTheDocument();
 
         const block = balance.closest("section") as HTMLElement;
         const specs = document.querySelector("dl") as HTMLElement;
@@ -153,7 +154,7 @@ describe("RequestThread deal", () => {
     it("draws no balance block while the deposit is pending or for the group", async () => {
         mocks.get.mockResolvedValue({ ...accepted, deposit: { amount: 4000, receivedAt: null } });
         const { unmount } = renderThread("Client");
-        expect(await screen.findByText("Paga el anticipo.")).toBeInTheDocument();
+        expect(await screen.findByText("Paga $4,000 de anticipo.")).toBeInTheDocument();
         expect(screen.queryByText(/Falta pagar/)).toBeNull();
         unmount();
 
@@ -184,7 +185,7 @@ describe("RequestThread deal", () => {
         expect(await screen.findByText("$4,000 · pendiente · para el 10 de noviembre de 2026")).toBeInTheDocument();
         // Y el paso, con su encabezado, diciendo lo que de verdad falta.
         expect(screen.getByText("Próximo paso")).toBeInTheDocument();
-        expect(screen.getByText("Paga el anticipo antes del 10 de noviembre de 2026.")).toBeInTheDocument();
+        expect(screen.getByText("Paga $4,000 de anticipo antes del 10 de noviembre de 2026.")).toBeInTheDocument();
         expect(screen.queryByText(/Falta pagar/)).toBeNull();
     });
 
@@ -195,7 +196,7 @@ describe("RequestThread deal", () => {
 
         await screen.findByText("Falta pagar $14,000 · para el 15 de noviembre de 2026");
         expect(screen.getByText("Próximo paso")).toBeInTheDocument();
-        expect(screen.getByText("Paga el saldo antes del 15 de noviembre de 2026.")).toBeInTheDocument();
+        expect(screen.getByText("Paga $14,000 antes del 15 de noviembre de 2026.")).toBeInTheDocument();
     });
 
     it("calls an empty budget what the list calls it, never zero pesos", async () => {
@@ -235,7 +236,7 @@ describe("RequestThread cómo pagar (ronda 9)", () => {
         expect(mocks.checkoutNotes).toHaveBeenCalledWith(11);
 
         // El saldo manda, y cómo pagar viene justo después: es la misma pregunta con la otra mitad.
-        const balance = screen.getByText("Falta pagar $14,000");
+        const balance = within(screen.getByRole("region", { name: "Saldo y próximo paso" })).getByText("Falta pagar $14,000");
         expect(balance.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
@@ -323,6 +324,42 @@ describe("RequestThread cancel on a past event (T52)", () => {
         renderThread("Client");
 
         expect(await screen.findByRole("button", { name: "Cancelar solicitud" })).toBeInTheDocument();
+    });
+});
+
+describe("RequestThread cancel and the money already paid (ronda 12)", () => {
+    const future: EventRequest = { ...request, status: "Accepted", eventDate: "2099-12-05", respondedAt: "2099-10-02T18:00:00Z" };
+
+    /**
+     * Ronda 12 (la clienta): canceló un evento donde ya había pagado $3,000 de anticipo y el diálogo
+     * solo avisaba que el grupo se enteraría. La plata ya pagada no se cancela con el pedido (D1).
+     */
+    it("says what happens to the money already paid, and that the app neither charges nor refunds", async () => {
+        const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+        mocks.get.mockResolvedValue({ ...future, deposit: { amount: 3000, receivedAt: "2099-01-05T18:00:00Z" } });
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Client");
+        await userEvent.click(await screen.findByRole("button", { name: "Cancelar solicitud" }));
+
+        expect(confirm).toHaveBeenCalledWith(
+            "¿Cancelar esta solicitud? El grupo recibirá un aviso. Lo que ya pagaste lo arreglas con el grupo: la app no cobra ni devuelve nada."
+        );
+        // Dijo que no: la solicitud sigue viva.
+        expect(mocks.cancel).not.toHaveBeenCalled();
+        confirm.mockRestore();
+    });
+
+    it("keeps today's words when no money was recorded, without talking about money", async () => {
+        const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+        mocks.get.mockResolvedValue(future);
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Client");
+        await userEvent.click(await screen.findByRole("button", { name: "Cancelar solicitud" }));
+
+        expect(confirm).toHaveBeenCalledWith("¿Cancelar esta solicitud? El grupo recibirá un aviso.");
+        confirm.mockRestore();
     });
 });
 

@@ -170,6 +170,44 @@ function remainingAmount(request: { budget?: number | null; deposit?: unknown })
 }
 
 /**
+ * "Falta pagar $14,000 · para el 15 de noviembre de 2026" from what the app can compute: the cachet
+ * minus the deposit the group recorded as received. Null when the figure cannot be stated honestly, so
+ * no line is drawn instead of an invented one. The deadline is a fact the group loaded (T61, S24).
+ */
+function owedMoneyLine(request: {
+    budget?: number | null;
+    deposit?: unknown;
+    currency?: string;
+    balanceDueDate?: string | null;
+}): string | null {
+    const remaining = remainingAmount(request);
+    if (remaining === null || remaining <= 0) return null;
+    const money = formatPrice(remaining, request.currency ?? "MXN");
+    if (!money) return null;
+    const due = dueDateLabel(request.balanceDueDate);
+    return due ? `Falta pagar ${money} · ${due}` : `Falta pagar ${money}`;
+}
+
+/**
+ * Ronda 12: la línea de dinero del bloque de pago, para que se baste solo. Dice lo que falta **en esta
+ * etapa del trato** —el anticipo mientras no entra, el saldo después— con el plazo cargado para esa
+ * etapa, en la voz que ya usa el resto de la app. No dice método: eso lo escribe el grupo.
+ *
+ * <p>Sin monto legible no hay línea: la app no adivina cuánto falta ni cuándo vence. Lo que no se sabe
+ * no se dibuja.</p>
+ */
+export function paymentDueLabel(request: {
+    budget?: number | null;
+    deposit?: unknown;
+    currency?: string;
+    balanceDueDate?: string | null;
+}): string | null {
+    const deposit = pendingDeposit(request.deposit);
+    if (deposit) return depositLabel(deposit);
+    return owedMoneyLine(request);
+}
+
+/**
  * "Saldo recibido el 13 de diciembre de 2026" once the group recorded it — with the figure when the
  * cachet and the deposit let it be computed, so the client can check what she was charged; otherwise
  * the fact alone. `Falta pagar $14,000` for the client of an accepted event whose deposit already
@@ -191,13 +229,9 @@ export function balanceLabel(
         return money ? `${fact} · ${money}` : fact;
     }
     const remaining = remainingAmount(request);
-    if (remaining === null) return null;
-    if (remaining <= 0) return "Sin saldo pendiente";
-    const money = formatPrice(remaining, request.currency ?? "MXN");
-    if (!money) return null;
+    if (remaining !== null && remaining <= 0) return "Sin saldo pendiente";
     // T61: "Falta pagar $14,000 · para el 15 de noviembre de 2026", el plazo que cargó el manager.
-    const due = dueDateLabel(request.balanceDueDate);
-    return due ? `Falta pagar ${money} · ${due}` : `Falta pagar ${money}`;
+    return owedMoneyLine(request);
 }
 
 /**
@@ -238,8 +272,11 @@ export function nextStepLabel(
             // Con el plazo cargado el paso lo nombra; sin plazo pide pagar y no inventa una fecha.
             const deposit = pendingDeposit(request.deposit);
             if (deposit) {
-                const depositBefore = beforeDateLabel(deposit.dueDate);
-                return depositBefore ? `Paga el anticipo ${depositBefore}.` : "Paga el anticipo.";
+                const before = beforeDateLabel(deposit.dueDate);
+                // Ronda 12: el paso nombra el monto que pide. Sin anticipo legible conserva sus palabras.
+                const money = formatPrice(readDeposit(deposit)?.amount ?? null, request.currency ?? "MXN");
+                if (!money) return before ? `Paga el anticipo ${before}.` : "Paga el anticipo.";
+                return before ? `Paga ${money} de anticipo ${before}.` : `Paga ${money} de anticipo.`;
             }
             const remaining = remainingAmount(request);
             if (remaining === null) return "Acuerda el anticipo con el grupo para cerrar la fecha.";
@@ -247,11 +284,26 @@ export function nextStepLabel(
             // Con la fecha límite ya dicha en la línea del saldo, "el día del evento" sería un segundo
             // plazo para el mismo saldo (y lo contradice): se nombra el plazo cargado y se pide pagar.
             const before = beforeDateLabel(request.balanceDueDate);
-            return before ? `Paga el saldo ${before}.` : "Acuerda el saldo con el grupo para el día del evento.";
+            // Ronda 12: con la cifra cargada, el paso agrega el monto en vez de repetir solo la fecha.
+            const money = formatPrice(remaining, request.currency ?? "MXN");
+            if (!money) return before ? `Paga el saldo ${before}.` : "Acuerda el saldo con el grupo para el día del evento.";
+            return before ? `Paga ${money} ${before}.` : `Paga ${money}.`;
         }
         default:
             return null;
     }
+}
+
+/**
+ * Ronda 12: lo que dice el diálogo de "Cancelar solicitud". Sobre un evento con dinero ya registrado
+ * —el anticipo o el saldo— el aviso al grupo no alcanza: la plata pagada no se cancela con el pedido y
+ * se arregla con el grupo, porque la app no cobra ni devuelve nada (D1). Una sola frase, en "tú" y sin
+ * prometer nada. Sin dinero registrado el diálogo dice lo de siempre: no habla de plata que no existe.
+ */
+export function cancelConfirmText(request: { deposit?: unknown; balanceReceivedAt?: string | null }): string {
+    const base = "¿Cancelar esta solicitud? El grupo recibirá un aviso.";
+    const paid = readDeposit(request.deposit)?.received === true || isBalanceReceived(request);
+    return paid ? `${base} Lo que ya pagaste lo arreglas con el grupo: la app no cobra ni devuelve nada.` : base;
 }
 
 /** What the client's accepted thread opens with: the balance, what it is for and the next step. */

@@ -8,7 +8,7 @@ import { eventTypeLabel } from "@/lib/eventTypeLabel";
 import { formatEventDate } from "@/lib/format";
 import { dateSearchHref } from "@/features/search/searchParams";
 import { apiErrorMessage, bookingsService } from "../bookings.service";
-import { balanceBlock, budgetLabel, clientDepositLabel, nextStepLabel, nothingLeftToPay, sentLabel } from "../deposit";
+import { balanceBlock, budgetLabel, cancelConfirmText, clientDepositLabel, nextStepLabel, sentLabel } from "../deposit";
 import { availableActions, shortTime, statusLabel } from "../status";
 import { threadItems, type ThreadItem } from "../thread";
 import type { EventRequest, EventRequestParty } from "../types";
@@ -156,15 +156,9 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
             )}
 
             {/* Ronda 9: cómo pagar, justo donde el cliente ya mira la plata: después del saldo y el anticipo.
-                Ronda 10: se calla cuando no queda nada por pagar, como la línea del saldo. */}
-            <CheckoutNotes
-                requestId={r.id}
-                viewer={viewer}
-                status={r.status}
-                settled={nothingLeftToPay(r)}
-                eventType={r.eventType}
-                eventDate={r.eventDate}
-            />
+                Ronda 10: se calla cuando no queda nada por pagar, como la línea del saldo.
+                Ronda 12: el bloque recibe el pedido para decir cuánto falta y para cuándo sin depender del banner. */}
+            <CheckoutNotes request={r} viewer={viewer} />
 
             <section className="md:col-span-8 flex flex-col gap-8" aria-label="Conversación">
                 <ol className="flex flex-col gap-6">
@@ -232,7 +226,7 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                         )}
                         {actions.cancel && (
                             <button type="button" disabled={busy}
-                                onClick={() => { if (window.confirm("¿Cancelar esta solicitud? El grupo recibirá un aviso.")) cancel.mutate(); }}
+                                onClick={() => { if (window.confirm(cancelConfirmText(r))) cancel.mutate(); }}
                                 className="h-14 px-7 bg-transparent text-tinta underline decoration-error decoration-2 underline-offset-4 disabled:opacity-45">
                                 Cancelar solicitud
                             </button>

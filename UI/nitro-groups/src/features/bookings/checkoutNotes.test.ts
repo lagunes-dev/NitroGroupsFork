@@ -138,28 +138,41 @@ describe("El concepto de la transferencia (ronda 11)", () => {
 /**
  * Ronda 11: la cuenta y el teléfono son texto muerto y 18 dígitos a mano en un teléfono son una
  * transferencia al azar. Se copia el texto tal cual; la app no adivina qué número es qué.
+ * Ronda 12 (la clienta): al pegar lo copiado no había ni monto ni fecha. Las líneas que arma la app van
+ * primero —el dinero que falta en esta etapa y el concepto—, y el texto del grupo queda literal después.
  */
 describe("El texto que se copia de la nota (ronda 11)", () => {
     const concept = "Concepto: pedido 20 · Corporativo, 4 de diciembre de 2026";
+    const due = "Falta pagar $9,000 · para el 15 de noviembre de 2026";
     const view = toCheckoutNotesView([groupNote])!;
 
-    it("copies the group's text, who attends and the concept, and nothing else", () => {
-        expect(paymentClipboardText(view, concept)).toBe(
-            "Transfiere a la CLABE 0121 8000 1234 5678, BBVA.\nTe atiende Pedro Vargas.\nConcepto: pedido 20 · Corporativo, 4 de diciembre de 2026"
+    it("copies the amount and the deadline, the concept and then the group's words", () => {
+        expect(paymentClipboardText(view, concept, due)).toBe(
+            [
+                "Falta pagar $9,000 · para el 15 de noviembre de 2026",
+                "Concepto: pedido 20 · Corporativo, 4 de diciembre de 2026",
+                "Transfiere a la CLABE 0121 8000 1234 5678, BBVA.",
+                "Te atiende Pedro Vargas.",
+            ].join("\n")
         );
         // El título, la fecha de actualización y la línea de "no cobra" no son datos del banco.
-        const text = paymentClipboardText(view, concept);
-        expect(text).not.toMatch(/Cómo pagar|Actualizado el|NitroGroups no cobra/);
+        expect(paymentClipboardText(view, concept, due)).not.toMatch(/Cómo pagar|Actualizado el|NitroGroups no cobra/);
     });
 
-    it("copies it verbatim: no number becomes a link, no account is guessed", () => {
-        const text = paymentClipboardText(view, concept);
+    it("copies the group's text verbatim: no number becomes a link, no account is guessed", () => {
+        const text = paymentClipboardText(view, concept, due);
 
         expect(text).toContain("0121 8000 1234 5678");
         expect(text).not.toMatch(/https?:|tel:|clabe=|cuenta=/i);
     });
 
-    it("copies what there is when the app cannot name the request", () => {
-        expect(paymentClipboardText(view, null)).toBe("Transfiere a la CLABE 0121 8000 1234 5678, BBVA.\nTe atiende Pedro Vargas.");
+    it("copies only the lines the app knows, and never a blank one", () => {
+        // Sin plazo, el monto igual viaja; sin concepto, la cuenta sigue siendo pagable.
+        expect(paymentClipboardText(view, null, "Anticipo $3,000 · pendiente")).toBe(
+            "Anticipo $3,000 · pendiente\nTransfiere a la CLABE 0121 8000 1234 5678, BBVA.\nTe atiende Pedro Vargas."
+        );
+        expect(paymentClipboardText(view, null, null)).toBe(
+            "Transfiere a la CLABE 0121 8000 1234 5678, BBVA.\nTe atiende Pedro Vargas."
+        );
     });
 });

@@ -97,12 +97,17 @@ export function conceptLine(request: {
 
 /**
  * Ronda 11: el texto que se copia, tal cual, para no teclear 18 dígitos en un teléfono y mandar la
- * transferencia a otra cuenta. Van las líneas que el banco pide —el texto del grupo, quién atiende y el
- * concepto—; no van el título, la fecha de actualización ni la línea de "no cobra", que no son datos de
- * la transferencia. La app no analiza el texto ni adivina qué número es la cuenta y cuál el teléfono.
+ * transferencia a otra cuenta. La app no analiza el texto del grupo ni adivina qué número es la cuenta
+ * y cuál el teléfono.
+ *
+ * <p>Ronda 12 (la clienta): al pegar lo copiado no había ni monto ni fecha, que era justo lo que faltaba
+ * saber. Van primero las dos líneas que arma la app desde el pedido —el dinero que falta en esta etapa y
+ * el concepto—, y después el texto del grupo, literal, con quién atiende.</p>
  */
-export function paymentClipboardText(view: CheckoutNotesView, concept: string | null): string {
-    return view.notes
-        .map((note) => [note.body, note.managerLine, concept].filter(Boolean).join("\n"))
+export function paymentClipboardText(view: CheckoutNotesView, concept: string | null, due: string | null): string {
+    const head = [due, concept].filter(Boolean).join("\n");
+    const notes = view.notes
+        .map((note) => [note.body, note.managerLine].filter(Boolean).join("\n"))
         .join("\n\n");
+    return [head, notes].filter(Boolean).join("\n");
 }

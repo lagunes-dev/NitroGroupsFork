@@ -56,7 +56,18 @@ describe("RequestList", () => {
         render(<RequestList requests={[accepted]} viewer="Client" />);
         expect(screen.getByText(/Anticipo \$4,000 · recibido el/)).toBeInTheDocument();
         expect(screen.getByText("Falta pagar $14,000")).toBeInTheDocument();
-        expect(screen.getByText("Acuerda el saldo con el grupo para el día del evento.")).toBeInTheDocument();
+        expect(screen.getByText("Paga $14,000.")).toBeInTheDocument();
+    });
+
+    /**
+     * Ronda 12 (la clienta): el banner decía "Falta pagar $9,000 · para el 15 de noviembre de 2026" y
+     * 112 px abajo el paso repetía la misma fecha sin el monto. El paso nombra ahora la cifra.
+     */
+    it("makes the next step carry the amount, not only the date the line above already gave", () => {
+        render(<RequestList requests={[{ ...accepted, budget: 13000, balanceDueDate: "2026-11-15" }]} viewer="Client" />);
+
+        expect(screen.getByText("Falta pagar $9,000 · para el 15 de noviembre de 2026")).toBeInTheDocument();
+        expect(screen.getByText("Paga $9,000 antes del 15 de noviembre de 2026.")).toBeInTheDocument();
     });
 
     it("makes the balance the only white figure of the row and the original budget a muted 15px", () => {

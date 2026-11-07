@@ -8,7 +8,7 @@ import { Logo } from "./Logo";
 
 /** Pie sobrio: la marca, tres columnas cortas y una línea legal. Sabe si hay sesión. */
 export default function Footer() {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, isLoading } = useAuth();
     const year = new Date().getFullYear();
     const link = "no-underline text-tinta-2 hover:text-tinta transition-colors";
     return (
@@ -35,7 +35,13 @@ export default function Footer() {
                 <div className="md:col-span-3">
                     <p className="text-tinta">Cuenta</p>
                     <ul className="mt-3 space-y-2">
-                        {isAuthenticated ? (
+                        {/* Ronda 12: mientras la sesión no se sabe, el pie no se presenta como anónimo: quien ya
+                            está dentro leía "Entrar / Crear cuenta" y se asustaba. El espacio queda reservado. */}
+                        {isLoading ? (
+                            <li aria-hidden>
+                                <span className="block h-5 w-20 rounded bg-fondo-2" />
+                            </li>
+                        ) : isAuthenticated ? (
                             <li><LogoutButton /></li>
                         ) : (
                             <>
