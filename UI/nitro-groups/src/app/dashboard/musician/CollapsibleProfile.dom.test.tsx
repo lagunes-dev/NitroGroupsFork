@@ -14,10 +14,20 @@ function renderProfile() {
 }
 
 describe("CollapsibleProfile", () => {
+    it("names the entry as the group's profile, not the person's", () => {
+        // Ronda 9: el panel ya tiene una pestaña "Perfil" del músico. Este botón abre el perfil del
+        // grupo, y lo dice: "Ver perfil" no decía de quién era el perfil que abría.
+        renderProfile();
+
+        const toggle = screen.getByRole("button", { name: "Perfil del grupo" });
+        expect(toggle).toHaveAccessibleName("Perfil del grupo");
+        expect(screen.queryByRole("button", { name: "Ver perfil" })).toBeNull();
+    });
+
     it("starts folded on a phone so the pending work is not one screen down", () => {
         renderProfile();
 
-        const toggle = screen.getByRole("button", { name: "Ver perfil" });
+        const toggle = screen.getByRole("button", { name: "Perfil del grupo" });
         expect(toggle).toHaveAttribute("aria-expanded", "false");
 
         const panel = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
@@ -35,9 +45,9 @@ describe("CollapsibleProfile", () => {
         const user = userEvent.setup();
         renderProfile();
 
-        await user.click(screen.getByRole("button", { name: "Ver perfil" }));
+        await user.click(screen.getByRole("button", { name: "Perfil del grupo" }));
 
-        const close = screen.getByRole("button", { name: "Ocultar perfil" });
+        const close = screen.getByRole("button", { name: "Ocultar perfil del grupo" });
         expect(close).toHaveAttribute("aria-expanded", "true");
         const panel = document.getElementById(close.getAttribute("aria-controls") ?? "");
         expect(panel).toHaveClass("block");
@@ -45,13 +55,13 @@ describe("CollapsibleProfile", () => {
         expect(screen.getByText("Tarjeta del grupo")).toBeVisible();
 
         await user.click(close);
-        expect(screen.getByRole("button", { name: "Ver perfil" })).toHaveAttribute("aria-expanded", "false");
+        expect(screen.getByRole("button", { name: "Perfil del grupo" })).toHaveAttribute("aria-expanded", "false");
     });
 
     it("does not offer the summary on a wide screen, where the card is always open", () => {
         renderProfile();
 
-        const toggle = screen.getByRole("button", { name: "Ver perfil" });
+        const toggle = screen.getByRole("button", { name: "Perfil del grupo" });
         // El renglón del resumen solo existe en móvil; en escritorio el perfil se lee completo.
         expect(toggle.parentElement).toHaveClass("md:hidden");
         expect(toggle.parentElement).toHaveClass("mt-8");

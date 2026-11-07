@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ScheduleEventDto } from "./services/groupAvailability.service";
-import { dayBounds, longDayName, wholeDayBlocks } from "./blockDay";
+import { dayBounds, longDayName, shortDayName, wholeDayBlocks } from "./blockDay";
 
 const DAY = "2026-11-19";
 
@@ -58,6 +58,19 @@ describe("wholeDayBlocks", () => {
             DAY
         );
         expect(blocks.map((block) => block.id)).toEqual(["busy_1", "busy_3"]);
+    });
+});
+
+describe("shortDayName", () => {
+    it("says the short day in abbreviated Spanish, without the year", () => {
+        expect(shortDayName(DAY)).toBe("jue 19 nov");
+        expect(shortDayName("2026-12-24")).toBe("jue 24 dic");
+    });
+
+    it("has nothing to say about an invalid day", () => {
+        expect(shortDayName("2026-02-30")).toBeNull();
+        expect(shortDayName("no-es-fecha")).toBeNull();
+        expect(shortDayName("")).toBeNull();
     });
 });
 

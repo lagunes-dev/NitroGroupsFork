@@ -64,7 +64,7 @@ describe("musician dashboard at 390 px", () => {
     it("keeps the profile folded above the tabs so the pending work is on the first screen", async () => {
         renderPage();
 
-        const toggle = await screen.findByRole("button", { name: "Ver perfil" });
+        const toggle = await screen.findByRole("button", { name: "Perfil del grupo" });
         expect(toggle).toHaveAttribute("aria-expanded", "false");
 
         const panel = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
@@ -86,9 +86,9 @@ describe("musician dashboard at 390 px", () => {
         const user = userEvent.setup();
         renderPage();
 
-        await user.click(await screen.findByRole("button", { name: "Ver perfil" }));
+        await user.click(await screen.findByRole("button", { name: "Perfil del grupo" }));
 
-        const close = screen.getByRole("button", { name: "Ocultar perfil" });
+        const close = screen.getByRole("button", { name: "Ocultar perfil del grupo" });
         expect(close).toHaveAttribute("aria-expanded", "true");
         expect(document.getElementById(close.getAttribute("aria-controls") ?? "")).toHaveClass("block");
         // Nada de lo que había arriba se perdió: la tarjeta entera está ahí.

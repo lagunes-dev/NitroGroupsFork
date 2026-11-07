@@ -58,12 +58,23 @@ describe("S26 · el control dice qué día bloquea", () => {
         renderControl();
 
         const control = await toggle();
-        // "Bloquear" a secas no basta: el nombre accesible dice el día.
+        // "Bloquear" a secas no basta: el nombre accesible dice el día largo.
         expect(control).toHaveAccessibleName(`Bloquear el día ${DAY_NAME}`);
-        expect(control).toHaveTextContent("Bloquear el día");
+        // La etiqueta visible también lo dice, corto: el día ya no vive solo en el aria-label.
+        expect(control).toHaveTextContent("Bloquear el jue 19 nov");
+        expect(control).not.toHaveTextContent("Bloquear el día");
         // Objetivo de 44 px y sin apagar el anillo de foco global.
         expect(control).toHaveClass("min-h-11");
         expect(control.className).not.toMatch(/outline-none/);
+    });
+
+    it("keeps the generic label while the day cannot be read", async () => {
+        renderControl("19/11/2026");
+
+        const control = await screen.findByRole("button", { name: "Bloquear el día" });
+        expect(control).toHaveTextContent("Bloquear el día");
+        // Tampoco afirma el verbo: todavía no leyó el día.
+        expect(control).toBeDisabled();
     });
 
     it("asks the same question as the calendar before writing anything", async () => {
@@ -133,7 +144,7 @@ describe("S26 · el bloqueo se deshace con el mismo control", () => {
         renderControl();
 
         const control = await toggle("Desbloquear");
-        expect(control).toHaveTextContent("Desbloquear el día");
+        expect(control).toHaveTextContent("Desbloquear el jue 19 nov");
 
         await user.click(control);
         const dialog = screen.getByRole("dialog", { name: "Desbloquear este día" });
@@ -152,7 +163,7 @@ describe("S26 · el bloqueo se deshace con el mismo control", () => {
 
         // El día sigue abierto: el botón vuelve a ofrecer bloquearlo entero.
         const control = await toggle("Bloquear");
-        expect(control).toHaveTextContent("Bloquear el día");
+        expect(control).toHaveTextContent("Bloquear el jue 19 nov");
     });
 });
 

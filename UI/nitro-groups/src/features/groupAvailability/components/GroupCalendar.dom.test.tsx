@@ -4,7 +4,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import GroupCalendar, { type GroupCalendarMode } from "./GroupCalendar";
-import { dayBounds, longDayName } from "../blockDay";
+import { dayBounds, longDayName, shortDayName } from "../blockDay";
 import { todayInMexico } from "@/lib/format";
 
 const { getGroupSchedules, createBusySchedule } = vi.hoisted(() => ({
@@ -192,9 +192,10 @@ describe("GroupCalendar blocks a day from the agenda", () => {
         renderCalendar();
 
         const control = await screen.findByRole("button", { name: `Bloquear el día ${longDayName(today)}` });
-        expect(control).toHaveTextContent("Bloquear el día");
+        // La etiqueta visible nombra el mismo día, corto (ronda 9); el nombre accesible sigue siendo el largo.
+        expect(control).toHaveTextContent(`Bloquear el ${shortDayName(today) ?? ""}`);
+        expect(control).not.toHaveTextContent("Bloquear el día");
         expect(control).toHaveClass("min-h-11");
-
         // El control no ofrece nada hasta leer el día: primero se habilita y recién ahí se opera.
         await waitFor(() => expect(control).toBeEnabled());
 
@@ -218,5 +219,27 @@ describe("GroupCalendar blocks a day from the agenda", () => {
 
         await waitFor(() => expect(calendar.firstVisibleDay()).not.toBeNull());
         expect(screen.queryByRole("button", { name: /Bloquear el día/ })).toBeNull();
+    });
+});
+
+/**
+ * Ronda 9: a 390 px la celda del día medía 42 px y los botones Hoy/Mes/Semana/Día 43 px. El calendario
+ * es de FullCalendar y su hoja se inyecta en runtime, así que el tamaño se sube con utilidades que
+ * apuntan a sus clases; jsdom no mide píxeles, así que acá se fija la decisión, no la medida.
+ */
+describe("GroupCalendar · 44 px en los controles de decisión", () => {
+    it("raises the day cells and the toolbar buttons to at least 44 px", async () => {
+        const calendar = renderCalendar();
+
+        await waitFor(() => expect(calendar.firstVisibleDay()).not.toBeNull());
+        const wrapper = calendar.container.querySelector(".ng-calendario");
+        expect(wrapper).not.toBeNull();
+        // El `!` no es adorno: la hoja de FullCalendar entra sin capa y su `min-height: 100%` gana
+        // contra `@layer utilities` (la misma trampa del anillo de foco, T50/L50).
+        expect(wrapper).toHaveClass("[&_.fc-daygrid-day-frame]:min-h-11!");
+        expect(wrapper).toHaveClass("[&_.fc-button]:min-h-11");
+        // Los dos controles existen de verdad dentro del contenedor que los agranda.
+        expect(calendar.container.querySelector(".fc-daygrid-day-frame")).not.toBeNull();
+        expect(screen.getAllByRole("button", { name: /Mes|Semana|Día|Hoy/ }).length).toBeGreaterThan(0);
     });
 });

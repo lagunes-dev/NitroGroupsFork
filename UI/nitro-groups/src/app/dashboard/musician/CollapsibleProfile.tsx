@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/Button";
  * cambia nada: el resumen no se ofrece y el perfil se ve siempre.
  *
  * El resumen es un `<p>` y no un `<h1>`: la tarjeta de adentro ya trae el título de la página.
+ *
+ * Ronda 9: el botón decía "Ver perfil" y no decía de quién era el perfil que abría, en un panel que ya
+ * tiene una pestaña "Perfil" del músico. La entrada se llama por lo que es: el perfil del grupo.
  */
 export function CollapsibleProfile({ title, children }: { title: string; children: ReactNode }) {
     const [open, setOpen] = useState(false);
@@ -27,7 +30,7 @@ export function CollapsibleProfile({ title, children }: { title: string; childre
                     aria-controls={panelId}
                     onClick={() => setOpen((previous) => !previous)}
                 >
-                    {open ? "Ocultar perfil" : "Ver perfil"}
+                    {open ? "Ocultar perfil del grupo" : "Perfil del grupo"}
                 </Button>
             </div>
             <div id={panelId} className={open ? "block" : "hidden md:block"}>

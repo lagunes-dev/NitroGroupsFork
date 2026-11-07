@@ -258,7 +258,15 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
         </Alert>
       )}
 
-      <div className="mt-8">
+      {/*
+        Ronda 9: a 390 px la celda del día medía 42 px y los botones de la barra (Hoy / Mes / Semana /
+        Día) 43 px. FullCalendar inyecta su hoja en runtime y sin capa, así que sus medidas se suben
+        desde acá, apuntando a sus clases. El `!` de la celda no es adorno: ese `min-height` choca con
+        el `min-height: 100%` de FullCalendar, que al no estar en una capa gana contra `@layer
+        utilities` (la misma trampa del anillo de foco, T50). Los botones no lo necesitan porque
+        FullCalendar no les fija altura.
+      */}
+      <div className="ng-calendario mt-8 [&_.fc-button]:min-h-11 [&_.fc-daygrid-day-frame]:min-h-11!">
         {isLoading ? (
           <div aria-busy className="grid h-[480px] place-items-center bg-fondo-2">
             <p role="status" className="text-tinta-2">Cargando calendario…</p>

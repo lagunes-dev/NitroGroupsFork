@@ -74,7 +74,7 @@ describe("S26 · la bandeja bloquea un día", () => {
 
         // El nombre accesible dice el día del pedido, no un "Bloquear" suelto.
         const control = await screen.findByRole("button", { name: "Bloquear el día jueves 19 de noviembre de 2026" });
-        expect(control).toHaveTextContent("Bloquear el día");
+        expect(control).toHaveTextContent("Bloquear el jue 19 nov");
         expect(control).toHaveClass("min-h-11");
         expect(control.className).not.toMatch(/outline-none/);
     });

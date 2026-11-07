@@ -1,4 +1,4 @@
-import { budgetLabel, receivedDate } from "@/features/bookings/deposit";
+import { balanceBlock, budgetLabel, receivedDate } from "@/features/bookings/deposit";
 import { formatPrice, isIsoDate } from "@/lib/format";
 import { gigTimeLabel } from "./viewModel";
 import type { GroupGigPayload } from "./types";
@@ -265,4 +265,38 @@ export function gigSettlement(
         difference,
         note,
     };
+}
+
+/** The columns of a manager row the balance line reads. */
+type BalanceRow = Pick<
+    GroupGigPayload,
+    "budget" | "currency" | "deposit" | "balanceReceivedAt" | "balanceDueDate" | "eventDate"
+>;
+
+/**
+ * The balance line of the manager's row (S18, S23, S24): what the client still owes — "Falta pagar
+ * $6,200 · para el 15 de noviembre", or "Falta pagar $6,200" when the group loaded no deadline — and,
+ * once the group recorded the arrival, "Saldo recibido el …". Null when there is nothing to state, so
+ * a gig with nothing owed draws no line.
+ *
+ * The money, the dates and the wording come from the deal helpers and from nothing else: this only
+ * decides when they apply. The manager reads the client's own line on purpose — it is the same debt,
+ * said one way — and the app still charges, validates and judges nothing (D1, D2).
+ */
+export function agendaBalanceLabel(row: BalanceRow): string | null {
+    const currency = typeof row.currency === "string" && row.currency.trim() ? row.currency : "MXN";
+    const block = balanceBlock(
+        {
+            // La agenda del manager solo lista toques que el grupo ya aceptó.
+            status: "Accepted",
+            budget: readAmount(row.budget),
+            deposit: row.deposit,
+            currency,
+            balanceReceivedAt: row.balanceReceivedAt,
+            balanceDueDate: row.balanceDueDate,
+            eventDate: row.eventDate,
+        },
+        "Client"
+    );
+    return block?.balance ?? null;
 }

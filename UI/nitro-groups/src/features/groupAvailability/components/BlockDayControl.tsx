@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { isIsoDate } from "@/lib/format";
-import { longDayName } from "../blockDay";
+import { longDayName, shortDayName } from "../blockDay";
 import { useDayBlock } from "../hooks/useDayBlock";
 
 type PendingChange = "block" | "unblock";
@@ -30,8 +30,12 @@ export function BlockDayControl({ groupId, initialDay, className }: BlockDayCont
     const { isBlocked, isChecking, isSaving, failed, block, unblock } = useDayBlock({ groupId, day });
 
     const dayName = longDayName(day);
+    const shortName = shortDayName(day);
     const hasDay = isIsoDate(day) && dayName !== null;
     const verb = isBlocked ? "Desbloquear" : "Bloquear";
+    /* Ronda 9: la etiqueta visible nombra el día, corto. Antes el día vivía solo en el aria-label, y un
+       botón que dice "Bloquear el día" no dice cuál. Sin día legible sigue la etiqueta genérica. */
+    const visibleLabel = hasDay && shortName ? `${verb} el ${shortName}` : `${verb} el día`;
     const unblocking = pending === "unblock";
     const dialogTitle = unblocking ? "Desbloquear este día" : "Bloquear este día";
     const dialogAction = unblocking ? "Desbloquear día" : "Bloquear día";
@@ -75,7 +79,7 @@ export function BlockDayControl({ groupId, initialDay, className }: BlockDayCont
                     disabled={!hasDay || isChecking}
                     onClick={() => setPending(isBlocked ? "unblock" : "block")}
                 >
-                    {isBlocked ? "Desbloquear el día" : "Bloquear el día"}
+                    {visibleLabel}
                 </Button>
             </div>
 

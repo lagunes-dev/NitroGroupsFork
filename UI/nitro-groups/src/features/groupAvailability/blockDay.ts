@@ -1,4 +1,4 @@
-import { formatEventDate, isIsoDate } from "@/lib/format";
+import { formatEventDate, isIsoDate, shortDateParts } from "@/lib/format";
 import type { ScheduleEventDto } from "./services/groupAvailability.service";
 
 /**
@@ -18,6 +18,16 @@ export function dayBounds(day: string): { start: string; end: string } | null {
 export function longDayName(day: string): string | null {
     const name = formatEventDate(day);
     return name ? name.replace(/,\s*/, " ") : null;
+}
+
+/**
+ * "jue 19 nov": el día corto que cabe en la etiqueta de un botón, con la abreviatura española del día y
+ * del mes y sin el año. El nombre accesible del control sigue usando el día largo: esto es solo lo que
+ * se lee. Null cuando el día no se puede leer, para que el botón pueda quedarse con su etiqueta genérica.
+ */
+export function shortDayName(day: string): string | null {
+    const parts = shortDateParts(day);
+    return parts ? `${parts.weekday} ${parts.day} ${parts.month}` : null;
 }
 
 /**

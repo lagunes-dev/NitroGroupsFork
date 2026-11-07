@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
     SETLIST_MAX,
+    agendaBalanceLabel,
     attendeePayLines,
     buildDetailsBody,
     buildPayBody,
@@ -217,5 +218,58 @@ describe("setlistCounter", () => {
     it("shows used over maximum", () => {
         expect(setlistCounter("abc")).toBe("3 / 4,000");
         expect(setlistCounter("")).toBe("0 / 4,000");
+    });
+});
+
+/**
+ * S18/S23/S24: el renglón del manager dice el saldo del cliente con su fecha límite, igual que el
+ * editor. La plata y las fechas vienen de los helpers del trato; acá solo se decide cuándo aplican.
+ */
+describe("agendaBalanceLabel", () => {
+    const DEAL = {
+        eventDate: "2026-11-19",
+        budget: 14000,
+        currency: "MXN",
+        deposit: { amount: 7800, receivedAt: "2026-11-04T18:00:00Z" },
+    };
+
+    it("says what is still owed with the deadline the group loaded", () => {
+        expect(agendaBalanceLabel({ ...DEAL, balanceDueDate: "2026-11-15" })).toBe(
+            "Falta pagar $6,200 · para el 15 de noviembre"
+        );
+    });
+
+    it("says what is still owed without a deadline when the group loaded none", () => {
+        expect(agendaBalanceLabel({ ...DEAL, balanceDueDate: null })).toBe("Falta pagar $6,200");
+        expect(agendaBalanceLabel(DEAL)).toBe("Falta pagar $6,200");
+    });
+
+    it("draws no balance line when nothing is owed", () => {
+        // El anticipo cubre el cachet: no hay saldo que anunciar, y "Sin saldo pendiente" sería una línea de más.
+        expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 14000, receivedAt: "2026-11-04T18:00:00Z" } })).toBeNull();
+        expect(
+            agendaBalanceLabel({ ...DEAL, deposit: { amount: 15000, receivedAt: "2026-11-04T18:00:00Z" } })
+        ).toBeNull();
+    });
+
+    it("draws no balance line while the deposit has not landed", () => {
+        // Sin anticipo recibido no hay trato que cuadrar: el saldo se calcula contra la plata que entró.
+        expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 7800, receivedAt: null } })).toBeNull();
+        expect(agendaBalanceLabel({ ...DEAL, deposit: null })).toBeNull();
+    });
+
+    it("keeps saying the balance arrived once the group recorded it (T48)", () => {
+        expect(
+            agendaBalanceLabel({ ...DEAL, balanceReceivedAt: "2026-12-13T18:00:00Z", balanceDueDate: "2026-11-15" })
+        ).toBe("Saldo recibido el 13 de diciembre de 2026");
+    });
+
+    it("reads a cachet that arrives as text and a missing currency as pesos", () => {
+        expect(agendaBalanceLabel({ ...DEAL, budget: "14000", currency: null })).toBe("Falta pagar $6,200");
+    });
+
+    it("has nothing to say without a cachet to compare against", () => {
+        expect(agendaBalanceLabel({ ...DEAL, budget: null })).toBeNull();
+        expect(agendaBalanceLabel({ ...DEAL, budget: 0 })).toBeNull();
     });
 });
