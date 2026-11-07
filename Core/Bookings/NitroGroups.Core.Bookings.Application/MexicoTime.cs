@@ -21,6 +21,22 @@ public static class MexicoTime
                 new DateTimeOffset(end, Zone.Value.GetUtcOffset(end)));
     }
 
+    /// <summary>
+    /// El día en México de un instante UTC (por ejemplo, cuándo cambió un texto del grupo); null
+    /// cuando no hay instante. Un instante sin zona se lee como UTC: es lo que guarda la base.
+    /// </summary>
+    public static DateOnly? DayOf(DateTime? utc)
+    {
+        if (utc is not { } moment)
+            return null;
+
+        var instant = moment.Kind == DateTimeKind.Local
+            ? new DateTimeOffset(moment)
+            : new DateTimeOffset(DateTime.SpecifyKind(moment, DateTimeKind.Utc));
+
+        return DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, Zone.Value).DateTime);
+    }
+
     /// <summary>La fecha de hoy en México.</summary>
     public static DateOnly Today(TimeProvider time)
         => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(time.GetUtcNow(), Zone.Value).DateTime);

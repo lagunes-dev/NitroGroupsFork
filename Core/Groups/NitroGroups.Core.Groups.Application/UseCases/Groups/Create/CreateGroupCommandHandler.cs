@@ -26,7 +26,10 @@ namespace NitroGroups.Core.Groups.Application.UseCases.Groups.Create
         int MinimumDurationHours,
         int SetupTimeMinutes,
         bool IsAcceptingBookings,
-        bool Active) : ICommand<Result<GroupResponse>>;
+        bool Active,
+        // Ronda 9: cómo quiere el grupo que se le pague. Opcional para no romper a quien ya construye
+        // el comando sin él; el valor lo normaliza la entidad.
+        string? PaymentInstructions = null) : ICommand<Result<GroupResponse>>;
 
     public class CreateGroupCommandHandler(IUnitOfWorkGroups unitOfWork, IMapper mapper) : ICommandHandler<CreateGroupCommand, Result<GroupResponse>>
     {
@@ -48,6 +51,8 @@ namespace NitroGroups.Core.Groups.Application.UseCases.Groups.Create
             group.BookingCount = 0;
             group.IsVerified = false;
             group.IsFeatured = false;
+            // Ronda 9: si el grupo ya dice cómo pagarle, la nota del cliente lleva su fecha desde el día uno.
+            group.SetPaymentInstructions(command.PaymentInstructions, DateTime.UtcNow);
 
             await _unitOfWork.Groups.CreateAsync(group);
 

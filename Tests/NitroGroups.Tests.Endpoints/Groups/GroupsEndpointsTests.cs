@@ -75,17 +75,27 @@ public class GroupsEndpointsTests(NitroGroupsWebAppFactory factory) : IClassFixt
     // GET api/groups/slug/{slug}
     // ---------------------------------------------------------------
 
+    /// <summary>El perfil público de un grupo, sin el cómo pagar del manager (ronda 9).</summary>
+    private static PublicGroupResponse BuildPublicGroupResponse(long id = 1, string slug = "los-rockers") => new()
+    {
+        Id = id,
+        Slug = slug,
+        GroupName = "Los Rockers",
+        OwnerUserId = 10,
+        Active = true
+    };
+
     [Fact]
     public async Task GetBySlug_Existente_Returns200()
     {
         _mediator
-            .SendQueryAsync<GetGroupBySlugQuery, Result<GroupResponse>>(Arg.Any<GetGroupBySlugQuery>())
-            .Returns(Result<GroupResponse>.Success(BuildGroupResponse()));
+            .SendQueryAsync<GetGroupBySlugQuery, Result<PublicGroupResponse>>(Arg.Any<GetGroupBySlugQuery>())
+            .Returns(Result<PublicGroupResponse>.Success(BuildPublicGroupResponse()));
 
         var response = await _client.GetAsync("api/groups/slug/los-rockers");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var result = await response.Content.ReadFromJsonAsync<GroupResponse>();
+        var result = await response.Content.ReadFromJsonAsync<PublicGroupResponse>();
         Assert.Equal("los-rockers", result!.Slug);
     }
 
@@ -93,8 +103,8 @@ public class GroupsEndpointsTests(NitroGroupsWebAppFactory factory) : IClassFixt
     public async Task GetBySlug_NoExiste_Returns404()
     {
         _mediator
-            .SendQueryAsync<GetGroupBySlugQuery, Result<GroupResponse>>(Arg.Any<GetGroupBySlugQuery>())
-            .Returns(Result<GroupResponse>.Failure("No encontrado."));
+            .SendQueryAsync<GetGroupBySlugQuery, Result<PublicGroupResponse>>(Arg.Any<GetGroupBySlugQuery>())
+            .Returns(Result<PublicGroupResponse>.Failure("No encontrado."));
 
         var response = await _client.GetAsync("api/groups/slug/no-existe");
 
