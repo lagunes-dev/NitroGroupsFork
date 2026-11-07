@@ -32,7 +32,7 @@ describe("RequestList balance received (T48)", () => {
 
     it("says the balance arrived instead of 'Falta pagar', and the next step is the settled one", () => {
         render(<RequestList requests={[settled]} viewer="Client" />);
-        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026")).toBeInTheDocument();
+        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026 · $14,000")).toBeInTheDocument();
         expect(screen.getByText("No queda nada por pagar.")).toBeInTheDocument();
         expect(screen.queryByText(/Falta pagar/)).toBeNull();
         expect(screen.queryByText(/Acuerda el saldo/)).toBeNull();
@@ -40,7 +40,7 @@ describe("RequestList balance received (T48)", () => {
 
     it("keeps the balance as the white line of the row, like the debt it replaces", () => {
         render(<RequestList requests={[settled]} viewer="Client" />);
-        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026")).toHaveClass("text-tinta");
+        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026 · $14,000")).toHaveClass("text-tinta");
         expect(screen.getByText("$18,000")).toHaveClass("text-tinta-2");
     });
 
@@ -179,7 +179,7 @@ describe("RequestList cómo pagar (ronda 10)", () => {
     it("says nothing once the balance is recorded as received", () => {
         render(<RequestList requests={[{ ...withMethod, balanceReceivedAt: "2026-12-13T15:00:00Z" }]} viewer="Client" />);
 
-        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026")).toBeInTheDocument();
+        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026 · $14,000")).toBeInTheDocument();
         expect(screen.queryByText(method)).toBeNull();
     });
 

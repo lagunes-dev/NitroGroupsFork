@@ -33,24 +33,40 @@ export function shortDayLabel(value: unknown): string | null {
  * "15 de noviembre de 2026": a deadline without the year is ambiguous next to a product that says the
  * year everywhere else (round 10). Same helper as every other long date, minus the weekday.
  */
-function dayWithYearLabel(value: unknown): string | null {
+export function longDayLabel(value: unknown): string | null {
     if (typeof value !== "string" || !value.trim()) return null;
     return formatEventDate(value.slice(0, 10))?.replace(/^[^,]+,\s*/, "") ?? null;
 }
 
 /** "para el 15 de noviembre de 2026", o null cuando no hay plazo que decir (T61, S24). */
 export function dueDateLabel(value: unknown): string | null {
-    const day = dayWithYearLabel(value);
+    const day = longDayLabel(value);
     return day ? `para el ${day}` : null;
 }
 
-/** The deposit split into the two facts the deal needs: how much, and whether it already landed. */
+/** "antes del 15 de noviembre de 2026": el mismo día, dicho como lo que el paso pide (ronda 11). */
+export function beforeDateLabel(value: unknown): string | null {
+    const day = longDayLabel(value);
+    return day ? `antes del ${day}` : null;
+}
+
+/** The deposit as the app knows it: an amount the group recorded and whether it already landed. */
 function readDeposit(deposit: unknown): { amount: number; received: boolean } | null {
     if (!deposit || typeof deposit !== "object") return null;
     const { amount, receivedAt } = deposit as DepositPayload;
     const value = typeof amount === "string" && amount.trim() ? Number(amount) : amount;
     if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
     return { amount: value, received: typeof receivedAt === "string" && receivedAt.trim().length > 0 };
+}
+
+/**
+ * Ronda 11: lo que la app ya sabe del anticipo, para que el próximo paso no pida acordar lo que ya está
+ * cargado. Null cuando no hay monto recordado o cuando ese anticipo ya entró: ya no hay nada que pagar.
+ */
+function pendingDeposit(deposit: unknown): DepositPayload | null {
+    const read = readDeposit(deposit);
+    if (!read || read.received) return null;
+    return deposit as DepositPayload;
 }
 
 /**
@@ -154,9 +170,10 @@ function remainingAmount(request: { budget?: number | null; deposit?: unknown })
 }
 
 /**
- * "Saldo recibido el 13 de diciembre de 2026" once the group recorded it; otherwise
- * "Falta pagar $14,000" for the client of an accepted event whose deposit already landed. Null while
- * the deposit is pending, for the group's view and when there is no budget to compare against: the app
+ * "Saldo recibido el 13 de diciembre de 2026" once the group recorded it — with the figure when the
+ * cachet and the deposit let it be computed, so the client can check what she was charged; otherwise
+ * the fact alone. `Falta pagar $14,000` for the client of an accepted event whose deposit already
+ * landed, null while the deposit is pending, for the group's view and without a budget: the app
  * records the deposit, it never charges anything.
  */
 export function balanceLabel(
@@ -167,7 +184,11 @@ export function balanceLabel(
     // T48: what the group recorded wins over what we can compute from the deposit and the budget.
     if (isBalanceReceived(request)) {
         const date = receivedDate(request.balanceReceivedAt as string);
-        return date ? `Saldo recibido el ${date}` : "Saldo recibido";
+        const fact = date ? `Saldo recibido el ${date}` : "Saldo recibido";
+        // Ronda 11: la cifra solo cuando sale de lo que la app ya sabe, y nunca un cero.
+        const received = remainingAmount(request);
+        const money = received !== null && received > 0 ? formatPrice(received, request.currency ?? "MXN") : null;
+        return money ? `${fact} · ${money}` : fact;
     }
     const remaining = remainingAmount(request);
     if (remaining === null) return null;
@@ -213,14 +234,20 @@ export function nextStepLabel(
             // Ronda 9: un evento que ya pasó no pide "cerrar la fecha" ni "acordar para el día del
             // evento": son acciones sobre un futuro que ya no existe. Sin fecha legible no se inventa.
             if (isPast(request.eventDate, today)) return "Este evento ya pasó.";
+            // Ronda 11: el anticipo ya está cargado como pendiente, así que no queda nada que acordar.
+            // Con el plazo cargado el paso lo nombra; sin plazo pide pagar y no inventa una fecha.
+            const deposit = pendingDeposit(request.deposit);
+            if (deposit) {
+                const depositBefore = beforeDateLabel(deposit.dueDate);
+                return depositBefore ? `Paga el anticipo ${depositBefore}.` : "Paga el anticipo.";
+            }
             const remaining = remainingAmount(request);
             if (remaining === null) return "Acuerda el anticipo con el grupo para cerrar la fecha.";
             if (remaining <= 0) return "No queda nada por pagar.";
             // Con la fecha límite ya dicha en la línea del saldo, "el día del evento" sería un segundo
-            // plazo para el mismo saldo (y lo contradice): se calla.
-            return dueDateLabel(request.balanceDueDate)
-                ? "Acuerda el saldo con el grupo."
-                : "Acuerda el saldo con el grupo para el día del evento.";
+            // plazo para el mismo saldo (y lo contradice): se nombra el plazo cargado y se pide pagar.
+            const before = beforeDateLabel(request.balanceDueDate);
+            return before ? `Paga el saldo ${before}.` : "Acuerda el saldo con el grupo para el día del evento.";
         }
         default:
             return null;

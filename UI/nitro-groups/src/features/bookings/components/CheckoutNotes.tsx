@@ -1,12 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { bookingsService } from "../bookings.service";
-import { toCheckoutNotesView } from "../checkoutNotes";
+import { conceptLine, paymentClipboardText, toCheckoutNotesView } from "../checkoutNotes";
 import type { EventRequestParty, EventRequestStatus } from "../types";
 
 /** El texto del grupo cambia poco; una respuesta por minuto evita pedir lo mismo al abrir el hilo. */
 const NOTES_STALE_MS = 60_000;
+
+/** Lo que se dijo después de pedir el texto: nunca se afirma que se copió si no se copió. */
+type CopyState = "idle" | "copied" | "failed";
+
+const COPY_LABEL = "Copiar los datos de pago";
+
+function copyMessage(state: CopyState): string {
+    if (state === "copied") return "Texto de pago copiado. Pégalo en tu banco.";
+    if (state === "failed") return "No se pudo copiar. Selecciona el texto y cópialo a mano.";
+    return "";
+}
 
 /**
  * Ronda 9: cómo pagar, junto al anticipo y el saldo, donde el cliente ya mira la plata. Solo lo lee
@@ -17,22 +29,31 @@ const NOTES_STALE_MS = 60_000;
  * inventa un método. Con el trato saldado —saldo registrado como recibido o nada pendiente— el bloque
  * no se dibuja ni se pide: bajo "No queda nada por pagar" una CLABE es ruido.</p>
  *
- * <p>La app <b>no cobra</b>: no hay botón ni enlace dentro de la nota, solo lo que el grupo dijo
- * (D1/S18). Si la API no contesta, el bloque no está y el hilo sigue funcionando como antes.</p>
+ * <p>Ronda 11: la nota lleva una línea de concepto que arma la app desde el pedido (el texto del grupo
+ * se sigue leyendo tal cual), y una sola acción que copia el texto completo. La app <b>no cobra</b>:
+ * no hay botón ni enlace que pague, y ningún número del texto se vuelve un enlace, porque la app no
+ * sabe qué número es la cuenta y cuál el teléfono (D1/S18).</p>
  */
 export function CheckoutNotes({
     requestId,
     viewer,
     status,
     settled,
+    eventType,
+    eventDate,
 }: {
     requestId: number;
     viewer: EventRequestParty;
     status: EventRequestStatus;
     /** true cuando no queda nada por pagar: la misma regla que la línea del saldo. */
     settled: boolean;
+    /** El tipo de evento del pedido, para la línea de concepto. */
+    eventType?: string | null;
+    /** `YYYY-MM-DD` del pedido, para la línea de concepto. */
+    eventDate?: string | null;
 }) {
     const canRead = viewer === "Client" && status === "Accepted" && !settled;
+    const [copy, setCopy] = useState<CopyState>("idle");
     const notes = useQuery({
         queryKey: ["checkout-notes", requestId],
         queryFn: () => bookingsService.checkoutNotes(requestId),
@@ -46,6 +67,20 @@ export function CheckoutNotes({
     const view = toCheckoutNotesView(notes.data);
     if (view === null) return null;
 
+    const concept = conceptLine({ id: requestId, eventType, eventDate });
+    const clipboardText = paymentClipboardText(view, concept);
+
+    /** Copia el texto tal cual. Sin portapapeles —o si lo niega— se dice, no se finge. */
+    const copyPaymentText = async () => {
+        try {
+            if (!navigator.clipboard) throw new Error("clipboard-unavailable");
+            await navigator.clipboard.writeText(clipboardText);
+            setCopy("copied");
+        } catch {
+            setCopy("failed");
+        }
+    };
+
     return (
         <section aria-label="Cómo pagar" className="md:col-span-12 rounded-xl bg-fondo-2 p-5">
             <ul className="flex flex-col gap-5">
@@ -54,11 +89,26 @@ export function CheckoutNotes({
                         <h3 className="type-heading text-lg text-tinta">{note.title}</h3>
                         {/* El texto del grupo se respeta tal cual, con sus saltos de línea. */}
                         <p className="mt-2 whitespace-pre-line leading-relaxed text-tinta">{note.body}</p>
+                        {/* Ronda 11: información, no control: qué pedido y qué evento es esta transferencia. */}
+                        {concept && <p className="mt-1 text-tinta">{concept}</p>}
                         {note.managerLine && <p className="mt-1 text-tinta">{note.managerLine}</p>}
                         {note.updated && <p className="mt-1 text-sm tabular text-tinta-2">{note.updated}</p>}
                     </li>
                 ))}
             </ul>
+            {/* La única acción del bloque: copiar, nunca pagar. 44 px y alcanzable con el teclado. */}
+            <div className="mt-5">
+                <button
+                    type="button"
+                    onClick={copyPaymentText}
+                    className="inline-flex min-h-11 items-center rounded-xl bg-fondo-3 px-4 font-semibold text-tinta hover:bg-fondo-2"
+                >
+                    {COPY_LABEL}
+                </button>
+                <p role="status" aria-live="polite" className="mt-2 text-sm text-tinta-2">
+                    {copyMessage(copy)}
+                </p>
+            </div>
             {/* Una sola vez para el bloque: la nota que dice quién cobra no se repite. */}
             {view.notice && <p className="mt-4 text-sm text-tinta-2">{view.notice}</p>}
         </section>

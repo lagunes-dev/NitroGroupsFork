@@ -1,4 +1,5 @@
-import { shortDayLabel } from "./deposit";
+import { eventTypeLabel } from "@/lib/eventTypeLabel";
+import { longDayLabel, shortDayLabel } from "./deposit";
 
 /**
  * Una nota de "cómo pagar" tal como la manda la API (ronda 9). La app no cobra ni mueve dinero
@@ -72,4 +73,36 @@ export function toCheckoutNotesView(payload: unknown): CheckoutNotesView | null 
     }
 
     return notes.length ? { notes, notice } : null;
+}
+
+/**
+ * Ronda 11: el concepto que la clienta escribe en la transferencia. El texto de pago es uno solo por
+ * grupo, así que los dos eventos aceptados dicen las mismas palabras y el concepto de adentro nombra a
+ * uno de ellos: seguirlo rotula las dos transferencias igual. Esta línea sale del pedido —nunca del
+ * texto del grupo, que se sigue leyendo tal cual— y es información, no un control.
+ *
+ * <p>Dice solo lo que puede leer: sin fecha legible nombra el pedido y el tipo, y sin tipo ni fecha
+ * nombra el pedido. Nunca escribe un día que nadie cargó.</p>
+ */
+export function conceptLine(request: {
+    id: number;
+    eventType?: string | null;
+    eventDate?: string | null;
+}): string | null {
+    if (!Number.isInteger(request.id) || request.id <= 0) return null;
+
+    const what = [eventTypeLabel(request.eventType), longDayLabel(request.eventDate)].filter(Boolean).join(", ");
+    return what ? `Concepto: pedido ${request.id} · ${what}` : `Concepto: pedido ${request.id}`;
+}
+
+/**
+ * Ronda 11: el texto que se copia, tal cual, para no teclear 18 dígitos en un teléfono y mandar la
+ * transferencia a otra cuenta. Van las líneas que el banco pide —el texto del grupo, quién atiende y el
+ * concepto—; no van el título, la fecha de actualización ni la línea de "no cobra", que no son datos de
+ * la transferencia. La app no analiza el texto ni adivina qué número es la cuenta y cuál el teléfono.
+ */
+export function paymentClipboardText(view: CheckoutNotesView, concept: string | null): string {
+    return view.notes
+        .map((note) => [note.body, note.managerLine, concept].filter(Boolean).join("\n"))
+        .join("\n\n");
 }
