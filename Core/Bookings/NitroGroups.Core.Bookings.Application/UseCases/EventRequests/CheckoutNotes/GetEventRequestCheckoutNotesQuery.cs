@@ -16,11 +16,12 @@ public sealed record GetEventRequestCheckoutNotesQuery(long EventRequestId, long
     : IQuery<BookingResult<List<CheckoutNoteResponse>>>;
 
 /// <summary>
-/// Las notas de pago del hilo del cliente, en este orden:
-/// 1. el acuerdo: existe siempre que el pedido sea legible para ese cliente, con el nombre del
-///    manager cuando Users lo puede dar (nunca su correo);
-/// 2. el texto del grupo, solo cuando el grupo escribió algo en su perfil.
-/// Quién puede leerlas: el cliente del pedido y solo si está aceptado. Cualquier otro caso responde
+/// La nota de pago del hilo del cliente. Es <b>una</b> y es la única que enuncia el método (ronda 10):
+/// 1. si el grupo escribió cómo quiere que se le pague, ese texto es el método, tal cual, con el
+///    nombre del manager en su propia línea;
+/// 2. si el grupo no escribió nada, la nota no inventa un método: dice que el pago se acuerda con el
+///    grupo y nombra a quien atiende, nada más.
+/// Quién puede leerla: el cliente del pedido y solo si está aceptado. Cualquier otro caso responde
 /// 404, igual que el detalle del pedido con alguien que no es parte: no se revela ni que existe.
 /// </summary>
 public sealed class GetEventRequestCheckoutNotesQueryHandler(
@@ -29,13 +30,15 @@ public sealed class GetEventRequestCheckoutNotesQueryHandler(
     IUsersModuleApi users)
     : IQueryHandler<GetEventRequestCheckoutNotesQuery, BookingResult<List<CheckoutNoteResponse>>>
 {
-    public const string AgreementTitle = "Cómo pagar";
-    public const string GroupInstructionsTitle = "Instrucciones del grupo";
+    public const string NoteTitle = "Cómo pagar";
 
-    /// <summary>De qué se acordó el pago: hoy, en efectivo, que es lo que la app registra como dato.</summary>
-    public const string CashAgreementBody = "Acordaste el pago en efectivo con el grupo.";
+    /// <summary>
+    /// Cuando el grupo no escribió nada: se dice con quién se acuerda y nada más. Nombrar un método
+    /// sería afirmar un acuerdo que nadie hizo —"en efectivo" era exactamente eso (ronda 10).
+    /// </summary>
+    public const string AgreedWithGroupBody = "Acuerdas el pago con el grupo.";
 
-    /// <summary>Decisión 4: la línea fija que dice quién cobra. Viaja en cada nota.</summary>
+    /// <summary>Decisión 4: la línea fija que dice quién cobra. Viaja en la nota.</summary>
     public const string NoMiddlemanLine = "Pagas directo al grupo; NitroGroups no cobra ni interviene.";
 
     public async Task<BookingResult<List<CheckoutNoteResponse>>> Handle(
@@ -57,28 +60,24 @@ public sealed class GetEventRequestCheckoutNotesQueryHandler(
         var managerName = await ManagerNameAsync(group?.OwnerUserId, cancellationToken);
         var instructions = await groups.GetPaymentInstructionsAsync(request.GroupId, cancellationToken);
 
-        var notes = new List<CheckoutNoteResponse> { Agreement(managerName) };
-
-        // El campo vacío no es un dato: sin texto del grupo no hay segunda nota, pero la del acuerdo
-        // sigue estando (decisión 6).
-        if (instructions is not null)
+        var note = new CheckoutNoteResponse
         {
-            notes.Add(new CheckoutNoteResponse
-            {
-                Title = GroupInstructionsTitle,
-                // Tal cual lo escribió el grupo: la app no lo reescribe ni lo resume.
-                Body = instructions.Text,
-                UserDescription = NoMiddlemanLine,
-                UpdatedOn = MexicoTime.DayOf(instructions.UpdatedAt)
-            });
-        }
+            Title = NoteTitle,
+            // El texto del grupo se repite tal cual y es el único método que se enuncia: la app no lo
+            // reescribe, no lo resume y no le agrega otro método arriba.
+            Body = instructions?.Text ?? AgreedWithGroupBody,
+            ManagerLine = ManagerLine(managerName),
+            UserDescription = NoMiddlemanLine,
+            // Sin texto del grupo no hay nada que se haya actualizado: la línea no lleva fecha.
+            UpdatedOn = instructions is null ? null : MexicoTime.DayOf(instructions.UpdatedAt)
+        };
 
-        return BookingResult<List<CheckoutNoteResponse>>.Success(notes);
+        return BookingResult<List<CheckoutNoteResponse>>.Success([note]);
     }
 
     /// <summary>
     /// El nombre del manager del grupo, cuando Users lo puede dar. Nunca su correo: el cliente trata
-    /// con el grupo, no con una bandeja de entrada. Sin nombre legible, la frase se queda sin él.
+    /// con el grupo, no con una bandeja de entrada. Sin nombre legible, la línea no se dibuja.
     /// </summary>
     private async Task<string?> ManagerNameAsync(long? managerUserId, CancellationToken cancellationToken)
     {
@@ -90,10 +89,7 @@ public sealed class GetEventRequestCheckoutNotesQueryHandler(
         return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
     }
 
-    private static CheckoutNoteResponse Agreement(string? managerName) => new()
-    {
-        Title = AgreementTitle,
-        Body = string.IsNullOrEmpty(managerName) ? CashAgreementBody : $"{CashAgreementBody} Te atiende {managerName}.",
-        UserDescription = NoMiddlemanLine
-    };
+    /// <summary>"Te atiende Mónica Salinas."; null cuando no hay nombre legible.</summary>
+    public static string? ManagerLine(string? managerName)
+        => string.IsNullOrWhiteSpace(managerName) ? null : $"Te atiende {managerName.Trim()}.";
 }

@@ -55,6 +55,15 @@ namespace NitroGroups.Shared.Contracts.Bookings.Responses
         public DateOnly? BalanceDueDate { get; set; }
 
         /// <summary>
+        /// Ronda 10: cómo pagar en una línea, para la fila de la lista del cliente, que es donde el
+        /// cliente decide sin abrir el hilo. Es la primera línea del texto del grupo, nunca un párrafo.
+        /// Null cuando el grupo no escribió nada, cuando el pedido no está aceptado (sin trato no hay
+        /// pago) y en todas las respuestas que no son la lista del cliente: un null no viaja.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? PaymentMethod { get; set; }
+
+        /// <summary>
         /// Solo para el grupo: si el grupo ya tiene otro toque aceptado ese mismo día y cuál es
         /// (D6/S11). Null en las solicitudes del cliente — el cliente nunca ve si el grupo está
         /// ocupado — y null cuando no hay choque, y un null no viaja: el contrato del cliente queda

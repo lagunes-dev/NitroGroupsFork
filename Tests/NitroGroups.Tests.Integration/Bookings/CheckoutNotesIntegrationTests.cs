@@ -14,8 +14,10 @@ namespace NitroGroups.Tests.Integration.Bookings;
 /// pero no cómo pagar. La app no cobra ni mueve dinero (D1/S18): la nota solo repite cómo dijo el
 /// grupo que quiere que se le pague.
 /// Reglas: solo el cliente del pedido, solo si está aceptado, cualquier otro caso es el mismo 404 que
-/// el detalle del pedido; el texto vacío no dibuja la segunda nota pero la del acuerdo sigue estando;
-/// la fecha del texto se dice cuando se puede leer y nunca se inventa.
+/// el detalle del pedido; **una sola nota autoritativa** (ronda 10): si el grupo escribió, su texto es
+/// el único método que se enuncia y el nombre del manager va aparte; si no escribió, la nota dice con
+/// quién se acuerda y no inventa un método; la app nunca dice "efectivo" con su propia voz; la fecha
+/// del texto se dice cuando se puede leer y nunca se inventa.
 /// </summary>
 public class CheckoutNotesIntegrationTests : IClassFixture<IntegrationTestFixture>
 {
@@ -28,11 +30,11 @@ public class CheckoutNotesIntegrationTests : IClassFixture<IntegrationTestFixtur
     public CheckoutNotesIntegrationTests(IntegrationTestFixture fixture) => _fixture = fixture;
 
     // ---------------------------------------------------------------------
-    // El cliente de un evento aceptado lee las dos notas, en orden
+    // Ronda 10: una sola nota autoritativa, nunca dos que se contradicen
     // ---------------------------------------------------------------------
 
     [Fact]
-    public async Task ClienteDeUnEventoAceptado_LeeLaNotaDelAcuerdoYLaDelGrupo()
+    public async Task ConTextoDelGrupo_ElTextoEsElUnicoMetodoYElManagerVaAparte()
     {
         await using var context = _fixture.CreateBookingsContext();
         var request = await SeedAcceptedAsync(context);
@@ -41,25 +43,21 @@ public class CheckoutNotesIntegrationTests : IClassFixture<IntegrationTestFixtur
         var result = await HandleAsync(context, request.Id, ClientId);
 
         Assert.True(result.IsSuccess, result.Error);
-        Assert.Equal(2, result.Value!.Count);
 
-        var acuerdo = result.Value[0];
-        Assert.Equal("Cómo pagar", acuerdo.Title);
-        // El nombre del manager sale de Users; el cliente trata con el grupo, no con una bandeja.
-        Assert.Equal("Acordaste el pago en efectivo con el grupo. Te atiende Pedro Vargas.", acuerdo.Body);
-        Assert.Equal("Pagas directo al grupo; NitroGroups no cobra ni interviene.", acuerdo.UserDescription);
-        Assert.Null(acuerdo.UpdatedOn);
-
-        var delGrupo = result.Value[1];
-        Assert.Equal("Instrucciones del grupo", delGrupo.Title);
+        // Una sola nota: una app que enuncia un acuerdo y luego instrucciones que lo contradicen deja
+        // al cliente sin saber con qué quedarse (ronda 10).
+        var note = Assert.Single(result.Value!);
+        Assert.Equal("Cómo pagar", note.Title);
         // El texto del grupo se repite tal cual: la app no lo reescribe ni lo resume.
-        Assert.Equal(GroupText, delGrupo.Body);
-        Assert.Equal("Pagas directo al grupo; NitroGroups no cobra ni interviene.", delGrupo.UserDescription);
-        Assert.Equal(new DateOnly(2026, 11, 5), delGrupo.UpdatedOn);
+        Assert.Equal(GroupText, note.Body);
+        // El nombre del manager sale de Users y va en su propia línea, en voz de la app.
+        Assert.Equal("Te atiende Pedro Vargas.", note.ManagerLine);
+        Assert.Equal("Pagas directo al grupo; NitroGroups no cobra ni interviene.", note.UserDescription);
+        Assert.Equal(new DateOnly(2026, 11, 5), note.UpdatedOn);
     }
 
     [Fact]
-    public async Task SinTextoDelGrupo_SoloQuedaLaNotaDelAcuerdo()
+    public async Task SinTextoDelGrupo_LaNotaNoInventaUnMetodo()
     {
         await using var context = _fixture.CreateBookingsContext();
         var request = await SeedAcceptedAsync(context);
@@ -69,12 +67,35 @@ public class CheckoutNotesIntegrationTests : IClassFixture<IntegrationTestFixtur
         Assert.True(result.IsSuccess, result.Error);
         var note = Assert.Single(result.Value!);
         Assert.Equal("Cómo pagar", note.Title);
-        Assert.Equal("Acordaste el pago en efectivo con el grupo. Te atiende Pedro Vargas.", note.Body);
+        // Ni efectivo ni transferencia: el método lo acuerda el cliente con el grupo.
+        Assert.Equal("Acuerdas el pago con el grupo.", note.Body);
+        Assert.Equal("Te atiende Pedro Vargas.", note.ManagerLine);
         Assert.Equal("Pagas directo al grupo; NitroGroups no cobra ni interviene.", note.UserDescription);
+        Assert.Null(note.UpdatedOn);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LaAppNuncaDiceEfectivoConSuPropiaVoz(bool groupWrote)
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var request = await SeedAcceptedAsync(context);
+        if (groupWrote)
+            _scenario.SetPaymentInstructions(GroupId, GroupText, FiledAt);
+
+        var result = await HandleAsync(context, request.Id, ClientId);
+
+        Assert.True(result.IsSuccess, result.Error);
+        // El texto del grupo puede hablar de efectivo; la voz de la app no afirma ningún método.
+        Assert.DoesNotContain(result.Value!, note =>
+            note.Body.Contains("efectivo", StringComparison.OrdinalIgnoreCase)
+            || (note.ManagerLine?.Contains("efectivo", StringComparison.OrdinalIgnoreCase) ?? false)
+            || note.UserDescription.Contains("efectivo", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public async Task SinNombreDelManager_LaFraseQuedaSinNombreYNoLlevaCorreo()
+    public async Task SinNombreDelManager_LaNotaQuedaSinEsaLineaYNoLlevaCorreo()
     {
         await using var context = _fixture.CreateBookingsContext();
         var request = await SeedAcceptedAsync(context);
@@ -84,7 +105,7 @@ public class CheckoutNotesIntegrationTests : IClassFixture<IntegrationTestFixtur
         var result = await HandleAsync(context, request.Id, ClientId);
 
         Assert.True(result.IsSuccess, result.Error);
-        Assert.Equal("Acordaste el pago en efectivo con el grupo.", result.Value![0].Body);
+        Assert.Null(result.Value![0].ManagerLine);
         Assert.DoesNotContain(result.Value!, note => note.Body.Contains('@') || note.Title.Contains('@'));
     }
 
@@ -98,10 +119,10 @@ public class CheckoutNotesIntegrationTests : IClassFixture<IntegrationTestFixtur
         var result = await HandleAsync(context, request.Id, ClientId);
 
         Assert.True(result.IsSuccess, result.Error);
-        var delGrupo = result.Value![1];
-        Assert.Equal(GroupText, delGrupo.Body);
+        var note = result.Value![0];
+        Assert.Equal(GroupText, note.Body);
         // Un texto sin fecha legible se lee sin fecha: nunca una fecha inventada.
-        Assert.Null(delGrupo.UpdatedOn);
+        Assert.Null(note.UpdatedOn);
     }
 
     [Fact]
@@ -114,7 +135,7 @@ public class CheckoutNotesIntegrationTests : IClassFixture<IntegrationTestFixtur
 
         var result = await HandleAsync(context, request.Id, ClientId);
 
-        Assert.Equal(new DateOnly(2026, 11, 5), result.Value![1].UpdatedOn);
+        Assert.Equal(new DateOnly(2026, 11, 5), result.Value![0].UpdatedOn);
     }
 
     // ---------------------------------------------------------------------

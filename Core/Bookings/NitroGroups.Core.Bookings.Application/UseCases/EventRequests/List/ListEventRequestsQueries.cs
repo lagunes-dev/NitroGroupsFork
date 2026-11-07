@@ -26,8 +26,37 @@ public sealed class GetMyEventRequestsQueryHandler(
     public async Task<List<EventRequestResponse>> Handle(GetMyEventRequestsQuery query, CancellationToken cancellationToken)
     {
         var requests = await unitOfWork.EventRequests.ListByClientAsync(query.ClientUserId, cancellationToken);
-        return await EventRequestResponses.BuildAsync(
+        var responses = await EventRequestResponses.BuildAsync(
             requests, groups, users, unitOfWork.EventReviews, time, query.ClientUserId, includeMessages: false, cancellationToken);
+        await AttachPaymentMethodsAsync(responses, cancellationToken);
+        return responses;
+    }
+
+    /// <summary>
+    /// Ronda 10: la fila del cliente responde "cómo pago" sin abrir el hilo y sin bajar una pantalla.
+    /// Solo los pedidos aceptados llevan método —sin trato cerrado no hay pago— y el texto se lee
+    /// <b>una vez por grupo distinto</b>, nunca una vez por renglón: la lista no se vuelve N+1.
+    /// </summary>
+    private async Task AttachPaymentMethodsAsync(
+        List<EventRequestResponse> responses,
+        CancellationToken cancellationToken)
+    {
+        var accepted = responses
+            .Where(response => response.Status == EventRequestStatus.Accepted)
+            .ToList();
+
+        if (accepted.Count == 0)
+            return;
+
+        var byGroup = new Dictionary<long, string?>();
+        foreach (var groupId in accepted.Select(response => response.GroupId).Distinct())
+        {
+            var instructions = await groups.GetPaymentInstructionsAsync(groupId, cancellationToken);
+            byGroup[groupId] = PaymentMethodLine.From(instructions?.Text);
+        }
+
+        foreach (var response in accepted)
+            response.PaymentMethod = byGroup.GetValueOrDefault(response.GroupId);
     }
 }
 

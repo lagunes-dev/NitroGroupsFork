@@ -10,9 +10,10 @@ using NSubstitute;
 namespace NitroGroups.Tests.Endpoints.Bookings;
 
 /// <summary>
-/// Ronda 9: <c>GET api/event-requests/{id}/checkout-notes</c>. El cliente del pedido recibe las
-/// notas de "cómo pagar"; el handler decide quién puede leerlas (404 para cualquier otro) y el
-/// endpoint devuelve la forma fija del contrato y el 404 con su mensaje.
+/// Ronda 9: <c>GET api/event-requests/{id}/checkout-notes</c>. El cliente del pedido recibe la
+/// nota de "cómo pagar"; el handler decide quién puede leerla (404 para cualquier otro) y el
+/// endpoint devuelve la forma fija del contrato y el 404 con su mensaje. Ronda 10: la respuesta es
+/// <b>una</b> nota autoritativa con el nombre del manager en su propia línea.
 /// </summary>
 public class CheckoutNotesEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
 {
@@ -44,13 +45,8 @@ public class CheckoutNotesEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
         new()
         {
             Title = "Cómo pagar",
-            Body = "Acordaste el pago en efectivo con el grupo. Te atiende Pedro Vargas.",
-            UserDescription = "Pagas directo al grupo; NitroGroups no cobra ni interviene."
-        },
-        new()
-        {
-            Title = "Instrucciones del grupo",
             Body = "Transfiere a la CLABE 0121 8000 1234 5678.",
+            ManagerLine = "Te atiende Pedro Vargas.",
             UserDescription = "Pagas directo al grupo; NitroGroups no cobra ni interviene.",
             UpdatedOn = new DateOnly(2026, 11, 5)
         }
@@ -86,7 +82,7 @@ public class CheckoutNotesEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
     }
 
     [Fact]
-    public async Task LasDosNotas_ViajanConSuFormaFijaYEnOrden()
+    public async Task LaNota_ViajaConSuFormaFija()
     {
         HandlerReturns(BookingResult<List<CheckoutNoteResponse>>.Success(Notes()));
 
@@ -95,20 +91,41 @@ public class CheckoutNotesEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var notes = json.RootElement.EnumerateArray().ToList();
 
-        Assert.Equal(2, notes.Count);
+        var note = Assert.Single(notes);
         Assert.Equal(
-            ["title", "body", "userDescription", "updatedOn"],
-            notes[0].EnumerateObject().Select(property => property.Name));
-        Assert.Equal("Cómo pagar", notes[0].GetProperty("title").GetString());
-        Assert.Equal("Acordaste el pago en efectivo con el grupo. Te atiende Pedro Vargas.", notes[0].GetProperty("body").GetString());
+            ["title", "body", "managerLine", "userDescription", "updatedOn"],
+            note.EnumerateObject().Select(property => property.Name));
+        Assert.Equal("Cómo pagar", note.GetProperty("title").GetString());
+        Assert.Equal("Transfiere a la CLABE 0121 8000 1234 5678.", note.GetProperty("body").GetString());
+        Assert.Equal("Te atiende Pedro Vargas.", note.GetProperty("managerLine").GetString());
         Assert.Equal(
             "Pagas directo al grupo; NitroGroups no cobra ni interviene.",
-            notes[0].GetProperty("userDescription").GetString());
-        // La nota del acuerdo no tiene fecha: la del acuerdo no se actualiza.
-        Assert.Equal(JsonValueKind.Null, notes[0].GetProperty("updatedOn").ValueKind);
+            note.GetProperty("userDescription").GetString());
+        Assert.Equal("2026-11-05", note.GetProperty("updatedOn").GetString());
+    }
 
-        Assert.Equal("Instrucciones del grupo", notes[1].GetProperty("title").GetString());
-        Assert.Equal("2026-11-05", notes[1].GetProperty("updatedOn").GetString());
+    [Fact]
+    public async Task UnaNotaSinManager_ViajaConLaLineaEnNuloYNuncaConCorreo()
+    {
+        HandlerReturns(BookingResult<List<CheckoutNoteResponse>>.Success(
+        [
+            new()
+            {
+                Title = "Cómo pagar",
+                Body = "Acuerdas el pago con el grupo.",
+                UserDescription = "Pagas directo al grupo; NitroGroups no cobra ni interviene."
+            }
+        ]));
+
+        var response = await _client.GetAsync($"api/event-requests/{RequestId}/checkout-notes");
+
+        var body = await response.Content.ReadAsStringAsync();
+        using var json = JsonDocument.Parse(body);
+        var note = json.RootElement[0];
+
+        // Sin nombre legible la línea es nula y no se dibuja; el correo del manager no viaja nunca.
+        Assert.Equal(JsonValueKind.Null, note.GetProperty("managerLine").ValueKind);
+        Assert.DoesNotContain("@", body);
     }
 
     [Fact]
