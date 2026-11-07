@@ -7,7 +7,9 @@ import { shortDayLabel } from "./deposit";
 export interface CheckoutNotePayload {
     title?: string | null;
     body?: string | null;
-    /** La línea fija de quién cobra; la manda cada nota. */
+    /** "Te atiende Mónica Salinas.": quién atiende el pago, en voz de la app (ronda 10). */
+    managerLine?: string | null;
+    /** La línea fija de quién cobra; la manda la nota. */
     userDescription?: string | null;
     /** `YYYY-MM-DD` del último cambio del texto; null cuando no se puede leer. */
     updatedOn?: string | null;
@@ -17,6 +19,8 @@ export interface CheckoutNotePayload {
 export interface CheckoutNote {
     title: string;
     body: string;
+    /** "Te atiende Mónica Salinas."; null cuando la API no puede dar un nombre y no se dibuja. */
+    managerLine: string | null;
     /** "Actualizado el 5 de noviembre"; null cuando no hay fecha legible y no se dibuja. */
     updated: string | null;
 }
@@ -45,6 +49,9 @@ export function updatedOnLabel(value: unknown): string | null {
  * Las notas que se pueden leer: una sin título o sin cuerpo no es una nota y no se dibuja. La línea
  * fija se devuelve aparte porque es una sola para el bloque, aunque viaje en cada nota: repetirla bajo
  * las dos sería ruido, y perderla sería leer una nota que parece un cobro de la app.
+ *
+ * <p>Ronda 10: la API manda una sola nota —el texto del grupo o, si no escribió, la frase que dice con
+ * quién se acuerda—. La vista no agrega ningún método propio: lo que llega es lo que se lee.</p>
  */
 export function toCheckoutNotesView(payload: unknown): CheckoutNotesView | null {
     if (!Array.isArray(payload)) return null;
@@ -61,7 +68,7 @@ export function toCheckoutNotesView(payload: unknown): CheckoutNotesView | null 
         if (notice === null) notice = asText(note.userDescription);
         if (!title || !body) continue;
 
-        notes.push({ title, body, updated: updatedOnLabel(note.updatedOn) });
+        notes.push({ title, body, managerLine: asText(note.managerLine), updated: updatedOnLabel(note.updatedOn) });
     }
 
     return notes.length ? { notes, notice } : null;

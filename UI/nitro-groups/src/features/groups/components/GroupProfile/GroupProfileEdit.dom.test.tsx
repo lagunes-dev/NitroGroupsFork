@@ -163,6 +163,21 @@ describe("Cómo pagar en el formulario del manager (ronda 9)", () => {
         expect(screen.getByText(/solo lo ve el cliente de un evento aceptado/i)).toBeInTheDocument();
     });
 
+    // Ronda 10: el campo ayuda a que el texto sirva. Un manager que escribe "transferencia" deja al
+    // cliente preguntando por el chat; la ayuda nombra lo que el cliente necesita leer.
+    it("nudges what to write: the account, the name on it, where the receipt goes and the concept", () => {
+        renderForm();
+
+        const helper = screen.getByText(/solo lo ve el cliente de un evento aceptado/i);
+        // Cuenta, titular, comprobante y concepto, en una sola frase.
+        expect(helper).toHaveTextContent(/cuenta/i);
+        expect(helper).toHaveTextContent(/a nombre de quién va/i);
+        expect(helper).toHaveTextContent(/comprobante/i);
+        expect(helper).toHaveTextContent(/concepto/i);
+        // Sin voseo y sin dejar de contar los caracteres.
+        expect(helper).toHaveTextContent(/^0 de 500 · /);
+    });
+
     it("writes into the state that gets saved", async () => {
         const user = userEvent.setup();
         render(<Stateful initial={GROUP} />);

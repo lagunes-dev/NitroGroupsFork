@@ -153,3 +153,53 @@ describe("RequestList review cue", () => {
         expect(screen.queryByText("Puedes dejar tu reseña")).toBeNull();
     });
 });
+
+/**
+ * Ronda 10: el cliente preguntaba cómo pagar y la respuesta vivía una pantalla abajo, dentro del
+ * hilo. La fila dice el método en una línea, junto al dinero del que habla, y deja de decirlo cuando
+ * no queda nada por pagar: el mismo criterio que la línea del saldo, en las dos superficies.
+ */
+describe("RequestList cómo pagar (ronda 10)", () => {
+    const method = "Transfiere a la CLABE 0121 8000 1234 5678, BBVA.";
+    const withMethod: EventRequest = { ...accepted, paymentMethod: method };
+
+    it("answers how to pay on the row itself, next to the money it belongs to", () => {
+        render(<RequestList requests={[withMethod]} viewer="Client" />);
+
+        const line = screen.getByText(method);
+        const balance = screen.getByText("Falta pagar $14,000");
+
+        // Texto, no un control: la app no cobra ni abre un flujo de pago (D1/S18).
+        expect(line.tagName).toBe("P");
+        expect(balance.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(screen.queryByRole("button", { name: /pagar/i })).toBeNull();
+        expect(screen.queryByRole("link", { name: /pagar/i })).toBeNull();
+    });
+
+    it("says nothing once the balance is recorded as received", () => {
+        render(<RequestList requests={[{ ...withMethod, balanceReceivedAt: "2026-12-13T15:00:00Z" }]} viewer="Client" />);
+
+        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026")).toBeInTheDocument();
+        expect(screen.queryByText(method)).toBeNull();
+    });
+
+    it("says nothing when there is nothing left over either", () => {
+        render(<RequestList requests={[{ ...withMethod, budget: 4000 }]} viewer="Client" />);
+
+        expect(screen.getByText("Sin saldo pendiente")).toBeInTheDocument();
+        expect(screen.queryByText(method)).toBeNull();
+    });
+
+    it("says nothing when the group wrote nothing", () => {
+        const { container } = render(<RequestList requests={[accepted]} viewer="Client" />);
+
+        expect(container.textContent).not.toMatch(/CLABE|Transfiere/);
+        expect(screen.getByText("Falta pagar $14,000")).toBeInTheDocument();
+    });
+
+    it("is never on the group's row", () => {
+        render(<RequestList requests={[withMethod]} viewer="Group" />);
+
+        expect(screen.queryByText(method)).toBeNull();
+    });
+});

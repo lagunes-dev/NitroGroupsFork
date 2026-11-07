@@ -21,7 +21,7 @@ export function receivedDate(value: string): string | null {
 /**
  * "15 de noviembre" from a `YYYY-MM-DD` calendar day; null when there is no readable day. One rule for
  * every short day in the deal copy, and never a date formatted by hand: `formatEventDate` formats it and
- * its weekday and year are dropped because the surrounding line already says the rest.
+ * its weekday is dropped because the surrounding line already says the rest.
  */
 export function shortDayLabel(value: unknown): string | null {
     if (typeof value !== "string" || !value.trim()) return null;
@@ -29,9 +29,18 @@ export function shortDayLabel(value: unknown): string | null {
     return day?.replace(/^[^,]+,\s*/, "").replace(/ de \d{4}$/, "") ?? null;
 }
 
-/** "para el 15 de noviembre", o null cuando no hay plazo que decir (T61, S24). */
+/**
+ * "15 de noviembre de 2026": a deadline without the year is ambiguous next to a product that says the
+ * year everywhere else (round 10). Same helper as every other long date, minus the weekday.
+ */
+function dayWithYearLabel(value: unknown): string | null {
+    if (typeof value !== "string" || !value.trim()) return null;
+    return formatEventDate(value.slice(0, 10))?.replace(/^[^,]+,\s*/, "") ?? null;
+}
+
+/** "para el 15 de noviembre de 2026", o null cuando no hay plazo que decir (T61, S24). */
 export function dueDateLabel(value: unknown): string | null {
-    const day = shortDayLabel(value);
+    const day = dayWithYearLabel(value);
     return day ? `para el ${day}` : null;
 }
 
@@ -46,7 +55,7 @@ function readDeposit(deposit: unknown): { amount: number; received: boolean } | 
 
 /**
  * "Anticipo $3,000 · recibido el 4 de noviembre de 2026", or "Anticipo $3,000 · pendiente" with the
- * deadline the group loaded when there is one: "Anticipo $3,000 · pendiente · para el 15 de noviembre".
+ * deadline the group loaded when there is one: "Anticipo $3,000 · pendiente · para el 15 de noviembre de 2026".
  * Null when there is no usable amount, so callers render nothing for a gig without a deposit.
  */
 export function depositLabel(deposit: unknown): string | null {
@@ -73,6 +82,20 @@ export function clientDepositLabel(request: Pick<EventRequest, "status" | "depos
 }
 
 /**
+ * Ronda 10: cómo pagar en la fila de la lista del cliente, junto al dinero del que habla. Es texto, no
+ * un control (la app no cobra, D1/S18). Null cuando el grupo no escribió nada, cuando no hay trato
+ * cerrado y cuando no queda nada por pagar: bajo "Saldo recibido" una CLABE es ruido.
+ */
+export function clientPaymentMethodLabel(
+    request: Pick<DealRequest, "status" | "budget" | "deposit" | "balanceReceivedAt" | "paymentMethod">,
+    viewer: EventRequestParty
+): string | null {
+    if (viewer !== "Client" || request.status !== "Accepted" || nothingLeftToPay(request)) return null;
+    const method = typeof request.paymentMethod === "string" ? request.paymentMethod.trim() : "";
+    return method || null;
+}
+
+/**
  * "$18,000", or "Sin presupuesto" when the client left it empty: un cero no es un precio, y la lista
  * y el detalle tienen que decir lo mismo del mismo dato.
  */
@@ -94,6 +117,8 @@ type DealRequest = {
     balanceDueDate?: string | null;
     /** `YYYY-MM-DD`: the day of the event, to tell a gig that is over from one still ahead. */
     eventDate?: string | null;
+    /** Ronda 10: cómo pagar en una línea, tal como lo manda la API en la lista del cliente. */
+    paymentMethod?: string | null;
 };
 
 /** Whether the group recorded that the balance arrived (T48): a fact, the app never charges it. */
@@ -104,6 +129,19 @@ function isPast(eventDate: string | null | undefined, today: string): boolean {
 
 function isBalanceReceived(request: Pick<DealRequest, "balanceReceivedAt">): boolean {
     return typeof request.balanceReceivedAt === "string" && request.balanceReceivedAt.trim().length > 0;
+}
+
+/**
+ * true cuando no queda nada por pagar, con la misma regla que la línea del saldo (ronda 10): el grupo
+ * registró el saldo como recibido, o lo que falta es cero o menos. Un anticipo todavía pendiente no es
+ * un trato cerrado, así que ahí sí hay algo que pagar y cómo pagarlo importa.
+ */
+export function nothingLeftToPay(
+    request: Pick<DealRequest, "balanceReceivedAt" | "budget" | "deposit">
+): boolean {
+    if (isBalanceReceived(request)) return true;
+    const remaining = remainingAmount(request);
+    return remaining !== null && remaining <= 0;
 }
 
 /** What is still owed, in pesos. Null when the numbers cannot be stated honestly. */
@@ -136,7 +174,7 @@ export function balanceLabel(
     if (remaining <= 0) return "Sin saldo pendiente";
     const money = formatPrice(remaining, request.currency ?? "MXN");
     if (!money) return null;
-    // T61: "Falta pagar $14,000 · para el 15 de noviembre", el plazo que cargó el manager.
+    // T61: "Falta pagar $14,000 · para el 15 de noviembre de 2026", el plazo que cargó el manager.
     const due = dueDateLabel(request.balanceDueDate);
     return due ? `Falta pagar ${money} · ${due}` : `Falta pagar ${money}`;
 }
@@ -192,7 +230,7 @@ export function nextStepLabel(
 /** What the client's accepted thread opens with: the balance, what it is for and the next step. */
 export interface BalanceBlock {
     balance: string;
-    /** "para el 19 de noviembre"; null when the date cannot be read. */
+    /** "para el 19 de noviembre de 2026"; null when the date cannot be read. */
     purpose: string | null;
     nextStep: string;
 }
@@ -221,7 +259,7 @@ export function balanceBlock(
     // evento como otro "para el …" inventaría un segundo plazo que nadie acordó.
     if (dueDateLabel(request.balanceDueDate)) return { balance, purpose: null, nextStep };
 
-    // "jueves, 19 de noviembre de 2026" -> "19 de noviembre": el encabezado del hilo ya dice el resto.
-    const short = shortDayLabel(request.eventDate);
-    return { balance, purpose: short ? `para el ${short}` : null, nextStep };
+    // "jueves, 19 de noviembre de 2026" -> "para el 19 de noviembre de 2026": es un plazo, y un plazo
+    // lleva el año (ronda 10). El mismo helper que la fecha límite, para no tener dos formas del mismo dato.
+    return { balance, purpose: dueDateLabel(request.eventDate), nextStep };
 }

@@ -130,7 +130,8 @@ describe("RequestThread deal", () => {
         const balance = await screen.findByText("Falta pagar $14,000");
         // Layout cannot be measured in jsdom: the size class and the DOM order are the decision.
         expect(balance).toHaveClass("text-2xl");
-        expect(screen.getByText("para el 5 de diciembre")).toBeInTheDocument();
+        // Ronda 10: un plazo dice el año; "5 de diciembre" solo era ambiguo junto a una fecha con año.
+        expect(screen.getByText("para el 5 de diciembre de 2026")).toBeInTheDocument();
         expect(screen.getByText("Próximo paso")).toBeInTheDocument();
         expect(screen.getByText("Acuerda el saldo con el grupo para el día del evento.")).toBeInTheDocument();
 
@@ -181,23 +182,18 @@ describe("RequestThread cómo pagar (ronda 9)", () => {
         deposit: { amount: 4000, receivedAt: "2026-11-05T18:00:00Z" },
     };
 
-    const agreement = {
-        title: "Cómo pagar",
-        body: "Acordaste el pago en efectivo con el grupo. Te atiende Pedro Vargas.",
-        userDescription: "Pagas directo al grupo; NitroGroups no cobra ni interviene.",
-        updatedOn: null,
-    };
-
+    // Ronda 10: una sola nota. El texto del grupo es el único método y el manager va en su línea.
     const groupNote = {
-        title: "Instrucciones del grupo",
+        title: "Cómo pagar",
         body: "Transfiere a la CLABE 0121 8000 1234 5678, BBVA.",
+        managerLine: "Te atiende Pedro Vargas.",
         userDescription: "Pagas directo al grupo; NitroGroups no cobra ni interviene.",
         updatedOn: "2026-11-05",
     };
 
     it("gives the client how to pay, right after the balance and the deposit", async () => {
         mocks.get.mockResolvedValue(accepted);
-        mocks.checkoutNotes.mockResolvedValue([agreement, groupNote]);
+        mocks.checkoutNotes.mockResolvedValue([groupNote]);
 
         renderThread("Client");
 
@@ -229,7 +225,34 @@ describe("RequestThread cómo pagar (ronda 9)", () => {
 
         await screen.findByRole("heading", { name: "Camila Ramos" });
         expect(mocks.checkoutNotes).not.toHaveBeenCalled();
-        expect(screen.queryByText(agreement.body)).toBeNull();
+        expect(screen.queryByText(groupNote.body)).toBeNull();
+    });
+
+    // Ronda 10: en el aniversario ya pagado el cliente seguía leyendo "Cómo pagar" y una CLABE bajo
+    // un encabezado que decía "No queda nada por pagar". El bloque se calla, como la línea del saldo.
+    it("says nothing on an event the group already recorded as paid", async () => {
+        mocks.get.mockResolvedValue({ ...accepted, balanceReceivedAt: "2026-12-13T15:00:00Z" });
+        mocks.checkoutNotes.mockClear();
+
+        renderThread("Client");
+
+        await screen.findByText("Saldo recibido el 13 de diciembre de 2026");
+        expect(screen.getByText("No queda nada por pagar.")).toBeInTheDocument();
+        expect(screen.queryByText("Cómo pagar")).toBeNull();
+        expect(mocks.checkoutNotes).not.toHaveBeenCalled();
+    });
+
+    it("says nothing when the deposit already covered the whole budget", async () => {
+        mocks.get.mockResolvedValue({ ...accepted, budget: 4000 });
+        mocks.checkoutNotes.mockClear();
+
+        renderThread("Client");
+
+        // Sin nada pendiente el próximo paso ya lo dice: no hay bloque de saldo ni nota de pago.
+        await screen.findByText("No queda nada por pagar.");
+        expect(screen.queryByText("Cómo pagar")).toBeNull();
+        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(mocks.checkoutNotes).not.toHaveBeenCalled();
     });
 });
 

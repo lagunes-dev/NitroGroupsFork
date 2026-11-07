@@ -47,7 +47,7 @@ describe("GroupAgenda · el renglón del manager dice el saldo del cliente", () 
     it("states what is still owed with the deadline the group loaded", () => {
         renderAgenda();
 
-        expect(screen.getByText("Falta pagar $6,200 · para el 15 de noviembre")).toBeInTheDocument();
+        expect(screen.getByText("Falta pagar $6,200 · para el 15 de noviembre de 2026")).toBeInTheDocument();
         // Lo que ya decía sigue ahí: el anticipo, con su fecha.
         expect(screen.getByText("Anticipo $7,800 · recibido el 4 de noviembre de 2026")).toBeInTheDocument();
     });

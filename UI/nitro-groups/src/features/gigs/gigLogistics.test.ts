@@ -235,7 +235,7 @@ describe("agendaBalanceLabel", () => {
 
     it("says what is still owed with the deadline the group loaded", () => {
         expect(agendaBalanceLabel({ ...DEAL, balanceDueDate: "2026-11-15" })).toBe(
-            "Falta pagar $6,200 · para el 15 de noviembre"
+            "Falta pagar $6,200 · para el 15 de noviembre de 2026"
         );
     });
 

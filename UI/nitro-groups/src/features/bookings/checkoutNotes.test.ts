@@ -2,22 +2,25 @@ import { describe, expect, it } from "vitest";
 import { toCheckoutNotesView, updatedOnLabel } from "./checkoutNotes";
 
 /**
- * Ronda 9, "cómo pagar": las dos notas del hilo del cliente. Estas pruebas fijan las reglas de la
- * vista, no del backend: el texto del grupo se lee tal cual, la fecha se dice solo cuando se puede
- * leer, y la línea de "no cobra ni interviene" se dibuja una sola vez aunque viaje en cada nota.
+ * Ronda 9, "cómo pagar": la nota del hilo del cliente. Estas pruebas fijan las reglas de la vista, no
+ * del backend: el texto del grupo se lee tal cual, el nombre del manager va en su propia línea, la
+ * fecha se dice solo cuando se puede leer y la línea de "no cobra ni interviene" se dibuja una vez.
+ * Ronda 10: es **una** nota autoritativa, y lo que la app no sabe no lo dice.
  */
-const agreement = {
-    title: "Cómo pagar",
-    body: "Acordaste el pago en efectivo con el grupo. Te atiende Pedro Vargas.",
-    userDescription: "Pagas directo al grupo; NitroGroups no cobra ni interviene.",
-    updatedOn: null,
-};
-
 const groupNote = {
-    title: "Instrucciones del grupo",
+    title: "Cómo pagar",
     body: "Transfiere a la CLABE 0121 8000 1234 5678, BBVA.",
+    managerLine: "Te atiende Pedro Vargas.",
     userDescription: "Pagas directo al grupo; NitroGroups no cobra ni interviene.",
     updatedOn: "2026-11-05",
+};
+
+const agreedNote = {
+    title: "Cómo pagar",
+    body: "Acuerdas el pago con el grupo.",
+    managerLine: "Te atiende Pedro Vargas.",
+    userDescription: "Pagas directo al grupo; NitroGroups no cobra ni interviene.",
+    updatedOn: null,
 };
 
 describe("La fecha de la nota de cómo pagar", () => {
@@ -32,34 +35,51 @@ describe("La fecha de la nota de cómo pagar", () => {
 });
 
 describe("Las notas de cómo pagar", () => {
-    it("keeps the group's text verbatim and its date", () => {
-        const view = toCheckoutNotesView([agreement, groupNote]);
+    it("keeps the group's text verbatim, its date and the manager's line", () => {
+        const view = toCheckoutNotesView([groupNote]);
 
         expect(view?.notes).toEqual([
-            { title: "Cómo pagar", body: agreement.body, updated: null },
             {
-                title: "Instrucciones del grupo",
+                title: "Cómo pagar",
                 body: "Transfiere a la CLABE 0121 8000 1234 5678, BBVA.",
+                managerLine: "Te atiende Pedro Vargas.",
                 updated: "Actualizado el 5 de noviembre",
             },
         ]);
     });
 
+    it("draws one note, not one per statement: the method is said once", () => {
+        const view = toCheckoutNotesView([groupNote]);
+
+        expect(view?.notes).toHaveLength(1);
+        expect(view?.notes[0].body).toBe(groupNote.body);
+    });
+
     it("says the fixed line once, not once per note", () => {
-        const view = toCheckoutNotesView([agreement, groupNote]);
+        const view = toCheckoutNotesView([groupNote]);
 
         expect(view?.notice).toBe("Pagas directo al grupo; NitroGroups no cobra ni interviene.");
     });
 
-    it("keeps the agreement when the group wrote nothing", () => {
-        const view = toCheckoutNotesView([agreement]);
+    it("keeps the note when the group wrote nothing, without inventing a method", () => {
+        const view = toCheckoutNotesView([agreedNote]);
 
         expect(view?.notes).toHaveLength(1);
+        expect(view?.notes[0].body).toBe("Acuerdas el pago con el grupo.");
+        expect(JSON.stringify(view)).not.toMatch(/efectivo|transferencia|CLABE/i);
         expect(view?.notice).toBe("Pagas directo al grupo; NitroGroups no cobra ni interviene.");
+    });
+
+    it("draws no manager line when the API cannot give a name", () => {
+        for (const value of [null, undefined, "", "   ", 42]) {
+            const view = toCheckoutNotesView([{ ...groupNote, managerLine: value }]);
+
+            expect(view?.notes[0].managerLine, String(value)).toBeNull();
+        }
     });
 
     it("draws nothing for a note without title or body", () => {
-        const view = toCheckoutNotesView([{ title: "", body: "   " }, agreement]);
+        const view = toCheckoutNotesView([{ title: "", body: "   " }, groupNote]);
 
         expect(view?.notes).toHaveLength(1);
         expect(view?.notes[0].title).toBe("Cómo pagar");
