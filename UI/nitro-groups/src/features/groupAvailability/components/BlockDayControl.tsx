@@ -113,10 +113,10 @@ export function BlockDayControl({ groupId, initialDay, className }: BlockDayCont
                                 : "Nadie podrá pedirte una fecha ese día. Puedes desbloquearlo cuando quieras."}
                         </p>
                         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                            <Button type="button" variant="ghost" onClick={() => setPending(null)} disabled={isSaving}>
+                            <Button type="button" variant="ghost" className="min-h-11" onClick={() => setPending(null)} disabled={isSaving}>
                                 Cancelar
                             </Button>
-                            <Button type="button" onClick={confirm} disabled={isSaving} autoFocus>
+                            <Button type="button" className="min-h-11" onClick={confirm} disabled={isSaving} autoFocus>
                                 {isSaving ? dialogActionBusy : dialogAction}
                             </Button>
                         </div>
