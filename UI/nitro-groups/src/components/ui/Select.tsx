@@ -37,7 +37,7 @@ export interface SelectProps {
 const EMPTY_TOKEN = "__vacio__";
 
 const itemClass =
-    "relative flex min-h-11 w-full cursor-default select-none items-center rounded-[8px] py-2 pl-3 pr-9 text-base leading-snug text-tinta outline-none data-[highlighted]:bg-fondo-3 data-[highlighted]:shadow-[inset_2px_0_0_var(--acento)] data-[state=checked]:font-medium data-[disabled]:pointer-events-none data-[disabled]:opacity-45 sm:min-h-10";
+    "relative flex min-h-11 w-full cursor-default select-none items-center rounded-[8px] py-2 pl-3 pr-9 text-base leading-snug text-tinta data-[highlighted]:bg-fondo-3 data-[highlighted]:shadow-[inset_2px_0_0_var(--acento)] data-[state=checked]:font-medium data-[disabled]:pointer-events-none data-[disabled]:opacity-45 sm:min-h-10";
 
 const scrollButtonClass = "flex h-8 cursor-default items-center justify-center text-tinta-2";
 

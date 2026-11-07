@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { REVIEW_COMMENT_MAX, commentCounter, ratingText, reviewError } from "./review";
+import { REVIEW_COMMENT_MAX, commentCounter, commentLengthError, ratingText, reviewError } from "./review";
 
 describe("review helpers", () => {
     it("reads a rating as 'N de 5'", () => {
@@ -17,5 +17,12 @@ describe("review helpers", () => {
 
     it("counts the comment against the limit", () => {
         expect(commentCounter("hola")).toBe("4/1000");
+    });
+
+    it("names the length limit as soon as the comment passes it, and only then", () => {
+        expect(commentLengthError("x".repeat(REVIEW_COMMENT_MAX))).toBeNull();
+        expect(commentLengthError("x".repeat(REVIEW_COMMENT_MAX - 1))).toBeNull();
+        expect(commentLengthError("x".repeat(REVIEW_COMMENT_MAX + 1))).toBe("El comentario admite hasta 1000 caracteres.");
+        expect(commentLengthError("x".repeat(1100))).toBe("El comentario admite hasta 1000 caracteres.");
     });
 });

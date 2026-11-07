@@ -86,7 +86,7 @@ export function RequestGroup({ id, title, count, collapsible, as: Heading = "h4"
     if (collapsible) {
         return (
             <details className="group">
-                <summary className="flex cursor-pointer list-none items-center gap-2 rounded-[8px] py-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento [&::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer list-none items-center gap-2 rounded-[8px] py-1 focus-visible:outline-offset-2 [&::-webkit-details-marker]:hidden">
                     <Heading id={id} className="type-heading text-xl text-tinta-2">{heading}</Heading>
                     <ChevronRight aria-hidden className="size-5 text-tinta-2 transition-transform group-open:rotate-90 motion-reduce:transition-none" />
                 </summary>

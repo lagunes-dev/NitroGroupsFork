@@ -86,14 +86,78 @@ public class GroupGigsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
         var gig = Assert.Single(json.RootElement.EnumerateArray());
         // El orden de las propiedades de un objeto JSON no importa; el conjunto sí.
         Assert.Equal(
-            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "attendees", "setlist", "callTime", "deposit" }.Order(StringComparer.Ordinal),
+            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "attendees", "setlist", "callTime", "deposit", "balanceReceivedAt", "balanceDueDate", "budget", "currency" }.Order(StringComparer.Ordinal),
             gig.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
         Assert.Equal("Confirmed", gig.GetProperty("attendance").GetString());
         var attendee = Assert.Single(gig.GetProperty("attendees").EnumerateArray());
-        Assert.Equal(["userId", "fullName", "status", "pay"], attendee.EnumerateObject().Select(property => property.Name));
+        Assert.Equal(["userId", "fullName", "status", "pay", "paidAt"], attendee.EnumerateObject().Select(property => property.Name));
         Assert.Equal(400, attendee.GetProperty("userId").GetInt64());
         Assert.Equal("Mateo Ruiz", attendee.GetProperty("fullName").GetString());
         Assert.Equal("Confirmed", attendee.GetProperty("status").GetString());
+    }
+
+    // T59 (S22): el teléfono del manager y los compañeros del toque viajan SOLO en la agenda del
+    // músico. La fila del manager conserva exactamente el conjunto de siempre.
+    [Fact]
+    public async Task Manager_LaFilaDelPanelNoLlevaTelefonoNiCompaneros()
+    {
+        _mediator.SendQueryAsync<GetGroupGigsQuery, List<GroupGigResponse>>(Arg.Any<GetGroupGigsQuery>())
+            .Returns([
+                new GroupGigResponse
+                {
+                    Id = 5, GroupId = 10, GroupName = "Los Vargas", GroupSlug = "los-vargas",
+                    EventDate = new DateOnly(2026, 12, 12), StartTime = new TimeOnly(20, 0), DurationHours = 5,
+                    EventType = "Boda", LocationText = "Salón Los Arcos, CDMX", Role = "Manager",
+                    Attendees = [new GigAttendeeResponse { UserId = 400, FullName = "Mateo Ruiz", Status = "Confirmed" }]
+                }
+            ]);
+
+        var response = await _client.GetAsync("api/groups/10/gigs");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("managerPhone", body);
+        Assert.DoesNotContain("teammates", body);
+        Assert.DoesNotContain("@", body);
+        using var json = JsonDocument.Parse(body);
+        var gig = Assert.Single(json.RootElement.EnumerateArray());
+        Assert.Equal(
+            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "attendees", "setlist", "callTime", "deposit", "balanceReceivedAt", "balanceDueDate", "budget", "currency" }.Order(StringComparer.Ordinal),
+            gig.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
+    }
+
+    // T60 (S23): el cuadre del toque se arma con datos que YA existen. El cachet del pedido y su
+    // moneda viajan en la fila del manager; el servidor no suma ni valida nada.
+    [Fact]
+    public async Task Manager_LaFilaDelPanelLlevaElCachetDelPedidoYSuMoneda()
+    {
+        _mediator.SendQueryAsync<GetGroupGigsQuery, List<GroupGigResponse>>(Arg.Any<GetGroupGigsQuery>())
+            .Returns([
+                new GroupGigResponse
+                {
+                    Id = 5, GroupId = 10, GroupName = "Los Vargas", GroupSlug = "los-vargas",
+                    EventDate = new DateOnly(2026, 12, 12), DurationHours = 5, EventType = "Boda",
+                    LocationText = "Salón Los Arcos, CDMX", Role = "Manager",
+                    Budget = 15000m, Currency = "MXN"
+                },
+                new GroupGigResponse
+                {
+                    Id = 6, GroupId = 10, GroupName = "Los Vargas", GroupSlug = "los-vargas",
+                    EventDate = new DateOnly(2026, 12, 19), DurationHours = 3, EventType = "Cumpleaños",
+                    LocationText = "Casa, Zapopan", Role = "Manager"
+                }
+            ]);
+
+        var response = await _client.GetAsync("api/groups/10/gigs");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var rows = json.RootElement.EnumerateArray().ToList();
+        Assert.Equal(15000m, rows[0].GetProperty("budget").GetDecimal());
+        Assert.Equal("MXN", rows[0].GetProperty("currency").GetString());
+        // Sin cachet cargado el campo es null; la moneda sigue viajando, porque el pedido siempre la tiene.
+        Assert.Equal(JsonValueKind.Null, rows[1].GetProperty("budget").ValueKind);
+        Assert.Equal("MXN", rows[1].GetProperty("currency").GetString());
     }
 
     [Fact]

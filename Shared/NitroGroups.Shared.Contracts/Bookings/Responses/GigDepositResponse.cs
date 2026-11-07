@@ -8,5 +8,11 @@ namespace NitroGroups.Shared.Contracts.Bookings.Responses
     {
         public decimal? Amount { get; set; }
         public DateTime? ReceivedAt { get; set; }
+
+        /// <summary>
+        /// Fecha límite del anticipo (S24): un día del calendario, como la fecha del evento, no un
+        /// instante. Null mientras el grupo no la haya cargado.
+        /// </summary>
+        public DateOnly? DueDate { get; set; }
     }
 }

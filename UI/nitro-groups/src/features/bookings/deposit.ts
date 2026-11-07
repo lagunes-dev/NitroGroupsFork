@@ -6,14 +6,33 @@ export interface DepositPayload {
     amount?: number | string | null;
     /** ISO timestamp; null while the deposit has not been received. */
     receivedAt?: string | null;
+    /** `YYYY-MM-DD`: the deadline the group loaded for the deposit (S24); null while there is none. */
+    dueDate?: string | null;
 }
 
 /** "4 de noviembre de 2026" in Mexico time; null when the timestamp cannot be read. */
-function receivedDate(value: string): string | null {
+export function receivedDate(value: string): string | null {
     const moment = new Date(value);
     if (Number.isNaN(moment.getTime())) return null;
-    // `formatEventDate` writes the weekday first ("miércoles, 4 de ..."); the deposit line does not need it.
+    // `formatEventDate` writes the weekday first ("miércoles, 4 de ..."); the money lines do not need it.
     return formatEventDate(todayInMexico(moment))?.replace(/^[^,]+,\s*/, "") ?? null;
+}
+
+/**
+ * "15 de noviembre" from a `YYYY-MM-DD` calendar day; null when there is no readable day. One rule for
+ * every short day in the deal copy, and never a date formatted by hand: `formatEventDate` formats it and
+ * its weekday and year are dropped because the surrounding line already says the rest.
+ */
+export function shortDayLabel(value: unknown): string | null {
+    if (typeof value !== "string" || !value.trim()) return null;
+    const day = formatEventDate(value.slice(0, 10));
+    return day?.replace(/^[^,]+,\s*/, "").replace(/ de \d{4}$/, "") ?? null;
+}
+
+/** "para el 15 de noviembre", o null cuando no hay plazo que decir (T61, S24). */
+export function dueDateLabel(value: unknown): string | null {
+    const day = shortDayLabel(value);
+    return day ? `para el ${day}` : null;
 }
 
 /** The deposit split into the two facts the deal needs: how much, and whether it already landed. */
@@ -26,7 +45,8 @@ function readDeposit(deposit: unknown): { amount: number; received: boolean } | 
 }
 
 /**
- * "Anticipo $3,000 · recibido el 4 de noviembre de 2026" or "Anticipo $3,000 · pendiente".
+ * "Anticipo $3,000 · recibido el 4 de noviembre de 2026", or "Anticipo $3,000 · pendiente" with the
+ * deadline the group loaded when there is one: "Anticipo $3,000 · pendiente · para el 15 de noviembre".
  * Null when there is no usable amount, so callers render nothing for a gig without a deposit.
  */
 export function depositLabel(deposit: unknown): string | null {
@@ -34,9 +54,13 @@ export function depositLabel(deposit: unknown): string | null {
     if (!read) return null;
 
     const head = `Anticipo ${formatPrice(read.amount)}`;
-    if (!read.received) return `${head} · pendiente`;
-    const date = receivedDate((deposit as DepositPayload).receivedAt as string);
-    return date ? `${head} · recibido el ${date}` : `${head} · recibido`;
+    if (read.received) {
+        const date = receivedDate((deposit as DepositPayload).receivedAt as string);
+        return date ? `${head} · recibido el ${date}` : `${head} · recibido`;
+    }
+    // T61: el plazo se dice mientras falta la plata. Ya recibida, la fecha límite no es noticia.
+    const due = dueDateLabel((deposit as DepositPayload).dueDate);
+    return due ? `${head} · pendiente · ${due}` : `${head} · pendiente`;
 }
 
 /**
@@ -59,7 +83,21 @@ export function budgetLabel(request: { budget?: number | null; currency?: string
 }
 
 /** The slice of a request the deal copy needs; the currency falls back to pesos. */
-type DealRequest = { status: EventRequestStatus; budget?: number | null; deposit?: unknown; currency?: string };
+type DealRequest = {
+    status: EventRequestStatus;
+    budget?: number | null;
+    deposit?: unknown;
+    currency?: string;
+    /** ISO timestamp the group recorded when the balance arrived; null or missing until then. */
+    balanceReceivedAt?: string | null;
+    /** `YYYY-MM-DD`: the balance deadline the group loaded (T61, S24); null or missing until then. */
+    balanceDueDate?: string | null;
+};
+
+/** Whether the group recorded that the balance arrived (T48): a fact, the app never charges it. */
+function isBalanceReceived(request: Pick<DealRequest, "balanceReceivedAt">): boolean {
+    return typeof request.balanceReceivedAt === "string" && request.balanceReceivedAt.trim().length > 0;
+}
 
 /** What is still owed, in pesos. Null when the numbers cannot be stated honestly. */
 function remainingAmount(request: { budget?: number | null; deposit?: unknown }): number | null {
@@ -71,6 +109,7 @@ function remainingAmount(request: { budget?: number | null; deposit?: unknown })
 }
 
 /**
+ * "Saldo recibido el 13 de diciembre de 2026" once the group recorded it; otherwise
  * "Falta pagar $14,000" for the client of an accepted event whose deposit already landed. Null while
  * the deposit is pending, for the group's view and when there is no budget to compare against: the app
  * records the deposit, it never charges anything.
@@ -80,11 +119,19 @@ export function balanceLabel(
     viewer: EventRequestParty
 ): string | null {
     if (viewer !== "Client" || request.status !== "Accepted") return null;
+    // T48: what the group recorded wins over what we can compute from the deposit and the budget.
+    if (isBalanceReceived(request)) {
+        const date = receivedDate(request.balanceReceivedAt as string);
+        return date ? `Saldo recibido el ${date}` : "Saldo recibido";
+    }
     const remaining = remainingAmount(request);
     if (remaining === null) return null;
     if (remaining <= 0) return "Sin saldo pendiente";
     const money = formatPrice(remaining, request.currency ?? "MXN");
-    return money ? `Falta pagar ${money}` : null;
+    if (!money) return null;
+    // T61: "Falta pagar $14,000 · para el 15 de noviembre", el plazo que cargó el manager.
+    const due = dueDateLabel(request.balanceDueDate);
+    return due ? `Falta pagar ${money} · ${due}` : `Falta pagar ${money}`;
 }
 
 /**
@@ -116,6 +163,7 @@ export function nextStepLabel(
         case "Cancelled":
             return "Este evento se canceló.";
         case "Accepted": {
+            if (isBalanceReceived(request)) return "No queda nada por pagar.";
             const remaining = remainingAmount(request);
             if (remaining === null) return "Acuerda el anticipo con el grupo para cerrar la fecha.";
             return remaining <= 0 ? "No queda nada por pagar." : "Acuerda el saldo con el grupo para el día del evento.";
@@ -134,20 +182,29 @@ export interface BalanceBlock {
 }
 
 /**
- * The block is only drawn when there is a balance still owed to state: a pending deposit, a missing
- * budget, a settled deal or the group's view leave the thread as it was.
+ * The block is only drawn when there is a balance to state: still owed, or recorded as received. A
+ * pending deposit, a missing budget, a deposit that covers it all or the group's view leave the
+ * thread as it was.
  */
 export function balanceBlock(
     request: DealRequest & { eventDate?: string | null },
     viewer: EventRequestParty
 ): BalanceBlock | null {
-    const remaining = remainingAmount(request);
     const balance = balanceLabel(request, viewer);
     const nextStep = nextStepLabel(request, viewer);
-    if (!balance || !nextStep || remaining === null || remaining <= 0) return null;
+    if (!balance || !nextStep) return null;
+    // Recorded as received: the fact and the settled step, with no "para el ..." that belongs to a debt.
+    if (viewer === "Client" && request.status === "Accepted" && isBalanceReceived(request)) {
+        return { balance, purpose: null, nextStep };
+    }
+    const remaining = remainingAmount(request);
+    if (remaining === null || remaining <= 0) return null;
 
-    const day = request.eventDate ? formatEventDate(request.eventDate) : null;
-    // "jueves, 19 de noviembre de 2026" -> "19 de noviembre": the thread header already says the rest.
-    const short = day?.replace(/^[^,]+,\s*/, "").replace(/ de \d{4}$/, "");
+    // T61: si el manager cargó la fecha límite, la línea del saldo ya la dice. Repetir el día del
+    // evento como otro "para el …" inventaría un segundo plazo que nadie acordó.
+    if (dueDateLabel(request.balanceDueDate)) return { balance, purpose: null, nextStep };
+
+    // "jueves, 19 de noviembre de 2026" -> "19 de noviembre": el encabezado del hilo ya dice el resto.
+    const short = shortDayLabel(request.eventDate);
     return { balance, purpose: short ? `para el ${short}` : null, nextStep };
 }

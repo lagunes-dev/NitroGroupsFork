@@ -86,8 +86,9 @@ public class GigsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var gig = Assert.Single(json.RootElement.EnumerateArray());
         // El orden de las propiedades de un objeto JSON no importa; el conjunto sí.
+        // T59 (S22): la fila del músico suma el teléfono del manager y quiénes tocan, al final.
         Assert.Equal(
-            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "callTime", "setlist", "myPay" }.Order(StringComparer.Ordinal),
+            new[] { "id", "groupId", "groupName", "groupSlug", "eventDate", "startTime", "durationHours", "eventType", "locationText", "role", "attendance", "callTime", "setlist", "myPay", "myPayPaidAt", "managerPhone", "teammates" }.Order(StringComparer.Ordinal),
             gig.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
         Assert.Equal(5, gig.GetProperty("id").GetInt64());
         Assert.Equal(10, gig.GetProperty("groupId").GetInt64());
@@ -124,6 +125,26 @@ public class GigsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
         Assert.Equal(JsonValueKind.Null, rows[1].GetProperty("myPay").ValueKind);
     }
 
+    // T48 (S18): el músico ve cuándo le pagaron; null mientras no.
+    [Fact]
+    public async Task MisToques_DevuelveCuandoMePagaron_ConNuloMientrasNo()
+    {
+        var paid = Gig();
+        paid.MyPay = 1200m;
+        paid.MyPayPaidAt = new DateTime(2026, 12, 13, 15, 0, 0, DateTimeKind.Utc);
+        var pending = Gig();
+        pending.MyPay = 900m;
+        _mediator.SendQueryAsync<GetMyGigsQuery, List<GigResponse>>(Arg.Any<GetMyGigsQuery>())
+            .Returns([paid, pending]);
+
+        var response = await _client.GetAsync("api/me/gigs");
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var rows = json.RootElement.EnumerateArray().ToList();
+        Assert.Equal("2026-12-13T15:00:00Z", rows[0].GetProperty("myPayPaidAt").GetString());
+        Assert.Equal(JsonValueKind.Null, rows[1].GetProperty("myPayPaidAt").ValueKind);
+    }
+
     [Fact]
     public async Task MisToques_ConRespuesta_DevuelveElEstadoComoTexto()
     {
@@ -136,6 +157,41 @@ public class GigsEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
 
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("Confirmed", Assert.Single(json.RootElement.EnumerateArray()).GetProperty("attendance").GetString());
+    }
+
+    // T59 (S22): el músico ve el teléfono del manager y con quién toca. Nunca un correo.
+    [Fact]
+    public async Task MisToques_DevuelveElTelefonoDelManagerYLosCompanerosQueTocan()
+    {
+        var withPeople = Gig();
+        withPeople.ManagerPhone = "33 1234 5678";
+        withPeople.Teammates =
+        [
+            new GigTeammateResponse { UserId = 400, FullName = "Mateo Músico", Role = "Member" },
+            new GigTeammateResponse { UserId = 500, FullName = "Luis Percusión", Role = null }
+        ];
+        _mediator.SendQueryAsync<GetMyGigsQuery, List<GigResponse>>(Arg.Any<GetMyGigsQuery>())
+            .Returns([withPeople, Gig()]);
+
+        var response = await _client.GetAsync("api/me/gigs");
+
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("@", body);
+        using var json = JsonDocument.Parse(body);
+        var rows = json.RootElement.EnumerateArray().ToList();
+        Assert.Equal("33 1234 5678", rows[0].GetProperty("managerPhone").GetString());
+
+        var teammates = rows[0].GetProperty("teammates").EnumerateArray().ToList();
+        Assert.Equal(2, teammates.Count);
+        Assert.Equal(["userId", "fullName", "role"], teammates[0].EnumerateObject().Select(property => property.Name));
+        Assert.Equal(400, teammates[0].GetProperty("userId").GetInt64());
+        Assert.Equal("Mateo Músico", teammates[0].GetProperty("fullName").GetString());
+        Assert.Equal("Member", teammates[0].GetProperty("role").GetString());
+        Assert.Equal(JsonValueKind.Null, teammates[1].GetProperty("role").ValueKind);
+
+        // Sin teléfono cargado el campo es null, nunca una cadena vacía ni la lista de otro toque.
+        Assert.Equal(JsonValueKind.Null, rows[1].GetProperty("managerPhone").ValueKind);
+        Assert.Empty(rows[1].GetProperty("teammates").EnumerateArray());
     }
 
     [Fact]

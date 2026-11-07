@@ -32,6 +32,14 @@ namespace NitroGroups.Core.Bookings.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<DateOnly?>("BalanceDueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("balance_due_date");
+
+                    b.Property<DateTime?>("BalanceReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("balance_received_at");
+
                     b.Property<decimal?>("Budget")
                         .HasPrecision(12, 2)
                         .HasColumnType("numeric(12,2)")
@@ -75,6 +83,10 @@ namespace NitroGroups.Core.Bookings.Infrastructure.Persistence.Migrations
                         .HasPrecision(12, 2)
                         .HasColumnType("numeric(12,2)")
                         .HasColumnName("deposit_amount");
+
+                    b.Property<DateOnly?>("DepositDueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("deposit_due_date");
 
                     b.Property<DateTime?>("DepositReceivedAt")
                         .HasColumnType("timestamp with time zone")
@@ -387,7 +399,7 @@ namespace NitroGroups.Core.Bookings.Infrastructure.Persistence.Migrations
 
                     b.ToTable("gig_notices", "bookings", t =>
                         {
-                            t.HasCheckConstraint("ck_gig_notices_kind_range", "kind between 1 and 5");
+                            t.HasCheckConstraint("ck_gig_notices_kind_range", "kind between 1 and 6");
                         });
                 });
 
@@ -426,6 +438,10 @@ namespace NitroGroups.Core.Bookings.Infrastructure.Persistence.Migrations
                     b.Property<long>("EventRequestId")
                         .HasColumnType("bigint")
                         .HasColumnName("event_request_id");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")

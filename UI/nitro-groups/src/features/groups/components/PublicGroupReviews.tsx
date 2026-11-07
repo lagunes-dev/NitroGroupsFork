@@ -73,6 +73,9 @@ export function PublicGroupReviews({ groupId, initial, fallbackAverage, fallback
                                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                                             <RatingStars rating={review.rating} />
                                             <span className="text-sm text-tinta-2">{eventTypeLabel(review.eventType)}</span>
+                                            {/* La regla de escritura ya lo garantiza: solo reseña el cliente de
+                                                un evento aceptado y pasado, así que el sello no promete de más. */}
+                                            <span className="text-sm text-acento">Contratación verificada</span>
                                         </div>
                                         {review.comment && <p className="whitespace-pre-line break-words leading-relaxed text-tinta">{review.comment}</p>}
                                         <p className="text-sm text-tinta-2">

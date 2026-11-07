@@ -165,6 +165,43 @@ describe("RequestThread deal", () => {
     });
 });
 
+describe("RequestThread cancel on a past event (T52)", () => {
+    const past: EventRequest = { ...request, status: "Accepted", eventDate: "2020-10-24", respondedAt: "2020-09-01T18:00:00Z" };
+
+    it("does not offer to cancel an accepted event whose date already passed, and keeps the message and the review", async () => {
+        mocks.get.mockResolvedValue({ ...past, canReview: true, review: null });
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Client");
+
+        await screen.findByRole("heading", { name: "Versátil Rock y Pop" });
+        expect(screen.queryByRole("button", { name: "Cancelar solicitud" })).toBeNull();
+        // Lo que sí sigue: hablar con el grupo y escribir la reseña del evento que ya pasó.
+        expect(screen.getByLabelText("Escribir un mensaje")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Enviar mensaje" })).toBeInTheDocument();
+        expect(screen.getByRole("radiogroup", { name: "Tu calificación" })).toBeInTheDocument();
+    });
+
+    it("does not offer it to the group either", async () => {
+        mocks.get.mockResolvedValue(past);
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Group");
+
+        await screen.findByRole("heading", { name: "Camila Ramos" });
+        expect(screen.queryByRole("button", { name: "Cancelar solicitud" })).toBeNull();
+    });
+
+    it("still cancels a future accepted event exactly as today", async () => {
+        mocks.get.mockResolvedValue({ ...request, status: "Accepted", eventDate: "2099-12-05", respondedAt: "2099-10-02T18:00:00Z" });
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Client");
+
+        expect(await screen.findByRole("button", { name: "Cancelar solicitud" })).toBeInTheDocument();
+    });
+});
+
 describe("RequestThread search context", () => {
     it("takes the date of a closed request to the search, so nobody retypes it", async () => {
         mocks.get.mockResolvedValue({ ...request, status: "Declined", respondedAt: "2026-10-02T18:00:00Z" });
@@ -173,5 +210,44 @@ describe("RequestThread search context", () => {
         const link = await screen.findByRole("link", { name: /Ver otros grupos libres el/ });
         // The rejecting group travels too, so the search does not offer it as free again (T41).
         expect(link).toHaveAttribute("href", `/groups?fecha=2026-12-05&excluir=${request.groupId}`);
+    });
+});
+
+describe("RequestThread balance received (T48)", () => {
+    const accepted: EventRequest = {
+        ...request,
+        status: "Accepted",
+        deposit: { amount: 4000, receivedAt: "2026-11-05T18:00:00Z" },
+    };
+
+    it("replaces the debt with the fact in the client's balance block", async () => {
+        mocks.get.mockResolvedValue({ ...accepted, balanceReceivedAt: "2026-12-13T15:00:00Z" });
+
+        renderThread("Client");
+
+        const block = await screen.findByRole("region", { name: "Saldo y próximo paso" });
+        expect(block).toHaveTextContent("Saldo recibido el 13 de diciembre de 2026");
+        expect(block).toHaveTextContent("No queda nada por pagar.");
+        expect(block).not.toHaveTextContent(/Falta pagar|Acuerda el saldo/);
+    });
+
+    it("keeps the debt block until the balance is recorded", async () => {
+        mocks.get.mockResolvedValue(accepted);
+
+        renderThread("Client");
+
+        const block = await screen.findByRole("region", { name: "Saldo y próximo paso" });
+        expect(block).toHaveTextContent("Falta pagar $14,000");
+    });
+
+    it("does not show the group's view any balance", async () => {
+        mocks.get.mockResolvedValue({ ...accepted, balanceReceivedAt: "2026-12-13T15:00:00Z" });
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Group");
+
+        await screen.findByRole("region", { name: "Conversación" });
+        expect(screen.queryByText(/Saldo recibido/)).toBeNull();
+        expect(screen.queryByRole("region", { name: "Saldo y próximo paso" })).toBeNull();
     });
 });

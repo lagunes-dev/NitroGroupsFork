@@ -45,6 +45,15 @@ namespace NitroGroups.Shared.Contracts.Bookings.Responses
         /// <summary>Solo en el detalle (<c>GET api/event-requests/{id}</c>); null en los listados.</summary>
         public List<EventRequestMessageResponse>? Messages { get; set; }
 
+        /// <summary>Cuándo el grupo registró que recibió el saldo; null mientras no. Es un dato, la app no cobra.</summary>
+        public DateTime? BalanceReceivedAt { get; set; }
+
+        /// <summary>
+        /// Fecha límite del saldo (S24): un día del calendario, como la fecha del evento. Null mientras el
+        /// grupo no la haya cargado. Una fecha que ya pasó se muestra igual: es un hecho, no un error.
+        /// </summary>
+        public DateOnly? BalanceDueDate { get; set; }
+
         /// <summary>
         /// Solo para el grupo: si el grupo ya tiene otro toque aceptado ese mismo día y cuál es
         /// (D6/S11). Null en las solicitudes del cliente — el cliente nunca ve si el grupo está

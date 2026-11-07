@@ -105,11 +105,10 @@ export default function PhoneInput({ label, value, onChange, required, error }: 
                     {label}
                 </label>
             )}
+            {/* One ring per control: the country button, the search box and the number each draw their own
+                (the project's global `:focus-visible` ring); a container ring would double it. */}
             <div
-                className={cn(
-                    fieldClass,
-                    "flex items-stretch px-0 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-acento"
-                )}
+                className={cn(fieldClass, "flex items-stretch px-0")}
                 aria-invalid={error ? true : undefined}
             >
                 {/* Lada */}
@@ -131,7 +130,7 @@ export default function PhoneInput({ label, value, onChange, required, error }: 
                         aria-expanded={isOpen}
                         aria-controls={isOpen ? listId : undefined}
                         aria-label={`Lada: ${selectedCountry.name} ${selectedCountry.dial}. Cambiar país`}
-                        className="flex h-full items-center gap-2 whitespace-nowrap rounded-l-[8px] px-4 text-base leading-none text-tinta tabular transition-colors hover:bg-fondo-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acento"
+                        className="flex h-full items-center gap-2 whitespace-nowrap rounded-l-[8px] px-4 text-base leading-none text-tinta tabular transition-colors hover:bg-fondo-3 focus-visible:-outline-offset-2"
                     >
                         <span className="text-tinta-2">{selectedCountry.code}</span>
                         <span>{selectedCountry.dial}</span>
@@ -148,7 +147,7 @@ export default function PhoneInput({ label, value, onChange, required, error }: 
                                     aria-label="Buscar país"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="h-10 w-full rounded-[8px] bg-fondo px-3 text-sm text-tinta placeholder:text-tinta-2/70 outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acento"
+                                    className="h-10 w-full rounded-[8px] bg-fondo px-3 text-sm text-tinta placeholder:text-tinta-2/70 focus-visible:-outline-offset-2"
                                     autoFocus
                                 />
                             </div>
@@ -190,7 +189,7 @@ export default function PhoneInput({ label, value, onChange, required, error }: 
                     required={required}
                     aria-invalid={error ? true : undefined}
                     aria-describedby={error ? errorId : undefined}
-                    className="h-full min-w-0 flex-1 bg-transparent px-4 text-base text-tinta tabular placeholder:text-tinta-2 outline-none"
+                    className="h-full min-w-0 flex-1 bg-transparent px-4 text-base text-tinta tabular placeholder:text-tinta-2 focus-visible:-outline-offset-2"
                 />
             </div>
             {error && <p id={errorId} className="text-sm text-error">{error}</p>}

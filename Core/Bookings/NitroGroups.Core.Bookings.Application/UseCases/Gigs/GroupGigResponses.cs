@@ -39,7 +39,7 @@ public static class GroupGigResponses
             .GroupBy(row => row.EventRequestId)
             .ToDictionary(rows => rows.Key, rows => rows.ToList());
         var pay = (await unitOfWork.GigPays.ListByEventRequestsAsync(gigIds, cancellationToken))
-            .ToDictionary(row => (row.EventRequestId, row.UserId), row => row.Amount);
+            .ToDictionary(row => (row.EventRequestId, row.UserId), row => (row.Amount, row.PaidAt));
         var userMap = await users.GetUsersAsync(
             attendance.Select(row => row.UserId).Distinct(), cancellationToken);
 
@@ -62,12 +62,12 @@ public static class GroupGigResponses
         long? callerUserId,
         IReadOnlyDictionary<long, List<GigAttendance>> attendanceByGig,
         IReadOnlyDictionary<long, UserSummary> users,
-        IReadOnlyDictionary<(long EventRequestId, long UserId), decimal> pay)
+        IReadOnlyDictionary<(long EventRequestId, long UserId), (decimal Amount, DateTime? PaidAt)> pay)
         => gigs.Select(gig =>
         {
             var rows = attendanceByGig.GetValueOrDefault(gig.Id) ?? [];
             var attendees = rows
-                .Select(row => Attendee(row, users, pay.TryGetValue((gig.Id, row.UserId), out var amount) ? amount : null))
+                .Select(row => Attendee(row, users, pay.TryGetValue((gig.Id, row.UserId), out var mine) ? mine : null))
                 .OrderBy(attendee => attendee.Status == nameof(GigAttendanceStatus.Confirmed) ? 0 : 1)
                 .ThenBy(attendee => attendee.FullName, StringComparer.Ordinal)
                 .ToList();
@@ -76,19 +76,25 @@ public static class GroupGigResponses
             var row = new GroupGigResponse
             {
                 Attendees = attendees,
-                Deposit = new GigDepositResponse { Amount = gig.DepositAmount, ReceivedAt = gig.DepositReceivedAt }
+                Deposit = new GigDepositResponse { Amount = gig.DepositAmount, ReceivedAt = gig.DepositReceivedAt, DueDate = gig.DepositDueDate },
+                BalanceReceivedAt = gig.BalanceReceivedAt,
+                BalanceDueDate = gig.BalanceDueDate,
+                // T60 (S23): el cachet del pedido, tal como lo dejó el cliente. Un dato, no un cálculo.
+                Budget = gig.Budget,
+                Currency = gig.Currency
             };
             GigResponses.Fill(row, gig, groupName, groupSlug, callerRole, mine?.Status);
             return row;
         }).ToList();
 
     /// <summary>Una respuesta de asistencia con el nombre del miembro; el email nunca sale de Users.</summary>
-    public static GigAttendeeResponse Attendee(GigAttendance attendance, IReadOnlyDictionary<long, UserSummary> users, decimal? pay = null)
+    public static GigAttendeeResponse Attendee(GigAttendance attendance, IReadOnlyDictionary<long, UserSummary> users, (decimal Amount, DateTime? PaidAt)? pay = null)
         => new()
         {
             UserId = attendance.UserId,
             FullName = users.GetValueOrDefault(attendance.UserId)?.FullName ?? string.Empty,
             Status = attendance.Status.ToString(),
-            Pay = pay
+            Pay = pay?.Amount,
+            PaidAt = pay?.PaidAt
         };
 }

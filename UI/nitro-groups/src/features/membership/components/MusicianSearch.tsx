@@ -10,6 +10,7 @@ import { membershipErrorMessage } from "../errors";
 import { experienceLabel } from "../experience";
 import { pendingByMusician, pendingLabel } from "../pending";
 import { debounced, normalizeQuery } from "../search";
+import { teamQueryKey } from "../team";
 import type { OpenMusician } from "../types";
 
 /** Id of the search field, so the empty states of the team tab can point at it. */
@@ -33,6 +34,11 @@ export function MusicianSearch({ groupId }: { groupId: number }) {
     // Same key as the requests list, so inviting someone updates both at once.
     const groupRequests = useQuery({ queryKey: ["membership-requests", groupId], queryFn: () => membershipService.forGroup(groupId) });
     const pending = useMemo(() => pendingByMusician(groupRequests.data), [groupRequests.data]);
+
+    // Same key as "El equipo" above, so this costs no extra request inside the tab. The API refuses
+    // an invitation to an active member (409): offering the button was offering a dead end (T53).
+    const team = useQuery({ queryKey: teamQueryKey(groupId), queryFn: () => membershipService.team(groupId), staleTime: 30_000 });
+    const memberIds = useMemo(() => new Set((team.data ?? []).map((member) => member.userId)), [team.data]);
 
     const results = useQuery({
         queryKey: ["open-musicians", query, page],
@@ -133,7 +139,9 @@ export function MusicianSearch({ groupId }: { groupId: number }) {
                                     <p className={`truncate text-sm ${m.yearsExperience ? "text-tinta-2" : "text-tinta-2/80"}`}>{experienceLabel(m.yearsExperience)}</p>
                                 </div>
                             </div>
-                            {pending.has(m.userId) ? (
+                            {memberIds.has(m.userId) ? (
+                                <Button size="sm" variant="outline" className="mt-auto w-full" disabled aria-label={`${m.fullName} ya está en el equipo`}>Ya está en el equipo</Button>
+                            ) : pending.has(m.userId) ? (
                                 <Button size="sm" variant="outline" className="mt-auto w-full" disabled aria-label={`${pendingLabel(pending.get(m.userId) ?? null)}: ${m.fullName}`}>{pendingLabel(pending.get(m.userId) ?? null)}</Button>
                             ) : (
                                 <Button size="sm" className="mt-auto w-full" disabled={invite.isPending} onClick={() => invite.mutate(m)} aria-label={`Invitar a ${m.fullName}`}>Invitar</Button>

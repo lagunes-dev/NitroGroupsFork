@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Alert, AlertDescription, Badge, Button } from "@/components/ui";
-import { depositLabel } from "@/features/bookings/deposit";
+import { depositLabel, receivedDate } from "@/features/bookings/deposit";
 import { compareGigsByDate } from "../agenda";
 import { useGroupGigNotices, useGroupGigs } from "../gigs.queries";
 import { attendeePayLines } from "../gigLogistics";
@@ -18,6 +18,8 @@ function GigRow({ row, groupId, notices }: { row: GroupGigPayload; groupId: numb
     const summary = attendeeSummary(row.attendees);
     const deposit = depositLabel(row.deposit);
     const pays = attendeePayLines(row.attendees);
+    const balanceDate = row.balanceReceivedAt ? receivedDate(row.balanceReceivedAt) : null;
+    const balance = row.balanceReceivedAt ? (balanceDate ? `Saldo recibido el ${balanceDate}` : "Saldo recibido") : null;
     const [editing, setEditing] = useState(false);
     const [notice, setNotice] = useState("");
     const editButton = useRef<HTMLButtonElement>(null);
@@ -32,10 +34,11 @@ function GigRow({ row, groupId, notices }: { row: GroupGigPayload; groupId: numb
                     {scheduleLabel(view)}
                     {callTimeLabel(row.callTime) && <span> · {callTimeLabel(row.callTime)}</span>}
                 </p>
-                {deposit && (
-                    <Badge variant="secondary" className="mt-2 w-fit">
-                        {deposit}
-                    </Badge>
+                {(deposit || balance) && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                        {deposit && <Badge variant="secondary">{deposit}</Badge>}
+                        {balance && <Badge variant="secondary">{balance}</Badge>}
+                    </div>
                 )}
             </div>
             <div className="md:col-span-4">

@@ -2,14 +2,17 @@
 
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Input, Textarea, TimeSelect } from "@/components/ui";
+import { Button, DatePicker, Input, Textarea, TimeSelect } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { groupGigsKey } from "../gigs.queries";
 import { gigsService } from "../gigs.service";
 import {
     buildDetailsBody,
     buildPayBody,
+    gigSettlement,
     initialLogisticsForm,
+    parseAmount,
+    recordedStateLabel,
     setlistCounter,
     validateLogistics,
     type LogisticsErrors,
@@ -44,7 +47,7 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
     const save = useMutation({
         mutationFn: async (input: LogisticsForm) => {
             await gigsService.saveDetails(groupId, rowId, buildDetailsBody(input));
-            await gigsService.savePay(groupId, rowId, buildPayBody(input.pay));
+            await gigsService.savePay(groupId, rowId, buildPayBody(input.pay, input.paid));
         },
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: groupGigsKey(groupId) });
@@ -65,6 +68,10 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
     };
 
     const setPay = (userId: string, value: string) => setForm((f) => ({ ...f, pay: { ...f.pay, [userId]: value } }));
+    const setPaid = (userId: string, value: boolean) => setForm((f) => ({ ...f, paid: { ...f.paid, [userId]: value } }));
+    const balanceState = recordedStateLabel(form.balanceReceived, row.balanceReceivedAt, { done: "Saldo recibido", pending: "Saldo pendiente" });
+    const settlement = gigSettlement(row);
+    const settlementId = `${idPrefix}-cuadre`;
 
     return (
         <form
@@ -77,6 +84,28 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                 submit();
             }}
         >
+            {/* S23: the cuadre of the gig, with the numbers the request already carries. Read only. */}
+            <section aria-labelledby={settlementId} className="rounded-[12px] bg-fondo-2 p-4 sm:p-5">
+                <h4 id={settlementId} className="text-sm font-medium text-tinta">
+                    Cuadre del toque
+                </h4>
+                <dl className="mt-3 flex flex-col gap-2">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                        <dt className="text-tinta-2">Cachet total</dt>
+                        <dd className="tabular text-lg text-tinta">{settlement.cachet}</dd>
+                    </div>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                        <dt className="text-tinta-2">Debes a tus músicos</dt>
+                        <dd className="tabular text-lg text-tinta">{settlement.owed}</dd>
+                    </div>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                        <dt className="text-tinta-2">Diferencia</dt>
+                        <dd className="font-semibold tabular text-lg text-tinta">{settlement.difference}</dd>
+                    </div>
+                </dl>
+                <p className="mt-3 text-sm text-tinta-2">Con lo que está guardado. La app no cobra ni valida estos montos.</p>
+            </section>
+
             <div className="grid gap-6 md:grid-cols-2">
                 <TimeSelect
                     id={`${idPrefix}-call`}
@@ -108,6 +137,35 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                         />
                         Anticipo recibido
                     </label>
+                    {/* T61 (S24): la fecha límite es un día del calendario, y la carga el manager. */}
+                    <DatePicker
+                        id={`${idPrefix}-deposit-due`}
+                        label="Fecha límite del anticipo"
+                        value={form.depositDueDate}
+                        helperText="El cliente la ve junto al anticipo."
+                        onChange={(depositDueDate) => setForm((f) => ({ ...f, depositDueDate }))}
+                    />
+                    {/* T48: the balance is recorded like the deposit: a fact with its date, never a charge. */}
+                    <label className="flex min-h-11 w-fit cursor-pointer items-center gap-3 text-tinta">
+                        <input
+                            type="checkbox"
+                            className="size-6 accent-acento"
+                            checked={form.balanceReceived}
+                            aria-describedby={`${idPrefix}-balance-state`}
+                            onChange={(event) => setForm((f) => ({ ...f, balanceReceived: event.target.checked }))}
+                        />
+                        Saldo recibido
+                    </label>
+                    <p id={`${idPrefix}-balance-state`} className="text-sm text-tinta-2">
+                        {balanceState}
+                    </p>
+                    <DatePicker
+                        id={`${idPrefix}-balance-due`}
+                        label="Fecha límite del saldo"
+                        value={form.balanceDueDate}
+                        helperText="El cliente la ve junto al saldo."
+                        onChange={(balanceDueDate) => setForm((f) => ({ ...f, balanceDueDate }))}
+                    />
                 </div>
             </div>
 
@@ -130,13 +188,15 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                         <thead className="sr-only">
                             <tr>
                                 <th scope="col">Músico</th>
-                                <th scope="col">Pago (MXN)</th>
+                                <th scope="col">Pago (MXN) y si ya se pagó</th>
                             </tr>
                         </thead>
                         <tbody>
                             {attendees.map((attendee) => {
                                 const key = String(Number(attendee.userId));
                                 const name = (attendee.fullName ?? "").trim() || "músico sin nombre";
+                                const hasPay = parseAmount(form.pay[key] ?? "").kind === "ok";
+                                const paidState = recordedStateLabel(form.paid[key] ?? false, attendee.paidAt, { done: "Pagado", pending: "Pendiente de pago" });
                                 return (
                                     <tr key={key} className="align-top [&+&]:shadow-[inset_0_1px_0_var(--fondo-3)]">
                                         <th scope="row" className="py-3 pr-4 font-normal text-tinta sm:w-1/2">
@@ -155,6 +215,26 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                                                 error={errors.pay[key]}
                                                 onChange={(event) => setPay(key, event.target.value)}
                                             />
+                                            {hasPay ? (
+                                                <div className="mt-2">
+                                                    <label className="flex min-h-11 w-fit cursor-pointer items-center gap-3 text-tinta">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="size-6 accent-acento"
+                                                            aria-label={`Pagado a ${name}`}
+                                                            aria-describedby={`${idPrefix}-paid-state-${key}`}
+                                                            checked={form.paid[key] ?? false}
+                                                            onChange={(event) => setPaid(key, event.target.checked)}
+                                                        />
+                                                        Pagado
+                                                    </label>
+                                                    <p id={`${idPrefix}-paid-state-${key}`} className="text-sm text-tinta-2">
+                                                        {paidState}
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <p className="mt-2 flex min-h-11 items-center text-sm text-tinta-2">Sin pago definido</p>
+                                            )}
                                         </td>
                                     </tr>
                                 );

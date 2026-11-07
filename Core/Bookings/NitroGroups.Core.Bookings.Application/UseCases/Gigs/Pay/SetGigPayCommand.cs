@@ -20,7 +20,8 @@ public sealed record SetGigPayCommand(long GroupId, long GigId, long? CallerUser
 public sealed class SetGigPayCommandHandler(
     IUnitOfWorkBookings unitOfWork,
     IGroupsModuleApi groups,
-    IUsersModuleApi users) : ICommandHandler<SetGigPayCommand, BookingResult<GroupGigResponse>>
+    IUsersModuleApi users,
+    TimeProvider time) : ICommandHandler<SetGigPayCommand, BookingResult<GroupGigResponse>>
 {
     public async Task<BookingResult<GroupGigResponse>> Handle(SetGigPayCommand command, CancellationToken cancellationToken)
     {
@@ -42,16 +43,22 @@ public sealed class SetGigPayCommandHandler(
             return Invalid("Solo se puede pagar a miembros activos del grupo.");
 
         var existing = await unitOfWork.GigPays.ListForReplaceAsync(gig.Id, cancellationToken);
-        var wanted = payments.ToDictionary(payment => payment.UserId, payment => payment.Amount);
+        var wanted = payments.ToDictionary(payment => payment.UserId);
+        var now = time.GetUtcNow().UtcDateTime;
 
         foreach (var row in existing)
         {
-            if (wanted.TryGetValue(row.UserId, out var amount))
+            if (wanted.TryGetValue(row.UserId, out var payment))
             {
+                // La fecha de pago sobrevive al reemplazo: solo cambia si el manager envía "paid".
+                // Una fila dada de baja que vuelve no recupera su fecha de antes.
+                if (row.DeletedAt is not null)
+                    row.PaidAt = null;
+                row.PaidAt = ResolvePaidAt(row.PaidAt, payment.Paid, now);
                 // Revive la fila dada de baja: el índice único no admite una segunda para el mismo músico.
                 row.DeletedAt = null;
                 row.DeletedBy = null;
-                row.Amount = amount;
+                row.Amount = payment.Amount;
             }
             else if (row.DeletedAt is null)
             {
@@ -59,8 +66,11 @@ public sealed class SetGigPayCommandHandler(
             }
         }
 
-        foreach (var (userId, amount) in wanted.Where(entry => existing.All(row => row.UserId != entry.Key)))
-            await unitOfWork.GigPays.CreateAsync(new GigPay { EventRequestId = gig.Id, UserId = userId, Amount = amount });
+        foreach (var (userId, payment) in wanted.Where(entry => existing.All(row => row.UserId != entry.Key)))
+            await unitOfWork.GigPays.CreateAsync(new GigPay
+            {
+                EventRequestId = gig.Id, UserId = userId, Amount = payment.Amount, PaidAt = ResolvePaidAt(null, payment.Paid, now)
+            });
 
         await unitOfWork.CompleteAsync();
 
@@ -68,6 +78,15 @@ public sealed class SetGigPayCommandHandler(
             unitOfWork, groups, users, command.GroupId, command.CallerUserId, [gig], cancellationToken);
         return BookingResult<GroupGigResponse>.Success(rows[0]);
     }
+
+    /// <summary>true fija la fecha solo si no había (conserva la original), false la limpia, omitido la deja.</summary>
+    private static DateTime? ResolvePaidAt(DateTime? current, bool? paid, DateTime nowUtc)
+        => paid switch
+        {
+            true => current ?? nowUtc,
+            false => null,
+            null => current
+        };
 
     private static BookingResult<GroupGigResponse> Invalid(string message)
         => BookingResult<GroupGigResponse>.Failure(BookingErrorKind.Validation, message);

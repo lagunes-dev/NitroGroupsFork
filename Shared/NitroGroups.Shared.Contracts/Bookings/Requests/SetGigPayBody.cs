@@ -13,5 +13,11 @@ namespace NitroGroups.Shared.Contracts.Bookings.Requests
     {
         public long UserId { get; set; }
         public decimal Amount { get; set; }
+
+        /// <summary>
+        /// <c>true</c> registra que se le pagó (fija la fecha solo si no la tenía); <c>false</c> la
+        /// limpia; omitido conserva lo que ya había. Es un dato: la app no mueve dinero.
+        /// </summary>
+        public bool? Paid { get; set; }
     }
 }

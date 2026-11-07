@@ -17,8 +17,24 @@ describe("ProfileVisits", () => {
         profileVisits.mockResolvedValue({ count: 0, groups: [] });
         renderBlock();
 
-        expect(await screen.findByText("Ningún grupo miró tu perfil todavía")).toBeInTheDocument();
-        expect(screen.getByText(/Cuando un manager abra tu perfil/)).toBeInTheDocument();
+        expect(await screen.findByText("Sin visitas")).toBeInTheDocument();
+        expect(screen.getByText(/aquí verás qué grupo abre tu perfil/)).toBeInTheDocument();
+    });
+
+    it("keeps the empty notice to one compact line, still a labelled section (T54)", async () => {
+        profileVisits.mockResolvedValue({ count: 0, groups: [] });
+        const { container } = renderBlock();
+
+        const heading = await screen.findByRole("heading", { name: "Sin visitas" });
+        const section = screen.getByRole("region", { name: "Sin visitas" });
+        // jsdom has no layout: assert the markup that makes it one line (no block paragraph, inline
+        // heading, compact padding, no sm:p-5 growth) instead of a pixel height.
+        expect(container.querySelector("p")).toBeNull();
+        expect(heading.className).toContain("inline");
+        expect(section.className).toContain("py-2.5");
+        expect(section.className).not.toMatch(/\bp-4\b|sm:p-5/);
+        expect(section).not.toHaveAttribute("aria-hidden");
+        expect(section).toHaveTextContent("Sin visitas · aquí verás qué grupo abre tu perfil");
     });
 
     it("says how many groups looked and links each one to its public profile", async () => {
@@ -34,6 +50,8 @@ describe("ProfileVisits", () => {
         expect(await screen.findByText("2 grupos miraron tu perfil")).toBeInTheDocument();
         expect(screen.getByRole("link", { name: "Los Vargas" })).toHaveAttribute("href", "/groups/los-vargas");
         expect(screen.getByRole("link", { name: "Mariachi Oro" })).toHaveAttribute("href", "/groups/mariachi-oro");
+        // The populated state keeps its card shape.
+        expect(screen.getByRole("region", { name: "2 grupos miraron tu perfil" }).className).toContain("p-4");
     });
 
     it("stays quiet when the notice cannot be read: it is a courtesy, not the work", async () => {

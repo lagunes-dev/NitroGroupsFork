@@ -14,7 +14,7 @@ public sealed record PostGigNoticeCommand(long GroupId, long GigId, long? Caller
     : ICommand<BookingResult<GigNoticeResponse>>;
 
 /// <summary>
-/// S12: el músico avisa que al toque le falta la llegada, el pago o el setlist, o (S17) que llega tarde o no encuentra el lugar. El cuerpo lleva el
+/// S12: el músico avisa que al toque le falta la llegada, el pago o el setlist, o (S17) que llega tarde o no encuentra el lugar, o (S21) que el toque ya fue y no le pagaron. El cuerpo lleva el
 /// tipo y nada más. Se guarda uno por (toque, músico, tipo) y día: apretar dos veces responde lo
 /// mismo que la primera vez en vez de error, y el manager no recibe ruido.
 /// </summary>
@@ -25,11 +25,14 @@ public sealed class PostGigNoticeCommandHandler(
     IGigNoticeRepository notices,
     TimeProvider time) : ICommandHandler<PostGigNoticeCommand, BookingResult<GigNoticeResponse>>
 {
-    internal const string InvalidKindMessage = "El aviso tiene que ser de llegada, pago, setlist, llegada tarde o lugar.";
+    internal const string InvalidKindMessage = "El aviso tiene que ser de llegada, pago, setlist, llegada tarde, lugar o pago sin recibir.";
     internal const string NotFoundMessage = UpdateGigDetailsCommandHandler.NotFoundMessage;
     internal const string NotMemberMessage = "Solo un miembro activo del grupo puede avisar del toque.";
     internal const string GigAlreadyPassedMessage = "Ese toque ya pasó: ya no se puede avisar que llegas tarde o que no encuentras el lugar.";
     internal const string NotAcceptedMessage = "Solo se puede avisar de un toque aceptado.";
+    internal const string UnpaidNotPastMessage = "Todavía no puedes avisar que no te pagaron: ese toque no ha pasado.";
+    internal const string UnpaidNothingPendingMessage = "No tienes un pago pendiente en ese toque.";
+    internal const string UnpaidDeclinedMessage = "Avisaste que no podías ir a ese toque, así que no hay pago que reclamar.";
 
     public async Task<BookingResult<GigNoticeResponse>> Handle(PostGigNoticeCommand command, CancellationToken cancellationToken)
     {
@@ -56,6 +59,24 @@ public sealed class PostGigNoticeCommandHandler(
         var sentOn = MexicoTime.Today(time);
         if (GigNoticeKinds.IsDayOfGig(kind) && gig.EventDate < sentOn)
             return Failure(BookingErrorKind.Conflict, GigAlreadyPassedMessage);
+
+        // S21: "no me pagaron" solo vale cuando el toque ya fue y al llamante le queda un pago sin
+        // registrar como recibido. El mensaje dice cuál de las dos condiciones falló.
+        if (kind == GigNoticeKind.Unpaid)
+        {
+            if (gig.EventDate >= sentOn)
+                return Failure(BookingErrorKind.Conflict, UnpaidNotPastMessage);
+
+            // Si el músico avisó que no podía ir, no tocó y no hay pago que reclamar. Se rechaza acá para
+            // que el backend y la tarjeta digan lo mismo: la tarjeta ya no ofrece el aviso en un rechazado.
+            var attendance = await unitOfWork.GigAttendances.ListByEventRequestsAsync([gig.Id], callerUserId, cancellationToken);
+            if (attendance.Any(row => row.Status == GigAttendanceStatus.Declined))
+                return Failure(BookingErrorKind.Conflict, UnpaidDeclinedMessage);
+
+            var pays = await unitOfWork.GigPays.ListByEventRequestsAsync([gig.Id], callerUserId, cancellationToken);
+            if (!pays.Exists(row => row.PaidAt is null))
+                return Failure(BookingErrorKind.Conflict, UnpaidNothingPendingMessage);
+        }
 
         var existing = await notices.FindByDayAsync(gig.Id, callerUserId, kind, sentOn, cancellationToken);
         var userMap = await users.GetUsersAsync([callerUserId], cancellationToken);

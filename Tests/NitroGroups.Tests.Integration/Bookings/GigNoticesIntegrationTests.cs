@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using NitroGroups.Core.Bookings.Application;
 using NitroGroups.Core.Bookings.Application.UseCases.Gigs.Notices;
 using NitroGroups.Core.Bookings.Infrastructure.Persistence;
+using NitroGroups.Core.Bookings.Domain.Entities;
 using NitroGroups.Core.Bookings.Infrastructure.Repositories;
 using NitroGroups.Shared.Contracts.Bookings.Requests;
 using NitroGroups.Shared.Contracts.Bookings.Responses;
@@ -122,7 +123,7 @@ public class GigNoticesIntegrationTests : IClassFixture<IntegrationTestFixture>
         var result = await SendAsync(context, gig.Id, kind);
 
         Assert.Equal(BookingErrorKind.Validation, result.ErrorKind);
-        Assert.Equal("El aviso tiene que ser de llegada, pago, setlist, llegada tarde o lugar.", result.Error);
+        Assert.Equal("El aviso tiene que ser de llegada, pago, setlist, llegada tarde, lugar o pago sin recibir.", result.Error);
         Assert.Equal(0, await CountAsync(context));
     }
 
@@ -373,5 +374,133 @@ public class GigNoticesIntegrationTests : IClassFixture<IntegrationTestFixture>
 
         Assert.Equal(["Late", "CannotFindVenue", "Pay"], (await MyNoticesTodayAsync(context)).Select(row => row.Kind));
         Assert.Equal(["Pay", "CannotFindVenue", "Late"], (await GroupNoticesAsync(context)).Select(row => row.Kind));
+    }
+
+    // T58 / S21: "No me pagaron" solo vale en un toque que ya fue y con un pago pendiente del llamante.
+    private const string UnpaidNotPastMessage = "Todavía no puedes avisar que no te pagaron: ese toque no ha pasado.";
+    private const string UnpaidDeclinedMessage = "Avisaste que no podías ir a ese toque, así que no hay pago que reclamar.";
+    private const string UnpaidNothingPendingMessage = "No tienes un pago pendiente en ese toque.";
+
+    private static async Task SeedPayAsync(
+        BookingsDbContext context,
+        long gigId,
+        long userId = MemberId,
+        DateTime? paidAt = null)
+    {
+        context.GigPays.Add(new GigPay
+        {
+            EventRequestId = gigId,
+            UserId = userId,
+            Amount = 1500m,
+            PaidAt = paidAt,
+            CreatedBy = ManagerId
+        });
+        await context.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task AvisoDeQueNoPagaron_ToquePasadoConPagoPendiente_SeGuardaYSeLeeEnLosDosLados()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context, eventDate: new DateOnly(2026, 11, 2));
+        await SeedPayAsync(context, gig.Id);
+
+        var result = await SendAsync(context, gig.Id, "Unpaid");
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal((gig.Id, MemberId, "Unpaid", "Mateo Ruiz"), (
+            result.Value!.GigId, result.Value.UserId, result.Value.Kind, result.Value.FullName));
+        Assert.Equal(new DateOnly(2026, 11, 3), result.Value.SentOn);
+        var row = Assert.Single(await context.GigNotices.ToListAsync());
+        Assert.Equal(MemberId, row.CreatedBy);
+
+        // El manager lo lee en el hilo y el músico en el suyo de hoy, como cualquier otro tipo.
+        Assert.Equal(["Unpaid"], (await GroupNoticesAsync(context)).Select(notice => notice.Kind));
+        Assert.Equal(["Unpaid"], (await MyNoticesTodayAsync(context)).Select(notice => notice.Kind));
+    }
+
+    [Theory]
+    [InlineData("2026-11-03")]
+    [InlineData("2026-12-12")]
+    public async Task AvisoDeQueNoPagaron_ToqueQueNoHaPasado_Returns409YNoGuarda(string eventDate)
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context, eventDate: DateOnly.Parse(eventDate));
+        await SeedPayAsync(context, gig.Id);
+
+        var result = await SendAsync(context, gig.Id, "Unpaid");
+
+        Assert.Equal(BookingErrorKind.Conflict, result.ErrorKind);
+        Assert.Equal(UnpaidNotPastMessage, result.Error);
+        Assert.Equal(0, await CountAsync(context));
+    }
+
+    [Fact]
+    public async Task AvisoDeQueNoPagaron_SiAvisoQueNoIba_Returns409YNoGuarda()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context, eventDate: new DateOnly(2026, 11, 2));
+        await SeedPayAsync(context, gig.Id, paidAt: null);
+        // Dijo que no podía ir: no tocó, así que no hay pago que reclamar. Antes el backend lo aceptaba
+        // mientras la tarjeta escondía el aviso; ahora los dos dicen lo mismo.
+        await context.GigAttendances.AddAsync(new GigAttendance
+        {
+            EventRequestId = gig.Id,
+            UserId = MemberId,
+            Status = GigAttendanceStatus.Declined,
+            CreatedBy = MemberId,
+            CreatedAt = DateTime.UtcNow
+        });
+        await context.SaveChangesAsync();
+
+        var result = await SendAsync(context, gig.Id, "Unpaid");
+
+        Assert.Equal(BookingErrorKind.Conflict, result.ErrorKind);
+        Assert.Equal(UnpaidDeclinedMessage, result.Error);
+        Assert.Equal(0, await CountAsync(context));
+    }
+
+    public async Task AvisoDeQueNoPagaron_PagoYaRegistrado_Returns409YNoGuarda()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context, eventDate: new DateOnly(2026, 11, 2));
+        await SeedPayAsync(context, gig.Id, paidAt: new DateTime(2026, 11, 2, 18, 0, 0, DateTimeKind.Utc));
+
+        var result = await SendAsync(context, gig.Id, "Unpaid");
+
+        Assert.Equal(BookingErrorKind.Conflict, result.ErrorKind);
+        Assert.Equal(UnpaidNothingPendingMessage, result.Error);
+        Assert.Equal(0, await CountAsync(context));
+    }
+
+    [Fact]
+    public async Task AvisoDeQueNoPagaron_SinPagoPendientePropio_Returns409YNoGuarda()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context, eventDate: new DateOnly(2026, 11, 2));
+        // Hay un pago, pero es de otro músico: al llamante no se le debe nada en ese toque.
+        await SeedPayAsync(context, gig.Id, userId: OtherMemberId);
+
+        var result = await SendAsync(context, gig.Id, "Unpaid");
+
+        Assert.Equal(BookingErrorKind.Conflict, result.ErrorKind);
+        Assert.Equal(UnpaidNothingPendingMessage, result.Error);
+        Assert.Equal(0, await CountAsync(context));
+    }
+
+    [Fact]
+    public async Task AvisoDeQueNoPagaron_RepetidoElMismoDia_NoGuardaOtraFila()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        var gig = await SeedGigAsync(context, eventDate: new DateOnly(2026, 11, 2));
+        await SeedPayAsync(context, gig.Id);
+
+        var first = await SendAsync(context, gig.Id, "Unpaid");
+        var second = await SendAsync(context, gig.Id, "Unpaid");
+
+        Assert.True(first.IsSuccess, first.Error);
+        Assert.True(second.IsSuccess, second.Error);
+        Assert.Equal(first.Value!.Id, second.Value!.Id);
+        Assert.Equal(1, await CountAsync(context));
     }
 }

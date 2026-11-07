@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
+import { BlockDayControl } from "@/features/groupAvailability/components/BlockDayControl";
+import { isIsoDate, todayInMexico } from "@/lib/format";
 import { bookingsService } from "../bookings.service";
 import { compareByCreatedAtAsc } from "../order";
 import { pendingRequestsLine } from "../summary";
@@ -16,6 +18,14 @@ export function GroupInbox({ groupId }: { groupId: number }) {
     const pending = all.filter((r) => r.status === "Pending").sort(compareByCreatedAtAsc);
     const rest = all.filter((r) => r.status !== "Pending");
 
+    /*
+     * S26: el día que la bandeja pone delante es el del pedido que espera respuesta, que es el día que
+     * el manager está decidiendo. Sin pedidos pendientes, abre en hoy. Así se bloquea sin pasar por el
+     * calendario y el nombre del control dice qué día bloquea.
+     */
+    const waitingDays = pending.map((request) => request.eventDate).filter((day) => isIsoDate(day)).sort();
+    const controlDay = waitingDays[0] ?? todayInMexico();
+
     return (
         <div className="flex flex-col gap-12 py-6">
             {/* The count shows up when the inbox arrives: it is read aloud at that point. */}
@@ -25,6 +35,9 @@ export function GroupInbox({ groupId }: { groupId: number }) {
 
             {requests.isPending && <p className="text-tinta-2" aria-busy>Cargando pedidos de fecha…</p>}
             {requests.isError && <p role="alert" className="text-error">No pudimos cargar los pedidos de fecha. Recarga la página en un momento.</p>}
+
+            {/* S26: se monta cuando la bandeja ya sabe qué día mostrar, para que nombre el día correcto. */}
+            {requests.isSuccess && <BlockDayControl groupId={groupId} initialDay={controlDay} />}
 
             {requests.isSuccess && all.length === 0 && (
                 <div className="max-w-[56ch]">
@@ -48,7 +61,7 @@ export function GroupInbox({ groupId }: { groupId: number }) {
 
                     {rest.length > 0 && (
                         <details className="group">
-                            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-[8px] py-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento [&::-webkit-details-marker]:hidden">
+                            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-[8px] py-1 focus-visible:outline-offset-2 [&::-webkit-details-marker]:hidden">
                                 <h3 className="type-heading text-2xl text-tinta-2">
                                     Historial <span className="tabular">({rest.length})</span>
                                 </h3>

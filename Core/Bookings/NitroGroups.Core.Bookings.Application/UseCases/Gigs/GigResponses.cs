@@ -1,6 +1,8 @@
 using NitroGroups.Core.Bookings.Domain.Entities;
 using NitroGroups.Shared.Contracts.Bookings.Responses;
 using NitroGroups.Shared.Contracts.Groups.Responses;
+using NitroGroups.Shared.Contracts.Modules;
+using NitroGroups.Shared.Contracts.Users.Responses;
 using NitroGroups.Shared.Domain.DomainEvents.Groups.Enums;
 
 namespace NitroGroups.Core.Bookings.Application.UseCases.Gigs;
@@ -27,18 +29,24 @@ public static class GigResponses
     public static List<GigResponse> Build(
         IReadOnlyCollection<EventRequest> gigs,
         IReadOnlyDictionary<long, GroupMembershipSummary> memberships,
-        IReadOnlyDictionary<long, GigAttendanceStatus> attendance,
-        IReadOnlyDictionary<long, decimal> myPay)
+        IReadOnlyDictionary<long, GigAttendanceStatus?> attendance,
+        IReadOnlyDictionary<long, (decimal Amount, DateTime? PaidAt)> myPay,
+        IReadOnlyDictionary<long, GroupSummary> groups,
+        IReadOnlyDictionary<long, List<GigTeammateResponse>> teammates)
         => gigs.Select(gig =>
         {
             var membership = memberships.GetValueOrDefault(gig.GroupId);
-            return Build(
+            var row = Build(
                 gig,
                 membership?.GroupName ?? string.Empty,
                 membership?.Slug ?? string.Empty,
                 membership?.Role,
-                attendance.TryGetValue(gig.Id, out var status) ? status : null,
-                myPay.TryGetValue(gig.Id, out var amount) ? amount : null);
+                attendance.GetValueOrDefault(gig.Id),
+                myPay.TryGetValue(gig.Id, out var mine) ? mine.Amount : null,
+                myPay.TryGetValue(gig.Id, out var paid) ? paid.PaidAt : null);
+            row.ManagerPhone = ManagerPhone(groups.GetValueOrDefault(gig.GroupId)?.Phone);
+            row.Teammates = teammates.GetValueOrDefault(gig.Id) ?? [];
+            return row;
         }).ToList();
 
     public static GigResponse Build(
@@ -47,12 +55,63 @@ public static class GigResponses
         string groupSlug,
         GroupMemberRole? role,
         GigAttendanceStatus? attendance,
-        decimal? myPay = null)
+        decimal? myPay = null,
+        DateTime? myPayPaidAt = null)
     {
-        var row = new GigResponse { MyPay = myPay };
+        var row = new GigResponse { MyPay = myPay, MyPayPaidAt = myPayPaidAt };
         Fill(row, gig, groupName, groupSlug, role, attendance);
         return row;
     }
+
+    /// <summary>
+    /// S22: quiénes tocan el toque. Solo las respuestas confirmadas —quien rechazó no va y quien no
+    /// respondió todavía no está—, más el llamante cuando su propia respuesta es "Confirmado" (una
+    /// sola vez, aunque su fila de asistencia ya esté en la lista). El nombre sale del módulo Users y
+    /// el rol del módulo Groups: nunca se lee el esquema de ninguno de los dos y el correo nunca es
+    /// un respaldo.
+    /// </summary>
+    public static List<GigTeammateResponse> Teammates(
+        IEnumerable<GigAttendance> attendance,
+        long callerUserId,
+        GigAttendanceStatus? callerStatus,
+        IReadOnlyDictionary<long, UserSummary> users,
+        IReadOnlyDictionary<long, OpenMusicianSummary> musicians,
+        IReadOnlyDictionary<long, string> roles)
+    {
+        var confirmed = attendance
+            .Where(row => row.Status == GigAttendanceStatus.Confirmed)
+            .Select(row => row.UserId)
+            .Distinct()
+            .ToList();
+
+        if (callerStatus == GigAttendanceStatus.Confirmed && !confirmed.Contains(callerUserId))
+            confirmed.Add(callerUserId);
+
+        return confirmed
+            .Select(userId => Teammate(userId, users, musicians, roles))
+            .OrderBy(teammate => teammate.FullName, StringComparer.Ordinal)
+            .ThenBy(teammate => teammate.UserId)
+            .ToList();
+    }
+
+    private static GigTeammateResponse Teammate(
+        long userId,
+        IReadOnlyDictionary<long, UserSummary> users,
+        IReadOnlyDictionary<long, OpenMusicianSummary> musicians,
+        IReadOnlyDictionary<long, string> roles)
+        => new()
+        {
+            UserId = userId,
+            FullName = Text(users.GetValueOrDefault(userId)?.FullName)
+                ?? Text(musicians.GetValueOrDefault(userId)?.FullName)
+                ?? string.Empty,
+            Role = Text(roles.GetValueOrDefault(userId))
+        };
+
+    /// <summary>El teléfono del grupo, o null cuando no hay dato: la fila nunca manda "".</summary>
+    private static string? ManagerPhone(string? phone) => string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+
+    private static string? Text(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     /// <summary>Copia los datos del toque en una fila de la agenda (la base que comparten las dos vistas).</summary>
     internal static void Fill(

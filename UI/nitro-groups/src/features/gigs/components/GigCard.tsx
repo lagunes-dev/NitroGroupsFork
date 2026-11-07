@@ -1,12 +1,15 @@
 "use client";
 
+import { useId } from "react";
 import Link from "next/link";
+import { Phone } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import type { AttendanceTone } from "../attendance";
+import { isUnanswered, pastAppearance, type AttendanceTone } from "../attendance";
 import type { GigNoticeKind } from "../notices";
 import type { GigAnswer } from "../types";
 import {
+    ANSWER_SAVES_LINE,
     confirmButtonName,
     declineButtonName,
     scheduleLabel,
@@ -16,6 +19,7 @@ import {
     PAST_GIG_LINE,
     PAY_PENDING,
     SETLIST_PENDING,
+    TEAMMATES_HEADING,
     type GigView,
 } from "../viewModel";
 import { NoticeActions } from "./GigNotices";
@@ -60,8 +64,9 @@ interface GigCardProps {
  * sound alike, and they stay mounted after answering, so focus is never lost.
  *
  * A gig whose date already passed asks nothing: it says so, and neither the answer buttons nor the
- * logistics notices are drawn (ronda 6, Mateo). A gig the musician declined keeps the answer buttons
- * but says in one line what happens next.
+ * logistics notices are drawn (ronda 6, Mateo). Its one exception is "Avisar que no me pagaron"
+ * (S21): a past gig whose pay is still pending offers exactly that notice and nothing else. A gig the
+ * musician declined keeps the answer buttons but says in one line what happens next.
  */
 export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, notifying, notifyFailed, onNotify }: GigCardProps) {
     const answered = gig.attendance.status;
@@ -72,9 +77,10 @@ export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, 
         if (!saving) onAnswer(status);
     };
     const declined = answered === "Declined";
-    // Un toque rechazado no pide logística (no vas) y uno pasado no pide nada de nada.
+    // Un toque rechazado no pide logística (no vas) y uno pasado no pide nada, salvo (S21) el aviso
+    // de que no le pagaron, que va solo: los otros cinco siguen ocultos en los dos casos.
     const skipped = declined || past;
-    const slots = skipped ? [] : gig.notices;
+    const slots = declined ? [] : past ? (gig.unpaidNotice ? [gig.unpaidNotice] : []) : gig.notices;
     return (
         <li className="superficie flex flex-col gap-4 rounded-[12px] p-4 sm:p-5">
             <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
@@ -100,18 +106,22 @@ export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, 
                         )}
                     </p>
                     {gig.payLabel ? (
-                        <p className="tabular text-tinta-2">{gig.payLabel}</p>
+                        <p className="tabular text-tinta-2">
+                            {gig.payLabel}
+                            {/* T48: the manager records the payment; the musician can finally tell. */}
+                            {gig.paidLabel && <span> · {gig.paidLabel}</span>}
+                        </p>
                     ) : (
                         !skipped && <p className="tabular text-tinta-2 italic">{PAY_PENDING}</p>
                     )}
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                    <AttendanceChip attendance={gig.attendance} />
+                    <AttendanceChip attendance={past ? pastAppearance(gig.attendance) : gig.attendance} />
                     {past ? (
                         <p className="text-sm text-tinta-2">{PAST_GIG_LINE}</p>
                     ) : (
-                        <div className="flex gap-2">
+                        <div className="flex gap-4 sm:gap-2">
                             <Button
                                 size="sm"
                                 className={cn(answerButton, saving && "pointer-events-none opacity-45")}
@@ -141,8 +151,14 @@ export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, 
                 </div>
             </div>
 
+            {!past && isUnanswered(gig.attendance) && (
+                <p className="text-sm text-tinta-2">{ANSWER_SAVES_LINE}</p>
+            )}
             {!past && declined && <p className="text-sm text-tinta-2">{DECLINED_NEXT_STEP}</p>}
             {!past && answered === "Confirmed" && <p className="text-sm text-tinta-2">{CONFIRMED_NEXT_STEP}</p>}
+
+            {/* S22: con quién toca y el teléfono del manager, solo para el miembro activo del grupo. */}
+            {!past && <TeammatesBlock gig={gig} />}
 
             {/* Los avisos van en su propio bloque: cada uno es una acción con altura de 44 px. */}
             <NoticeActions slots={slots} notifying={notifying} onNotify={onNotify} />
@@ -158,7 +174,7 @@ export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, 
                 !skipped && <p className="text-sm text-tinta-2 italic">{SETLIST_PENDING}</p>
             )}
 
-            {!past && notifyFailed && (
+            {!declined && notifyFailed && (
                 <p role="alert" className="text-sm text-error">
                     No pudimos enviar el aviso. Intenta de nuevo.
                 </p>
@@ -173,6 +189,50 @@ export function GigCard({ gig, past = false, saving, failed, onAnswer, onRetry, 
                 </p>
             )}
         </li>
+    );
+}
+
+/**
+ * S22: the compact block that says who plays this gig with the musician —name and the role they
+ * hold in the group—, and how to phone the group's manager. Nothing is drawn when there is nobody
+ * confirmed and no phone; a past gig keeps exactly what it already showed, so the card never
+ * offers this block there.
+ */
+function TeammatesBlock({ gig }: { gig: GigView }) {
+    const headingId = useId();
+    const { players, managerContact } = gig;
+    if (players.length === 0 && !managerContact) return null;
+
+    return (
+        <div className="flex flex-col gap-2 rounded-[8px] border border-linea bg-fondo-2 p-3">
+            {players.length > 0 && (
+                <>
+                    <p id={headingId} className="text-sm font-semibold text-tinta">
+                        {TEAMMATES_HEADING}
+                    </p>
+                    {/* Un compañero por renglón en el celular; en fila cuando hay ancho. */}
+                    <ul
+                        aria-labelledby={headingId}
+                        className="flex flex-col gap-1 text-sm text-tinta-2 sm:flex-row sm:flex-wrap sm:gap-x-4"
+                    >
+                        {players.map((player, index) => (
+                            <li key={`${player.name}-${index}`}>
+                                {player.roleLabel ? `${player.name} · ${player.roleLabel}` : player.name}
+                            </li>
+                        ))}
+                    </ul>
+                </>
+            )}
+            {managerContact && (
+                <a
+                    href={managerContact.href}
+                    className="flex min-h-11 w-full items-center justify-start gap-2 rounded-[8px] border border-linea bg-fondo px-3 text-sm font-medium text-tinta sm:w-fit"
+                >
+                    <Phone aria-hidden className="size-4 shrink-0" />
+                    {managerContact.label}
+                </a>
+            )}
+        </div>
     );
 }
 

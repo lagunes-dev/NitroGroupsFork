@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attendanceAppearance } from "./attendance";
+import { attendanceAppearance, pastAppearance } from "./attendance";
 
 describe("attendanceAppearance", () => {
     it("reads a confirmed answer as confirmed, with the ok tone", () => {
@@ -28,6 +28,23 @@ describe("attendanceAppearance", () => {
     it("carries an icon for every answer, so the tone is never the only cue", () => {
         for (const value of [null, "Confirmed", "Declined", "Maybe"]) {
             expect(attendanceAppearance(value).icon).toBeTruthy();
+        }
+    });
+});
+
+describe("pastAppearance (T55)", () => {
+    it("says a past gig nobody answered was not answered, never 'Sin responder'", () => {
+        for (const value of [null, undefined, ""]) {
+            const view = pastAppearance(attendanceAppearance(value));
+            expect(view).toMatchObject({ status: null, text: "No respondiste", tone: "muted" });
+            expect(view.icon).not.toBe(attendanceAppearance(null).icon);
+        }
+    });
+
+    it("leaves the answered and the unknown states exactly as they are", () => {
+        for (const value of ["Confirmed", "Declined", "Maybe"]) {
+            const base = attendanceAppearance(value);
+            expect(pastAppearance(base)).toBe(base);
         }
     });
 });

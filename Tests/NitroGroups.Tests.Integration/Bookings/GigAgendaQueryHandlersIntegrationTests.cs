@@ -24,7 +24,7 @@ public class GigAgendaQueryHandlersIntegrationTests : IClassFixture<IntegrationT
     }
 
     private GetMyGigsQueryHandler Handler(BookingsDbContext context)
-        => new(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Time);
+        => new(_fixture.CreateBookingsUnitOfWork(context), _scenario.Groups, _scenario.Users, _scenario.Time);
 
     [Fact]
     public async Task MisToques_SoloDeMisGrupos_LosAceptados_OrdenadosPorFechaYHora()

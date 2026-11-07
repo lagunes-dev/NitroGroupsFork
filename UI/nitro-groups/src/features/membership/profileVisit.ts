@@ -12,7 +12,7 @@ export interface ProfileVisitsView {
  * is the honest answer for a new musician: no empty furniture, no "0 grupos".
  */
 /** Lo que ve un músico a quien todavía nadie miró: nombra la función, no la disimula. */
-export const EMPTY_VISITS = "Ningún grupo miró tu perfil todavía";
+export const EMPTY_VISITS = "Sin visitas";
 
 export function toProfileVisitsView(summary: ProfileVisits | null | undefined): ProfileVisitsView | null {
     // Sin respuesta no hay nada que decir; con cero visitas sí, porque el músico tiene que saber

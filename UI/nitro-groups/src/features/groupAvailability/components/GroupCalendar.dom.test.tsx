@@ -1,15 +1,20 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import GroupCalendar from "./GroupCalendar";
+import GroupCalendar, { type GroupCalendarMode } from "./GroupCalendar";
+import { dayBounds, longDayName } from "../blockDay";
+import { todayInMexico } from "@/lib/format";
 
-const { getGroupSchedules } = vi.hoisted(() => ({ getGroupSchedules: vi.fn() }));
+const { getGroupSchedules, createBusySchedule } = vi.hoisted(() => ({
+    getGroupSchedules: vi.fn(),
+    createBusySchedule: vi.fn(),
+}));
 vi.mock("../services/groupAvailability.service", () => ({
     groupAvailabilityService: {
         getGroupSchedules,
-        createBusySchedule: vi.fn(),
+        createBusySchedule,
         updateAvailability: vi.fn(),
         updateBusySchedule: vi.fn(),
         removeAvailability: vi.fn(),
@@ -39,11 +44,11 @@ function isoDay(date: Date): string {
 const today = new Date();
 const firstWeek = weekStart(today);
 
-function renderCalendar(confirmedGigDays: string[] = []) {
+function renderCalendar(confirmedGigDays: string[] = [], mode: GroupCalendarMode = "private") {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const view = render(
         <QueryClientProvider client={client}>
-            <GroupCalendar groupId={1} mode="private" confirmedGigDays={confirmedGigDays} />
+            <GroupCalendar groupId={1} mode={mode} confirmedGigDays={confirmedGigDays} />
         </QueryClientProvider>
     );
     const title = () => view.container.querySelector(".fc-toolbar-title")?.textContent ?? "";
@@ -56,6 +61,8 @@ function renderCalendar(confirmedGigDays: string[] = []) {
 beforeEach(() => {
     getGroupSchedules.mockReset();
     getGroupSchedules.mockResolvedValue([]);
+    createBusySchedule.mockReset();
+    createBusySchedule.mockResolvedValue({ id: "busy_99" });
 });
 
 describe("GroupCalendar keeps what it already did", () => {
@@ -173,5 +180,43 @@ describe("GroupCalendar navigation", () => {
         expect(screen.queryByText("Cargando calendario…")).toBeNull();
         await waitFor(() => expect(calendar.firstVisibleDay()).toBe(isoDay(addDays(firstWeek, 7))), { timeout: 3000 });
         expect(screen.queryByText("Cargando calendario…")).toBeNull();
+    });
+});
+
+/** S26: un día se bloquea desde la agenda, no solo arrastrando sobre la rejilla. */
+describe("GroupCalendar blocks a day from the agenda", () => {
+    const today = todayInMexico();
+
+    it("offers a control that names the day and blocks it from the keyboard, without dragging", async () => {
+        const user = userEvent.setup();
+        renderCalendar();
+
+        const control = await screen.findByRole("button", { name: `Bloquear el día ${longDayName(today)}` });
+        expect(control).toHaveTextContent("Bloquear el día");
+        expect(control).toHaveClass("min-h-11");
+
+        // El control no ofrece nada hasta leer el día: primero se habilita y recién ahí se opera.
+        await waitFor(() => expect(control).toBeEnabled());
+
+        // Un botón en el orden de tabulación: se opera con Enter, que es lo que un arrastre no permite.
+        control.focus();
+        await user.keyboard("{Enter}");
+        const dialog = await screen.findByRole("dialog", { name: "Bloquear este día" });
+        await user.click(within(dialog).getByRole("button", { name: "Bloquear día" }));
+
+        const bounds = dayBounds(today);
+        expect(createBusySchedule).toHaveBeenCalledWith(1, {
+            title: "No disponible",
+            start: bounds?.start,
+            end: bounds?.end,
+            source: "personal",
+        });
+    });
+
+    it("does not offer it on the public calendar the client sees", async () => {
+        const calendar = renderCalendar([], "public");
+
+        await waitFor(() => expect(calendar.firstVisibleDay()).not.toBeNull());
+        expect(screen.queryByRole("button", { name: /Bloquear el día/ })).toBeNull();
     });
 });

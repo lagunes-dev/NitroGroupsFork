@@ -111,7 +111,7 @@ public class GigNoticesEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
     {
         PostGigNoticeCommand? sent = null;
         _mediator.SendCommandAsync<PostGigNoticeCommand, BookingResult<GigNoticeResponse>>(Arg.Do<PostGigNoticeCommand>(c => sent = c))
-            .Returns(BookingResult<GigNoticeResponse>.Failure(BookingErrorKind.Validation, "El aviso tiene que ser de llegada, pago, setlist, llegada tarde o lugar."));
+            .Returns(BookingResult<GigNoticeResponse>.Failure(BookingErrorKind.Validation, "El aviso tiene que ser de llegada, pago, setlist, llegada tarde, lugar o pago sin recibir."));
 
         var response = await _client.PostAsync(PostUrl, null);
 
@@ -293,7 +293,7 @@ public class GigNoticesEndpointsTests : IClassFixture<NitroGroupsWebAppFactory>
     public async Task AvisoDeTipoDesconocido_SigueSiendo400()
     {
         _mediator.SendCommandAsync<PostGigNoticeCommand, BookingResult<GigNoticeResponse>>(Arg.Any<PostGigNoticeCommand>())
-            .Returns(BookingResult<GigNoticeResponse>.Failure(BookingErrorKind.Validation, "El aviso tiene que ser de llegada, pago, setlist, llegada tarde o lugar."));
+            .Returns(BookingResult<GigNoticeResponse>.Failure(BookingErrorKind.Validation, "El aviso tiene que ser de llegada, pago, setlist, llegada tarde, lugar o pago sin recibir."));
 
         var response = await _client.SendAsync(Post(PostUrl, "{\"kind\":\"late\"}"));
 

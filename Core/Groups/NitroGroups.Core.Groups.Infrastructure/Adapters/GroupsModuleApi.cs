@@ -26,11 +26,19 @@ namespace NitroGroups.Core.Groups.Infrastructure.Adapters
             if (ids.Count == 0)
                 return new Dictionary<long, GroupSummary>();
 
-            return await context.Groups.AsNoTracking()
+            var rows = await context.Groups.AsNoTracking()
                 .Where(g => ids.Contains(g.Id))
-                .Select(g => new GroupSummary(g.Id, g.Slug, g.GroupName, g.Email, g.OwnerUserId, g.IsAcceptingBookings, g.ProfilePictureUrl, g.Active, g.BasePrice, g.Currency))
-                .ToDictionaryAsync(g => g.Id, cancellationToken);
+                .Select(g => new GroupSummary(g.Id, g.Slug, g.GroupName, g.Email, g.OwnerUserId, g.IsAcceptingBookings, g.ProfilePictureUrl, g.Active, g.BasePrice, g.Currency, g.Phone))
+                .ToListAsync(cancellationToken);
+
+            // S22: el teléfono del manager es un dato personal. Se normaliza en el borde del módulo,
+            // así ningún consumidor recibe "" y pinta una etiqueta vacía.
+            return rows.ToDictionary(g => g.Id, g => g with { Phone = NormalizePhone(g.Phone) });
         }
+
+        /// <summary>Un teléfono vacío o solo con espacios no es un dato: el contrato dice null.</summary>
+        private static string? NormalizePhone(string? phone)
+            => string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
 
         public async Task<bool> CanManageGroupAsync(long groupId, long userId, CancellationToken cancellationToken = default)
         {
@@ -65,6 +73,37 @@ namespace NitroGroups.Core.Groups.Infrastructure.Adapters
                 .Select(m => m.UserId)
                 .Distinct()
                 .ToListAsync(cancellationToken);
+
+        public async Task<IReadOnlyDictionary<long, string>> GetActiveMemberRolesAsync(
+            long groupId,
+            IEnumerable<long> userIds,
+            CancellationToken cancellationToken = default)
+        {
+            var ids = userIds.Distinct().ToList();
+            if (ids.Count == 0)
+                return new Dictionary<long, string>();
+
+            var rows = await context.GroupMembers.AsNoTracking()
+                .Where(m => m.GroupId == groupId && m.IsActive && ids.Contains(m.UserId))
+                .Select(m => new { m.UserId, m.Role })
+                .ToListAsync(cancellationToken);
+
+            var roles = rows
+                .GroupBy(row => row.UserId)
+                .ToDictionary(group => group.Key, group => group.First().Role.ToString());
+
+            // El dueño puede no tener fila de membresía en una base vieja; su rol no se adivina:
+            // sale del grupo. Solo se completa el hueco, nunca se pisa una membresía real.
+            var ownerId = await context.Groups.AsNoTracking()
+                .Where(g => g.Id == groupId)
+                .Select(g => (long?)g.OwnerUserId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (ownerId is > 0 && ids.Contains(ownerId.Value))
+                roles.TryAdd(ownerId.Value, GroupMemberRole.Owner.ToString());
+
+            return roles;
+        }
 
         public async Task<IReadOnlyList<GroupMembershipSummary>> GetUserGroupMembershipsAsync(
             long userId,

@@ -12,4 +12,7 @@ public class GigPay : AuditableModel
     public long EventRequestId { get; set; }
     public long UserId { get; set; }
     public decimal Amount { get; set; }
+
+    /// <summary>Cuándo el manager registró que se le pagó; null mientras no.</summary>
+    public DateTime? PaidAt { get; set; }
 }

@@ -43,6 +43,8 @@ export interface EventRequest {
     messages?: EventRequestMessage[] | null;
     /** Recorded by the group once the request is accepted; the app never charges it. */
     deposit?: DepositPayload | null;
+    /** T48: ISO timestamp the group recorded when the balance arrived; null until then. */
+    balanceReceivedAt?: string | null;
     /**
      * T39: only on the lists the group receives, one per row, and only when the day already has an
      * accepted gig. The client's list never carries it and keeps rendering exactly as it did.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { balanceLabel, clientDepositLabel, depositLabel, nextStepLabel } from "./deposit";
+import { balanceBlock, balanceLabel, clientDepositLabel, depositLabel, dueDateLabel, nextStepLabel } from "./deposit";
 
 describe("depositLabel", () => {
     it("says when the deposit was received, with the full date in Spanish", () => {
@@ -86,5 +86,133 @@ describe("nextStepLabel", () => {
 
     it("is only for the client", () => {
         expect(nextStepLabel({ status: "Accepted", budget: 18000, deposit: received }, "Group")).toBeNull();
+    });
+});
+
+describe("fecha límite del anticipo y del saldo (T61, S24)", () => {
+    const received = { amount: 4000, receivedAt: "2026-11-05T18:00:00Z" };
+    const owed = { status: "Accepted" as const, budget: 18000, deposit: received };
+
+    it("says the deadline in Spanish, at the end of the line", () => {
+        expect(dueDateLabel("2026-11-15")).toBe("para el 15 de noviembre");
+        expect(dueDateLabel("2026-10-01")).toBe("para el 1 de octubre");
+    });
+
+    it("puts the deposit deadline at the end of the pending deposit line", () => {
+        expect(depositLabel({ amount: 3000, receivedAt: null, dueDate: "2026-11-15" })).toBe(
+            "Anticipo $3,000 · pendiente · para el 15 de noviembre"
+        );
+        expect(clientDepositLabel({ status: "Accepted", deposit: { amount: 3000, dueDate: "2026-11-15" } }, "Client")).toBe(
+            "Anticipo $3,000 · pendiente · para el 15 de noviembre"
+        );
+    });
+
+    it("says the balance the client owes with its deadline, like the spec's example", () => {
+        expect(balanceLabel({ ...owed, balanceDueDate: "2026-11-15" }, "Client")).toBe("Falta pagar $14,000 · para el 15 de noviembre");
+    });
+
+    it("keeps today's words when there is no deadline loaded", () => {
+        expect(depositLabel({ amount: 3000, receivedAt: null })).toBe("Anticipo $3,000 · pendiente");
+        expect(depositLabel({ amount: 3000, receivedAt: "2026-11-04T18:00:00Z" })).toBe("Anticipo $3,000 · recibido el 4 de noviembre de 2026");
+        expect(balanceLabel({ ...owed, balanceDueDate: null }, "Client")).toBe("Falta pagar $14,000");
+        expect(balanceLabel(owed, "Client")).toBe("Falta pagar $14,000");
+    });
+
+    it("states a deadline that already passed as the same fact, never as an error", () => {
+        // La fecha ya pasó: el texto es el mismo y no aparece ninguna marca de deuda vencida.
+        const line = balanceLabel({ ...owed, balanceDueDate: "2026-10-01" }, "Client");
+        expect(line).toBe("Falta pagar $14,000 · para el 1 de octubre");
+        expect(line).not.toMatch(/vencid|atras|error|reclam/i);
+        expect(depositLabel({ amount: 3000, dueDate: "2026-10-01" })).toBe("Anticipo $3,000 · pendiente · para el 1 de octubre");
+    });
+
+    it("never invents a deadline it cannot read", () => {
+        expect(dueDateLabel("15/11/2026")).toBeNull();
+        expect(dueDateLabel(null)).toBeNull();
+        expect(dueDateLabel("ayer")).toBeNull();
+        expect(depositLabel({ amount: 3000, dueDate: "15/11/2026" })).toBe("Anticipo $3,000 · pendiente");
+        expect(balanceLabel({ ...owed, balanceDueDate: "ayer" }, "Client")).toBe("Falta pagar $14,000");
+    });
+
+    it("does not add a deadline to money that already arrived", () => {
+        expect(depositLabel({ amount: 3000, receivedAt: "2026-11-04T18:00:00Z", dueDate: "2026-11-15" })).toBe(
+            "Anticipo $3,000 · recibido el 4 de noviembre de 2026"
+        );
+        expect(balanceLabel({ ...owed, balanceReceivedAt: "2026-12-13T15:00:00Z", balanceDueDate: "2026-11-15" }, "Client")).toBe(
+            "Saldo recibido el 13 de diciembre de 2026"
+        );
+    });
+
+    it("is for the client of an accepted request only, as today", () => {
+        expect(clientDepositLabel({ status: "Accepted", deposit: { amount: 3000, dueDate: "2026-11-15" } }, "Group")).toBeNull();
+        expect(clientDepositLabel({ status: "Pending", deposit: { amount: 3000, dueDate: "2026-11-15" } }, "Client")).toBeNull();
+        expect(balanceLabel({ ...owed, balanceDueDate: "2026-11-15" }, "Group")).toBeNull();
+        expect(balanceLabel({ ...owed, status: "Pending", balanceDueDate: "2026-11-15" }, "Client")).toBeNull();
+    });
+
+    it("uses the deadline as the block's 'para el …' instead of repeating it", () => {
+        expect(balanceBlock({ ...owed, balanceDueDate: "2026-11-15", eventDate: "2026-12-12" }, "Client")).toEqual({
+            balance: "Falta pagar $14,000 · para el 15 de noviembre",
+            purpose: null,
+            nextStep: "Acuerda el saldo con el grupo para el día del evento.",
+        });
+    });
+
+    it("keeps the event day as the purpose while there is no deadline", () => {
+        expect(balanceBlock({ ...owed, eventDate: "2026-12-12" }, "Client")).toEqual({
+            balance: "Falta pagar $14,000",
+            purpose: "para el 12 de diciembre",
+            nextStep: "Acuerda el saldo con el grupo para el día del evento.",
+        });
+    });
+});
+
+describe("balance received (T48)", () => {
+    const received = { amount: 4000, receivedAt: "2026-11-05T18:00:00Z" };
+    const settled = { status: "Accepted" as const, budget: 18000, deposit: received, balanceReceivedAt: "2026-12-13T15:00:00Z" };
+
+    it("says the balance arrived, with the date in Mexico, instead of asking for it", () => {
+        expect(balanceLabel(settled, "Client")).toBe("Saldo recibido el 13 de diciembre de 2026");
+        expect(balanceLabel({ ...settled, balanceReceivedAt: "2026-12-14T03:30:00Z" }, "Client")).toBe("Saldo recibido el 13 de diciembre de 2026");
+    });
+
+    it("never invents a date it cannot read", () => {
+        expect(balanceLabel({ ...settled, balanceReceivedAt: "ayer" }, "Client")).toBe("Saldo recibido");
+    });
+
+    it("does not need the deposit or the budget to state a fact the group recorded", () => {
+        expect(balanceLabel({ status: "Accepted", balanceReceivedAt: "2026-12-13T15:00:00Z" }, "Client")).toBe("Saldo recibido el 13 de diciembre de 2026");
+    });
+
+    it("changes nothing before it exists", () => {
+        expect(balanceLabel({ ...settled, balanceReceivedAt: null }, "Client")).toBe("Falta pagar $14,000");
+        expect(balanceLabel({ status: "Accepted", budget: 18000, deposit: received }, "Client")).toBe("Falta pagar $14,000");
+    });
+
+    it("is for the client of an accepted request only", () => {
+        expect(balanceLabel(settled, "Group")).toBeNull();
+        expect(balanceLabel({ ...settled, status: "Pending" }, "Client")).toBeNull();
+        expect(balanceLabel({ ...settled, status: "Cancelled" }, "Client")).toBeNull();
+    });
+
+    it("turns the next step into the settled one: nothing asks him to pay again", () => {
+        expect(nextStepLabel(settled, "Client")).toBe("No queda nada por pagar.");
+        expect(nextStepLabel({ status: "Accepted", balanceReceivedAt: "2026-12-13T15:00:00Z" }, "Client")).toBe("No queda nada por pagar.");
+        expect(nextStepLabel({ ...settled, balanceReceivedAt: null }, "Client")).toBe("Acuerda el saldo con el grupo para el día del evento.");
+        expect(nextStepLabel(settled, "Group")).toBeNull();
+    });
+
+    it("keeps the block, now settled, and without the 'para el ...' purpose of a debt", () => {
+        expect(balanceBlock({ ...settled, eventDate: "2026-12-12" }, "Client")).toEqual({
+            balance: "Saldo recibido el 13 de diciembre de 2026",
+            purpose: null,
+            nextStep: "No queda nada por pagar.",
+        });
+        expect(balanceBlock({ ...settled, balanceReceivedAt: null, eventDate: "2026-12-12" }, "Client")).toEqual({
+            balance: "Falta pagar $14,000",
+            purpose: "para el 12 de diciembre",
+            nextStep: "Acuerda el saldo con el grupo para el día del evento.",
+        });
+        expect(balanceBlock({ ...settled, eventDate: "2026-12-12" }, "Group")).toBeNull();
     });
 });

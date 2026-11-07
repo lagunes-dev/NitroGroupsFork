@@ -15,6 +15,7 @@ public class GigPayConfiguration : IEntityTypeConfiguration<GigPay>
         builder.Property(p => p.EventRequestId).HasColumnName("event_request_id").IsRequired();
         builder.Property(p => p.UserId).HasColumnName("user_id").IsRequired();
         builder.Property(p => p.Amount).HasColumnName("amount").HasPrecision(12, 2).IsRequired();
+        builder.Property(p => p.PaidAt).HasColumnName("paid_at");
 
         builder.Property(p => p.CreatedAt).HasDefaultValueSql("now()").HasColumnName("created_at");
         builder.Property(p => p.CreatedBy).HasColumnName("created_by");

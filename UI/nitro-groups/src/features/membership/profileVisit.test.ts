@@ -22,7 +22,7 @@ describe("toProfileVisitsView", () => {
         // Un músico sin visitas ve que la función existe: antes el bloque no se dibujaba y no
         // sabía que su perfil se podía mirar (ronda 4, Mateo).
         const empty = toProfileVisitsView(summary(0, []));
-        expect(empty?.headline).toBe("Ningún grupo miró tu perfil todavía");
+        expect(empty?.headline).toBe("Sin visitas");
         expect(empty?.groups).toEqual([]);
         expect(toProfileVisitsView(undefined)).toBeNull();
         expect(toProfileVisitsView(null)).toBeNull();

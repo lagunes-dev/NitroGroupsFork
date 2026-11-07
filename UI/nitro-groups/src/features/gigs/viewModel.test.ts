@@ -163,3 +163,105 @@ describe("toGigView logistics", () => {
         expect(toGigView({ ...ROW, myPay: "1500.00" as unknown as number }).payLabel).toBe("Tu pago: $1,500");
     });
 });
+
+describe("toGigView paidLabel (T48)", () => {
+    it("says when the musician was paid, in Mexico's calendar", () => {
+        expect(toGigView({ ...ROW, myPay: 2000, myPayPaidAt: "2026-12-13T15:00:00Z" }).paidLabel).toBe("pagado el 13 de diciembre de 2026");
+        expect(toGigView({ ...ROW, myPay: 2000, myPayPaidAt: "2026-12-14T03:30:00Z" }).paidLabel).toBe("pagado el 13 de diciembre de 2026");
+    });
+
+    it("says pending while the pay exists and was not recorded as paid", () => {
+        expect(toGigView({ ...ROW, myPay: 2000 }).paidLabel).toBe("pendiente");
+        expect(toGigView({ ...ROW, myPay: 0, myPayPaidAt: null }).paidLabel).toBe("pendiente");
+    });
+
+    it("never invents a date it cannot read", () => {
+        expect(toGigView({ ...ROW, myPay: 2000, myPayPaidAt: "ayer" }).paidLabel).toBe("pagado");
+    });
+
+    it("has nothing to say when no pay is loaded: that stays 'Tu pago sin definir'", () => {
+        expect(toGigView(ROW).paidLabel).toBeNull();
+        expect(toGigView({ ...ROW, myPay: null, myPayPaidAt: "2026-12-13T15:00:00Z" }).paidLabel).toBeNull();
+        expect(toGigView({ ...ROW, myPay: -5 }).paidLabel).toBeNull();
+    });
+
+    it("keeps the pay label exactly as it was", () => {
+        expect(toGigView({ ...ROW, myPay: 2000, myPayPaidAt: "2026-12-13T15:00:00Z" }).payLabel).toBe("Tu pago: $2,000");
+    });
+});
+
+describe("toGigView unpaidNotice (S21)", () => {
+    it("carries the one notice a past gig may offer when the pay is still pending", () => {
+        expect(toGigView({ ...ROW, myPay: 1500 }).unpaidNotice).toEqual({ kind: "Unpaid", sent: false });
+        expect(toGigView({ ...ROW, myPay: 1500 }, ["Unpaid"]).unpaidNotice).toEqual({ kind: "Unpaid", sent: true });
+    });
+
+    it("carries nothing when the pay was recorded as received", () => {
+        expect(toGigView({ ...ROW, myPay: 1500, myPayPaidAt: "2026-11-20T15:00:00Z" }).unpaidNotice).toBeNull();
+    });
+
+    it("carries nothing when there is no pay row for the caller", () => {
+        expect(toGigView(ROW).unpaidNotice).toBeNull();
+        expect(toGigView({ ...ROW, myPay: -5 }).unpaidNotice).toBeNull();
+    });
+
+    it("does not leak into the notices of a future gig", () => {
+        expect(toGigView({ ...ROW, myPay: 1500 }).notices.map((slot) => slot.kind)).not.toContain("Unpaid");
+    });
+});
+
+describe("toGigView teammates and manager phone (S22)", () => {
+    const conGente: GigPayload = {
+        ...ROW,
+        managerPhone: "33 1234 5678",
+        teammates: [
+            { userId: 400, fullName: "Mateo Músico", role: "Manager" },
+            { userId: 500, fullName: "Luis Percusión", role: "Member" },
+        ],
+    };
+
+    it("turns the confirmed teammates into name and group role", () => {
+        expect(toGigView(conGente).players).toEqual([
+            { name: "Mateo Músico", roleLabel: "Manager" },
+            { name: "Luis Percusión", roleLabel: "Miembro" },
+        ]);
+    });
+
+    it("turns the manager phone into a tel: link labelled with the group", () => {
+        expect(toGigView(conGente).managerContact).toEqual({ href: "tel:3312345678", label: "Llamar a Mariachi Sol de Jalisco" });
+        expect(toGigView({ ...ROW, managerPhone: "+52 (33) 1234-5678" }).managerContact?.href).toBe("tel:+523312345678");
+    });
+
+    it("draws no contact when the group has no phone loaded", () => {
+        for (const managerPhone of [null, undefined, "", "   ", "sin telefono"]) {
+            expect(toGigView({ ...ROW, managerPhone }).managerContact).toBeNull();
+        }
+    });
+
+    it("draws nobody when the payload has no teammates or a broken one", () => {
+        expect(toGigView(ROW).players).toEqual([]);
+        expect(toGigView({ ...ROW, teammates: "Mateo" as never }).players).toEqual([]);
+        expect(toGigView({ ...ROW, teammates: [null, 3, { fullName: "  " }] as never }).players).toEqual([]);
+    });
+
+    it("keeps a teammate whose role did not arrive, with the name only", () => {
+        expect(toGigView({ ...ROW, teammates: [{ userId: 1, fullName: "Mateo Músico" }] }).players).toEqual([
+            { name: "Mateo Músico", roleLabel: null },
+        ]);
+        // El rol llega como entero en la serialización vieja: se rotula igual.
+        expect(toGigView({ ...ROW, teammates: [{ fullName: "Mateo Músico", role: 2 }] }).players).toEqual([
+            { name: "Mateo Músico", roleLabel: "Manager" },
+        ]);
+        // Un rol que no es ninguno de los tres no inventa una etiqueta.
+        expect(toGigView({ ...ROW, teammates: [{ fullName: "Mateo Músico", role: "Dueño del mundo" }] }).players).toEqual([
+            { name: "Mateo Músico", roleLabel: null },
+        ]);
+    });
+
+    it("keeps the rest of the row exactly as before", () => {
+        const view = toGigView(conGente);
+        expect(view.dateLabel).toBe("domingo 15 de noviembre de 2026");
+        expect(view.payLabel).toBeNull();
+        expect(view.setlist).toBeNull();
+    });
+});

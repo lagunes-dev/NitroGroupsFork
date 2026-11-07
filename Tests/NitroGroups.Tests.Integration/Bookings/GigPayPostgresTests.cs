@@ -80,4 +80,60 @@ public class GigPayPostgresTests(IntegrationTestFixture fixture) : IClassFixture
         Assert.Equal(1234.56m, saved.DepositAmount);
         Assert.Equal(new DateTime(2026, 11, 3, 18, 0, 0, DateTimeKind.Utc), saved.DepositReceivedAt);
     }
+
+    // T48 (S18): la migración agrega las dos columnas, nulas por defecto, y se guardan y leen.
+    [PostgresFact]
+    public async Task LaMigracionAgregaSaldoRecibidoYPagadoComoColumnasNulas()
+    {
+        await using var db = await PostgresTestDatabase.CreateAsync();
+        await using var ctx = Context(db.ConnectionString);
+        await ctx.Database.MigrateAsync();
+
+        var columns = await ColumnsAsync(ctx);
+        Assert.Contains(("event_requests", "balance_received_at", "timestamp with time zone", "YES"), columns);
+        Assert.Contains(("gig_pay", "paid_at", "timestamp with time zone", "YES"), columns);
+
+        var gigId = await SeedAcceptedAsync(ctx);
+        ctx.GigPays.Add(new GigPay { EventRequestId = gigId, UserId = MemberId, Amount = 100m });
+        await ctx.SaveChangesAsync();
+
+        await using var fresh = Context(db.ConnectionString);
+        Assert.Null((await fresh.EventRequests.SingleAsync(r => r.Id == gigId)).BalanceReceivedAt);
+        Assert.Null((await fresh.GigPays.SingleAsync(p => p.EventRequestId == gigId)).PaidAt);
+    }
+
+    [PostgresFact]
+    public async Task ElSaldoRecibidoYLaFechaDePagoSeGuardanYSeLeen()
+    {
+        await using var db = await PostgresTestDatabase.CreateAsync();
+        await using var ctx = Context(db.ConnectionString);
+        await ctx.Database.MigrateAsync();
+        var gigId = await SeedAcceptedAsync(ctx);
+        var when = new DateTime(2026, 12, 13, 15, 0, 0, DateTimeKind.Utc);
+
+        var gig = await ctx.EventRequests.SingleAsync(r => r.Id == gigId);
+        gig.SetBalanceReceived(true, when);
+        ctx.GigPays.Add(new GigPay { EventRequestId = gigId, UserId = MemberId, Amount = 100m, PaidAt = when });
+        await ctx.SaveChangesAsync();
+
+        await using var check = Context(db.ConnectionString);
+        Assert.Equal(when, (await check.EventRequests.SingleAsync(r => r.Id == gigId)).BalanceReceivedAt);
+        Assert.Equal(when, (await check.GigPays.SingleAsync(p => p.EventRequestId == gigId)).PaidAt);
+    }
+
+    private static async Task<List<(string Table, string Column, string Type, string Nullable)>> ColumnsAsync(BookingsDbContext ctx)
+    {
+        var rows = new List<(string, string, string, string)>();
+        await using var command = ctx.Database.GetDbConnection().CreateCommand();
+        command.CommandText = """
+            select table_name, column_name, data_type, is_nullable from information_schema.columns
+            where table_schema = 'bookings' and column_name in ('balance_received_at', 'paid_at')
+            """;
+        if (command.Connection!.State != System.Data.ConnectionState.Open)
+            await command.Connection.OpenAsync();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+            rows.Add((reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3)));
+        return rows;
+    }
 }

@@ -111,7 +111,9 @@ public static class EventRequestResponses
             CreatedAt = r.CreatedAt,
             RespondedAt = r.RespondedAt,
             ResponseMessage = r.ResponseMessage,
-            Deposit = new GigDepositResponse { Amount = r.DepositAmount, ReceivedAt = r.DepositReceivedAt },
+            Deposit = new GigDepositResponse { Amount = r.DepositAmount, ReceivedAt = r.DepositReceivedAt, DueDate = r.DepositDueDate },
+            BalanceReceivedAt = r.BalanceReceivedAt,
+            BalanceDueDate = r.BalanceDueDate,
             CanReview = CanReview(r, review, today, callerUserId),
             Review = review is null
                 ? null

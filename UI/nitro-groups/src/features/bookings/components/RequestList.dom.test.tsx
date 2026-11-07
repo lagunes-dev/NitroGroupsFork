@@ -27,6 +27,30 @@ const accepted: EventRequest = {
     deposit: { amount: 4000, receivedAt: "2026-11-05T18:00:00Z" },
 };
 
+describe("RequestList balance received (T48)", () => {
+    const settled: EventRequest = { ...accepted, balanceReceivedAt: "2026-12-13T15:00:00Z" };
+
+    it("says the balance arrived instead of 'Falta pagar', and the next step is the settled one", () => {
+        render(<RequestList requests={[settled]} viewer="Client" />);
+        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026")).toBeInTheDocument();
+        expect(screen.getByText("No queda nada por pagar.")).toBeInTheDocument();
+        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/Acuerda el saldo/)).toBeNull();
+    });
+
+    it("keeps the balance as the white line of the row, like the debt it replaces", () => {
+        render(<RequestList requests={[settled]} viewer="Client" />);
+        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026")).toHaveClass("text-tinta");
+        expect(screen.getByText("$18,000")).toHaveClass("text-tinta-2");
+    });
+
+    it("does not show it to the group", () => {
+        render(<RequestList requests={[settled]} viewer="Group" />);
+        expect(screen.queryByText(/Saldo recibido/)).toBeNull();
+        expect(screen.queryByText(/No queda nada/)).toBeNull();
+    });
+});
+
 describe("RequestList", () => {
     it("closes the deal for the client: deposit, balance and next step", () => {
         render(<RequestList requests={[accepted]} viewer="Client" />);

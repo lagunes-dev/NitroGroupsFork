@@ -164,7 +164,58 @@ public class GroupMembershipJoinRequestIntegrationTests : IClassFixture<Integrat
         var result = await app.RequestToJoin(new RequestToJoinGroupCommand(groupId, musicianId, null));
 
         Assert.Equal(GroupsErrorKind.Conflict, result.ErrorKind);
+        Assert.Equal("Ya eres miembro de este grupo.", result.Error);
         Assert.Empty(await app.RequestsAsync());
+    }
+
+    /// <summary>El dueño no tiene fila de miembro: la regla lo encuentra por <c>OwnerUserId</c> (T53).</summary>
+    [Fact]
+    public async Task PedirUnirse_SiendoElDuenoDelGrupo_EsConflicto()
+    {
+        await using var app = GroupMembershipTestHarness.Create(_fixture);
+        var ownerMusicianId = await app.AddMusicianAsync("Mónica", "Dueña");
+        var groupId = await app.AddGroupAsync(ownerId: ownerMusicianId);
+
+        var result = await app.RequestToJoin(new RequestToJoinGroupCommand(groupId, ownerMusicianId, null));
+
+        Assert.Equal(GroupsErrorKind.Conflict, result.ErrorKind);
+        Assert.Equal("Ya eres miembro de este grupo.", result.Error);
+        Assert.Empty(await app.RequestsAsync());
+    }
+
+    /// <summary>
+    /// T53: la bandeja del manager no ofrece responder una solicitud pendiente de alguien que ya está
+    /// en el equipo. La fila existe (el músico pidió unirse, después aceptó una invitación) y aceptarla
+    /// otra vez no tiene sentido; el historial resuelto no se toca.
+    /// </summary>
+    [Fact]
+    public async Task BandejaDelGrupo_OmiteLaSolicitudPendienteDeQuienYaEsMiembro()
+    {
+        await using var app = GroupMembershipTestHarness.Create(_fixture);
+        var groupId = await app.AddGroupAsync();
+        var memberId = await app.AddMusicianAsync("Mateo", "Músico");
+        var waitingId = await app.AddMusicianAsync("Beto", "Ruiz");
+        await app.AddMemberAsync(groupId, memberId, GroupMemberRole.Member);
+
+        // El estado que el seed fabricaba: pendiente suyo y ya dentro del equipo.
+        app.GroupsContext.GroupMembershipRequests.Add(GroupMembershipRequest.Create(
+            groupId, memberId, memberId, MembershipDirection.Request, "Quiero entrar"));
+        var resolved = GroupMembershipRequest.Create(
+            groupId, memberId, memberId, MembershipDirection.Request, "Pedí unirme antes");
+        resolved.Accept(GroupMembershipTestHarness.OwnerId);
+        app.GroupsContext.GroupMembershipRequests.Add(resolved);
+        await app.GroupsContext.SaveChangesAsync();
+
+        Assert.True((await app.RequestToJoin(new RequestToJoinGroupCommand(groupId, waitingId, "Yo también"))).IsSuccess);
+
+        var inbox = await app.GroupRequests(new GetGroupMembershipRequestsQuery(groupId, null, null));
+
+        Assert.True(inbox.IsSuccess, inbox.Error);
+        var pending = Assert.Single(inbox.Value!, row => row.Status == MembershipRequestStatus.Pending);
+        Assert.Equal(waitingId, pending.MusicianUserId); // el único pendiente es de quien no está en el equipo
+        // El historial sigue completo: lo resuelto no se esconde.
+        Assert.Contains(inbox.Value!, row => row.Status == MembershipRequestStatus.Accepted);
+        Assert.Equal(3, (await app.RequestsAsync()).Count);
     }
 
     [Fact]
