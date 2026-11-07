@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CollapsibleProfile } from "./CollapsibleProfile";
@@ -65,5 +65,61 @@ describe("CollapsibleProfile", () => {
         // El renglón del resumen solo existe en móvil; en escritorio el perfil se lee completo.
         expect(toggle.parentElement).toHaveClass("md:hidden");
         expect(toggle.parentElement).toHaveClass("mt-8");
+    });
+});
+
+/**
+ * Ronda 10: desde el panel del manager, el perfil del grupo se edita en un toque. Leerlo y editarlo son
+ * dos acciones distintas y el nombre de la nueva lo dice: abre un formulario, no muestra la ficha.
+ */
+describe("CollapsibleProfile · editar el perfil del grupo en un toque (ronda 10)", () => {
+    const EDIT = "Editar perfil del grupo";
+
+    function renderWithEdit(onClick = vi.fn()) {
+        render(
+            <CollapsibleProfile
+                title="Versátil Rock y Pop"
+                editAction={{ label: EDIT, onClick }}
+            >
+                <div>Tarjeta del grupo</div>
+            </CollapsibleProfile>
+        );
+        return { onClick };
+    }
+
+    it("names the edit action after what it does and who it edits", () => {
+        renderWithEdit();
+
+        const edit = screen.getByRole("button", { name: EDIT });
+        // Dice que edita y de qué identidad: "Editar" a secas se confunde con el perfil del músico.
+        expect(edit).toHaveAccessibleName("Editar perfil del grupo");
+        expect(screen.getByRole("button", { name: "Perfil del grupo" })).toBeInTheDocument();
+    });
+
+    it("opens the panel and asks for the form in one press", async () => {
+        const user = userEvent.setup();
+        const { onClick } = renderWithEdit();
+
+        await user.click(screen.getByRole("button", { name: EDIT }));
+
+        expect(onClick).toHaveBeenCalledTimes(1);
+        const close = screen.getByRole("button", { name: "Ocultar perfil del grupo" });
+        expect(close).toHaveAttribute("aria-expanded", "true");
+        const panel = document.getElementById(close.getAttribute("aria-controls") ?? "");
+        expect(panel).toHaveClass("block");
+    });
+
+    it("holds 44 px on the entry that opens the profile and on the one that opens the form", () => {
+        renderWithEdit();
+
+        // Ronda 10: a 390 px las dos entradas medían 36 px (Button size="sm").
+        expect(screen.getByRole("button", { name: "Perfil del grupo" })).toHaveClass("min-h-11");
+        expect(screen.getByRole("button", { name: EDIT })).toHaveClass("min-h-11");
+    });
+
+    it("offers no edit action when the caller does not ask for one", () => {
+        renderProfile();
+
+        expect(screen.queryByRole("button", { name: /Editar/i })).toBeNull();
     });
 });

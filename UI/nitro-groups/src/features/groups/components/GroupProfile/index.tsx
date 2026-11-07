@@ -21,7 +21,7 @@ const emptyGroup: MusicGroup = {
   paymentInstructions: "",
 };
 
-export default function GroupProfile({ mode = "private", slug, initialGroup }: GroupProfileProps) {
+export default function GroupProfile({ mode = "private", slug, initialGroup, startInEdit = false }: GroupProfileProps) {
   const { user: currentUser, isLoading: isUserLoading, isError: isUserError } = useCurrentUser();
   const userId = currentUser?.id;
   const isPublic = mode === "public";
@@ -29,8 +29,18 @@ export default function GroupProfile({ mode = "private", slug, initialGroup }: G
   const queryClient = useQueryClient();
   const [group, setGroup] = useState<MusicGroup>(initialGroup ?? emptyGroup);
   const [originalGroup, setOriginalGroup] = useState<MusicGroup>(initialGroup ?? emptyGroup);
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
+  /*
+   * Ronda 10: un caller puede pedir el formulario de entrada (el manager que quiere editar su grupo en
+   * un toque). Abrirlo así tiene que inicializar los géneros igual que "Editar perfil": un formulario
+   * que arranca sin ellos borra los del grupo en el primer guardado.
+   */
+  const opensInEdit = !isPublic && startInEdit;
+  const [isEditing, setIsEditing] = useState(opensInEdit && Boolean(initialGroup));
+  const [selectedGenres, setSelectedGenres] = useState<number[]>(
+    opensInEdit && initialGroup ? initialGroup.genres?.map((genre) => genre.id) ?? [] : []
+  );
+  /* Todavía falta el grupo: el formulario se abre en cuanto llega, con sus datos y sus géneros. */
+  const [waitsForGroupToEdit, setWaitsForGroupToEdit] = useState(opensInEdit && !initialGroup);
 
   const shouldFetch =
     !initialGroup && (!isPublic || Boolean(slug)) && (!isPublic ? Boolean(userId) : true);
@@ -120,6 +130,11 @@ export default function GroupProfile({ mode = "private", slug, initialGroup }: G
     setSyncedSource(source);
     setGroup(source);
     setOriginalGroup(source);
+    if (waitsForGroupToEdit) {
+      setWaitsForGroupToEdit(false);
+      setSelectedGenres(source.genres?.map((genre) => genre.id) ?? []);
+      setIsEditing(true);
+    }
   }
 
   /* ── handlers ── */

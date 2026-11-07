@@ -248,9 +248,17 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
       {/*
         S26: un día también se bloquea desde la agenda, sin arrastrar sobre la rejilla. Va aquí arriba,
         antes del calendario, porque un arrastre no se puede hacer con el teclado. Solo en la vista
-        privada: la agenda pública del grupo no se edita.
+        privada: la agenda pública del grupo no se edita. Ronda 10: el control recibe los mismos días con
+        toque confirmado que el calendario ya marca, para avisar antes de bloquear uno de ellos.
       */}
-      {isPrivate && <BlockDayControl groupId={groupId} initialDay={todayInMexico()} className="mt-8" />}
+      {isPrivate && (
+        <BlockDayControl
+          groupId={groupId}
+          initialDay={todayInMexico()}
+          confirmedGigDays={confirmedGigDays}
+          className="mt-8"
+        />
+      )}
 
       {mutationFailed && (
         <Alert variant="destructive" className="mt-6">

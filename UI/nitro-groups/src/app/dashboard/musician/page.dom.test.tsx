@@ -25,7 +25,9 @@ vi.mock("@/features/groups/services/groups.service", () => ({
     },
 }));
 vi.mock("@/features/groups/components/GroupProfile", () => ({
-    default: () => <div>Tarjeta del perfil del grupo</div>,
+    default: ({ startInEdit }: { startInEdit?: boolean }) => (
+        <div>{startInEdit ? "Formulario del perfil del grupo" : "Tarjeta del perfil del grupo"}</div>
+    ),
 }));
 vi.mock("@/features/groupAvailability/components/GroupCalendar", () => ({ default: () => <div>Calendario</div> }));
 vi.mock("@/features/groupMedia/components/GroupGallery", () => ({ default: () => <div>Galería</div> }));
@@ -93,6 +95,34 @@ describe("musician dashboard at 390 px", () => {
         expect(document.getElementById(close.getAttribute("aria-controls") ?? "")).toHaveClass("block");
         // Nada de lo que había arriba se perdió: la tarjeta entera está ahí.
         expect(screen.getByText("Tarjeta del perfil del grupo")).toBeVisible();
+        // Leer el perfil no abre el formulario: son dos acciones distintas (ronda 10).
+        expect(screen.queryByText("Formulario del perfil del grupo")).toBeNull();
+    });
+
+    it("opens the group profile in edit mode in one tap, next to reading it", async () => {
+        const user = userEvent.setup();
+        renderPage();
+
+        await screen.findByText("Tarjeta del perfil del grupo");
+        // Una pulsación desde el panel: el formulario del grupo, sin pasar por la ficha.
+        await user.click(screen.getByRole("button", { name: "Editar perfil del grupo" }));
+
+        expect(await screen.findByText("Formulario del perfil del grupo")).toBeVisible();
+        const close = screen.getByRole("button", { name: "Ocultar perfil del grupo" });
+        expect(close).toHaveAttribute("aria-expanded", "true");
+    });
+
+    it("gives the manager the form again after it was closed", async () => {
+        const user = userEvent.setup();
+        renderPage();
+
+        const edit = await screen.findByRole("button", { name: "Editar perfil del grupo" });
+        await user.click(edit);
+        await user.click(screen.getByRole("button", { name: "Ocultar perfil del grupo" }));
+        await user.click(screen.getByRole("button", { name: "Editar perfil del grupo" }));
+
+        // La segunda pulsación vuelve a pedir el formulario, no un panel ya abierto en modo lectura.
+        expect(await screen.findByText("Formulario del perfil del grupo")).toBeVisible();
     });
 });
 

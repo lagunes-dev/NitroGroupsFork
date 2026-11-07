@@ -32,11 +32,11 @@ function wholeDayBlock(day: string, id = "busy_12") {
     return { id, title: "No disponible", start, end, isAvailable: false };
 }
 
-function renderControl(initialDay = DAY) {
+function renderControl(initialDay = DAY, confirmedGigDays?: string[]) {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     return render(
         <QueryClientProvider client={client}>
-            <BlockDayControl groupId={GROUP} initialDay={initialDay} />
+            <BlockDayControl groupId={GROUP} initialDay={initialDay} confirmedGigDays={confirmedGigDays} />
         </QueryClientProvider>
     );
 }
@@ -190,8 +190,7 @@ describe("blockDay helpers", () => {
     });
 });
 
-describe("S26 · no afirma lo que todavía no leyó", () => {
-    it("keeps the button disabled while it does not know whether the day is already blocked", async () => {
+describe("S26 · no afirma lo que todavía no leyó", () => {    it("keeps the button disabled while it does not know whether the day is already blocked", async () => {
         // La consulta del día nunca resuelve: el control no puede decir "Bloquear" de un día que no leyó.
         service.getGroupSchedules.mockReturnValue(new Promise(() => {}));
         renderControl();
@@ -217,3 +216,47 @@ describe("S26 · objetivos táctiles del diálogo", () => {
     );
 });
 
+/**
+ * Ronda 10: la manager bloqueó un día que ya tenía un toque confirmado y el diálogo decía lo mismo que
+ * para un día vacío. Ahora lo dice antes de escribir, como un hecho, sin prohibirlo.
+ */
+describe("S26 · el diálogo avisa si ese día ya tiene un toque confirmado (ronda 10)", () => {
+    it("states the confirmed gig before anything is written", async () => {
+        const user = userEvent.setup();
+        renderControl(DAY, [DAY]);
+
+        await user.click(await toggle());
+
+        const dialog = screen.getByRole("dialog", { name: "Bloquear este día" });
+        expect(within(dialog).getByText(/Ese día ya tienes un toque confirmado/)).toBeInTheDocument();
+        // El aviso es un dato, no una traba: el botón sigue ofreciendo bloquear y nada se escribió aún.
+        expect(within(dialog).getByRole("button", { name: "Bloquear día" })).toBeEnabled();
+        expect(service.createBusySchedule).not.toHaveBeenCalled();
+    });
+
+    it("says the same as always where the surface does not know the confirmed days", async () => {
+        const user = userEvent.setup();
+        // Sin el dato no se inventa el aviso: el diálogo conserva su texto de hoy.
+        renderControl();
+
+        await user.click(await toggle());
+
+        const dialog = screen.getByRole("dialog", { name: "Bloquear este día" });
+        expect(within(dialog).queryByText(/toque confirmado/i)).toBeNull();
+        expect(
+            within(dialog).getByText("Nadie podrá pedirte una fecha ese día. Puedes desbloquearlo cuando quieras.")
+        ).toBeInTheDocument();
+    });
+
+    it("does not repeat it when the manager is lifting a block", async () => {
+        const user = userEvent.setup();
+        service.getGroupSchedules.mockResolvedValue([wholeDayBlock(DAY)]);
+        renderControl(DAY, [DAY]);
+
+        await user.click(await toggle("Desbloquear"));
+
+        const dialog = screen.getByRole("dialog", { name: "Desbloquear este día" });
+        // Desbloquear no choca con el toque: ese día vuelve a estar disponible y el aviso sería ruido.
+        expect(within(dialog).queryByText(/toque confirmado/i)).toBeNull();
+    });
+});

@@ -15,16 +15,23 @@ interface BlockDayControlProps {
     /** El día con el que abre: hoy, o el día del pedido que el manager está leyendo. */
     initialDay: string;
     className?: string;
+    /**
+     * Ronda 10: días (`YYYY-MM-DD`) que ya tienen un toque confirmado, los mismos que el calendario ya
+     * marca. Si el día elegido está aquí, el diálogo lo dice antes de escribir. Es opcional a propósito:
+     * una superficie que no conoce esos días conserva el texto de siempre en vez de inventar un aviso.
+     */
+    confirmedGigDays?: readonly string[];
 }
 
 /**
  * S26: bloquear un día entero sin arrastrar sobre la rejilla. El mismo control deshace el bloqueo,
  * porque el arrastre ya permite quitar un bloque, y escribe con el mismo servicio que él.
  */
-export function BlockDayControl({ groupId, initialDay, className }: BlockDayControlProps) {
+export function BlockDayControl({ groupId, initialDay, className, confirmedGigDays }: BlockDayControlProps) {
     const headingId = useId();
     const dialogTitleId = useId();
     const dialogDetailId = useId();
+    const gigNoteId = useId();
     const [day, setDay] = useState(initialDay);
     const [pending, setPending] = useState<PendingChange | null>(null);
     const { isBlocked, isChecking, isSaving, failed, block, unblock } = useDayBlock({ groupId, day });
@@ -40,6 +47,11 @@ export function BlockDayControl({ groupId, initialDay, className }: BlockDayCont
     const dialogTitle = unblocking ? "Desbloquear este día" : "Bloquear este día";
     const dialogAction = unblocking ? "Desbloquear día" : "Bloquear día";
     const dialogActionBusy = unblocking ? "Desbloqueando…" : "Bloqueando…";
+    /*
+     * El hecho, no una traba: el manager puede tener un motivo para bloquear igual un día con toque. Y
+     * solo al bloquear, porque desbloquear abre el día y ahí la coincidencia no dice nada.
+     */
+    const hasConfirmedGig = !unblocking && Boolean(confirmedGigDays?.includes(day));
 
     useEffect(() => {
         if (!pending) return;
@@ -101,7 +113,7 @@ export function BlockDayControl({ groupId, initialDay, className }: BlockDayCont
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby={dialogTitleId}
-                        aria-describedby={dialogDetailId}
+                        aria-describedby={hasConfirmedGig ? `${dialogDetailId} ${gigNoteId}` : dialogDetailId}
                         className="w-full max-w-md bg-fondo-2 p-6 text-tinta shadow-[0_24px_64px_-16px_var(--fondo)]"
                         onClick={(event) => event.stopPropagation()}
                     >
@@ -116,6 +128,11 @@ export function BlockDayControl({ groupId, initialDay, className }: BlockDayCont
                                 ? "Ese día vuelve a contar como disponible."
                                 : "Nadie podrá pedirte una fecha ese día. Puedes desbloquearlo cuando quieras."}
                         </p>
+                        {hasConfirmedGig && (
+                            <p id={gigNoteId} className="mt-3 text-sm text-tinta">
+                                Ese día ya tienes un toque confirmado. Bloquearlo no lo cancela.
+                            </p>
+                        )}
                         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                             <Button type="button" variant="ghost" className="min-h-11" onClick={() => setPending(null)} disabled={isSaving}>
                                 Cancelar

@@ -56,6 +56,12 @@ export default function MusicianDashboardPage() {
   const myGroupsTab = showMyGroupsTab({ memberships: memberships.data, managedGroupId: groupId ?? null });
   const { invitations, joinRequests } = usePendingMembership();
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
+  /*
+   * Ronda 10: el perfil del músico y el del grupo son dos identidades distintas y no se mezclan, pero
+   * editar el grupo no puede estar detrás de la ficha. Esta clave sube con cada pulsación de "Editar
+   * perfil del grupo": remonta la tarjeta en modo formulario, incluso después de haberlo cerrado.
+   */
+  const [profileEditKey, setProfileEditKey] = useState(0);
   // Solo la llegada por enlace mueve el foco al interruptor; abrir la pestaña a mano no lo roba.
   const [arrivedAtAvailability, setArrivedAtAvailability] = useState(false);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -124,8 +130,11 @@ export default function MusicianDashboardPage() {
         el formulario de crear grupo) y el aviso de perfil incompleto eran gestión ajena para un miembro (T44).
       */}
       {groupId ? (
-        <CollapsibleProfile title={group?.groupName?.trim() || "Tu grupo"}>
-          <GroupProfile />
+        <CollapsibleProfile
+          title={group?.groupName?.trim() || "Tu grupo"}
+          editAction={{ label: "Editar perfil del grupo", onClick: () => setProfileEditKey((key) => key + 1) }}
+        >
+          <GroupProfile key={profileEditKey} startInEdit={profileEditKey > 0} />
         </CollapsibleProfile>
       ) : null}
 

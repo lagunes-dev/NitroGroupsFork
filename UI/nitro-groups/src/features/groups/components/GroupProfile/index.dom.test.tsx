@@ -60,6 +60,15 @@ const GROUP: MusicGroup = {
     paymentInstructions: "",
 };
 
+function renderProfile(props: { startInEdit?: boolean; group?: MusicGroup } = {}) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+        <QueryClientProvider client={client}>
+            <GroupProfile mode="private" initialGroup={props.group ?? GROUP} startInEdit={props.startInEdit} />
+        </QueryClientProvider>
+    );
+}
+
 describe("El guardado del perfil del grupo (ronda 9)", () => {
     it("sends cómo pagar with the rest of the profile", async () => {
         const user = userEvent.setup();
@@ -84,5 +93,46 @@ describe("El guardado del perfil del grupo (ronda 9)", () => {
         expect(mocks.update).toHaveBeenCalledWith(1, expect.objectContaining({
             paymentInstructions: "Efectivo el día del toque.",
         }));
+    });
+});
+
+/**
+ * Ronda 10: el manager pidió editar su grupo en un toque desde su panel. La entrada sigue leyendo el
+ * perfil y la edición es una acción aparte que abre el formulario: el mismo destino, una pulsación.
+ */
+describe("El perfil del grupo abre el formulario cuando el caller lo pide (ronda 10)", () => {
+    it("shows the form straight away, without a second press", () => {
+        mocks.listGenres.mockResolvedValue([]);
+
+        renderProfile({ startInEdit: true });
+
+        expect(screen.getByRole("button", { name: "Guardar cambios" })).toBeInTheDocument();
+        // Ya no se ofrece abrir el formulario: está abierto.
+        expect(screen.queryByRole("button", { name: /Editar perfil/i })).toBeNull();
+    });
+
+    it("keeps the genres the group already had, so the first save does not erase them", async () => {
+        const user = userEvent.setup();
+        const withGenres: MusicGroup = {
+            ...GROUP,
+            genres: [{ id: 5, name: "Rock", slug: "rock", isPrimary: true }],
+        };
+        mocks.listGenres.mockResolvedValue([]);
+        mocks.update.mockResolvedValue(withGenres);
+        mocks.assignGenres.mockResolvedValue(undefined);
+        mocks.getByUserId.mockResolvedValue(withGenres);
+
+        renderProfile({ startInEdit: true, group: withGenres });
+        await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+        // Abrir el formulario por esta vía tiene que inicializar los géneros como "Editar perfil".
+        expect(mocks.assignGenres).toHaveBeenCalledWith(1, [5]);
+    });
+
+    it("still reads the profile when nobody asks for the form", () => {
+        renderProfile();
+
+        expect(screen.getByRole("button", { name: /Editar perfil/i })).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Guardar cambios" })).toBeNull();
     });
 });

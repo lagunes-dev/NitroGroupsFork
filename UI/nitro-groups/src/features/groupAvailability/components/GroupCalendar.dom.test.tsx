@@ -220,6 +220,19 @@ describe("GroupCalendar blocks a day from the agenda", () => {
         await waitFor(() => expect(calendar.firstVisibleDay()).not.toBeNull());
         expect(screen.queryByRole("button", { name: /Bloquear el día/ })).toBeNull();
     });
+
+    it("tells the day-block control which days already have a confirmed gig (ronda 10)", async () => {
+        const user = userEvent.setup();
+        // El calendario ya recibe esos días; el control que bloquea tiene que verlos igual.
+        renderCalendar([today]);
+
+        const control = await screen.findByRole("button", { name: `Bloquear el día ${longDayName(today)}` });
+        await waitFor(() => expect(control).toBeEnabled());
+        await user.click(control);
+
+        const dialog = await screen.findByRole("dialog", { name: "Bloquear este día" });
+        expect(within(dialog).getByText(/Ese día ya tienes un toque confirmado/)).toBeInTheDocument();
+    });
 });
 
 /**
