@@ -25,4 +25,20 @@ UPDATE schedules.busy_schedules
 SET title = 'Asunto personal'
 WHERE title = '[seed] Personal';
 
+-- Ronda 11, leído por la clienta: (a) el texto del grupo ofrecía "efectivo el día del evento" para
+-- un anticipo que vence 24 días antes, y (b) el aniversario quedó aceptado en $9,000 con el piso del
+-- grupo en $12,000, un 25% por debajo de su propia ficha. Los dos son datos de demostración que se
+-- leen como defectos del producto.
+UPDATE groups.music_groups
+SET payment_instructions = 'Anticipo por transferencia a la CLABE 0121 8000 1234 5678 90, BBVA, a nombre de Mónica Salinas. El saldo puedes pagarlo por transferencia o en efectivo el día del evento. Manda el comprobante por WhatsApp al 33 1234 5678 con el concepto que te da la app.'
+WHERE slug = 'versatil-rock-y-pop';
+
+UPDATE bookings.event_requests r
+SET budget = 12000.00
+FROM groups.music_groups g
+WHERE r.group_id = g.id
+  AND g.slug = 'versatil-rock-y-pop'
+  AND r.status = 1
+  AND r.budget < g.base_price;
+
 COMMIT;
