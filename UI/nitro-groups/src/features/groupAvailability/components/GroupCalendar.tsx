@@ -19,8 +19,9 @@ import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { todayInMexico } from "@/lib/format";
 import { withoutAvailabilityOnBookedDays } from "../bookedDays";
-import { formatRangeLabel } from "./formatRange";
 import { BlockDayControl } from "./BlockDayControl";
+import { BlockSlotDialog } from "./BlockSlotDialog";
+import { CALENDAR_GRID_MIN_WIDTH_CLASS, CALENDAR_SCROLLER_CLASS, CALENDAR_SWIPE_HINT } from "./calendarLayout";
 
 export type GroupCalendarMode = "public" | "private";
 
@@ -280,84 +281,66 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
         FullCalendar no les fija altura.
       */}
       <div className="ng-calendario mt-8 [&_.fc-button]:min-h-11 [&_.fc-daygrid-day-frame]:min-h-11!">
+        {/* Solo donde la rejilla no entra: abajo de `lg` la semana mide más que la pantalla. */}
+        <p className="mb-3 text-sm text-tinta-2 lg:hidden">{CALENDAR_SWIPE_HINT}</p>
         {isLoading ? (
           <div aria-busy className="grid h-[480px] place-items-center bg-fondo-2">
             <p role="status" className="text-tinta-2">Cargando calendario…</p>
           </div>
         ) : (
-          <FullCalendar
-            ref={calendarRef}
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            locale={esLocale}
-            initialView="timeGridWeek"
-            headerToolbar={{
-              left: "prev,next today",
-              center: "title",
-              right: "dayGridMonth,timeGridWeek,timeGridDay",
-            }}
-            height="auto"
-            nowIndicator
-            slotMinTime="08:00:00"
-            slotMaxTime="23:00:00"
-            editable={isPrivate}
-            eventStartEditable={isPrivate}
-            eventDurationEditable={isPrivate}
-            eventResizableFromStart={isPrivate}
-            selectable={isPrivate}
-            selectMirror={isPrivate}
-            select={handleSelect}
-            events={calendarEvents}
-            eventClick={handleEventClick}
-            eventChange={handleEventChange}
-            datesSet={handleDatesSet}
-            dayMaxEvents
-          />
+          /*
+            Ronda 11: arriba de estas dos capas se veía la ficha partida. La rejilla deja de encogerse
+            por debajo del ancho que necesita su ficha más larga y el desborde se queda acá adentro: el
+            que scrollea es este contenedor, así que la página no se mueve y ningún día queda lejos de
+            la mano.
+          */
+          <div className={CALENDAR_SCROLLER_CLASS}>
+            <div className={CALENDAR_GRID_MIN_WIDTH_CLASS}>
+              <FullCalendar
+                ref={calendarRef}
+                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                locale={esLocale}
+                initialView="timeGridWeek"
+                headerToolbar={{
+                  left: "prev,next today",
+                  center: "title",
+                  right: "dayGridMonth,timeGridWeek,timeGridDay",
+                }}
+                height="auto"
+                nowIndicator
+                slotMinTime="08:00:00"
+                slotMaxTime="23:00:00"
+                editable={isPrivate}
+                eventStartEditable={isPrivate}
+                eventDurationEditable={isPrivate}
+                eventResizableFromStart={isPrivate}
+                selectable={isPrivate}
+                selectMirror={isPrivate}
+                select={handleSelect}
+                events={calendarEvents}
+                eventClick={handleEventClick}
+                eventChange={handleEventChange}
+                datesSet={handleDatesSet}
+                dayMaxEvents
+              />
+            </div>
+          </div>
         )}
       </div>
 
+      {/*
+        El diálogo del arrastre vive en su propio componente porque es la otra puerta del mismo bloqueo y
+        ahora lee la misma agenda que el formulario del día (ronda 11).
+      */}
       {pendingSelect && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-fondo/85 p-4"
-          role="presentation"
-          onClick={() => setPendingSelect(null)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="select-interval-title"
-            aria-describedby="select-interval-range"
-            className={dialogPanel}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id="select-interval-title" className="type-heading text-2xl">
-              Bloquear este horario
-            </h3>
-            <p id="select-interval-range" className="mt-4 bg-fondo px-4 py-3 font-medium tabular">
-              {formatRangeLabel(pendingSelect.startStr, pendingSelect.endStr)}
-            </p>
-            <p className="mt-3 text-sm text-tinta-2">
-              Nadie podrá pedirte una fecha en ese horario. Puedes quitar el bloque cuando quieras.
-            </p>
-            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setPendingSelect(null)}
-                disabled={createBusy.isPending}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                onClick={confirmMarkUnavailable}
-                disabled={createBusy.isPending}
-                autoFocus
-              >
-                {createBusy.isPending ? "Bloqueando…" : "Bloquear horario"}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <BlockSlotDialog
+          groupId={groupId}
+          start={pendingSelect.startStr}
+          end={pendingSelect.endStr}
+          isSaving={createBusy.isPending}
+          onCancel={() => setPendingSelect(null)}
+          onConfirm={confirmMarkUnavailable}
+        />
       )}
 
       {pendingDelete && (

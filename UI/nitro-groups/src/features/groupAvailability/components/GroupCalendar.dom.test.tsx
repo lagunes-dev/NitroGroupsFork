@@ -311,3 +311,43 @@ describe("GroupCalendar · 44 px en los controles de decisión", () => {
         expect(screen.getAllByRole("button", { name: /Mes|Semana|Día|Hoy/ }).length).toBeGreaterThan(0);
     });
 });
+
+/**
+ * Ronda 11: a 390 px las siete columnas de la semana medían 41–42 px y una ficha partía su palabra
+ * ("Disponible" pedía 72 px en 33). La rejilla ya no se encoge por debajo del ancho que necesita su ficha
+ * más larga: se desplaza dentro de su propio contenedor, así que el desborde nunca llega a la página.
+ * jsdom no mide píxeles: acá se fija la decisión (ancho mínimo y contenedor que scrollea) y la medida se
+ * cierra en el navegador, que es donde el número cambia.
+ */
+describe("GroupCalendar · a 390 px la semana no recorta sus fichas (ronda 11)", () => {
+    it("keeps the grid as wide as its longest chip needs, scrolling inside its own container", async () => {
+        getGroupSchedules.mockResolvedValue([]);
+        const calendar = renderCalendar();
+
+        await waitFor(() => expect(calendar.firstVisibleDay()).not.toBeNull());
+        const scroller = calendar.container.querySelector(".ng-semana-scroll");
+        const grid = calendar.container.querySelector(".ng-semana-rejilla");
+        expect(scroller).not.toBeNull();
+        expect(grid).not.toBeNull();
+
+        // El desborde lo contiene este contenedor: el calendario está adentro, no la página.
+        expect(scroller).toHaveClass("overflow-x-auto");
+        expect(scroller).toContainElement(calendar.container.querySelector(".fc"));
+        expect(grid).toContainElement(calendar.container.querySelector(".fc"));
+
+        // Siete columnas de ~121 px (la ficha más larga, "Toque confirmado", mide ~111 px) más el eje de
+        // horas (~48 px): por debajo de 56rem la columna vuelve a cortar la palabra.
+        const minWidth = Number(/min-w-\[(\d+(?:\.\d+)?)rem\]/.exec(grid?.className ?? "")?.[1]);
+        expect(Number.isFinite(minWidth)).toBe(true);
+        expect(minWidth).toBeGreaterThanOrEqual(56);
+    });
+
+    it("says the week can be swiped, only where the grid really scrolls", async () => {
+        const calendar = renderCalendar();
+
+        await waitFor(() => expect(calendar.firstVisibleDay()).not.toBeNull());
+        const hint = screen.getByText("Desliza el calendario para ver la semana completa.");
+        // Debajo de `lg` la rejilla mide más que la pantalla: ahí se dice; en escritorio no hay nada que decir.
+        expect(hint).toHaveClass("lg:hidden");
+    });
+});

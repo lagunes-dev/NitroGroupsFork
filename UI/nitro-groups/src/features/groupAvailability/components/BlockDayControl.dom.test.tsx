@@ -22,6 +22,16 @@ vi.mock("../services/groupAvailability.service", () => ({ groupAvailabilityServi
 const agenda = vi.hoisted(() => ({ forGroup: vi.fn() }));
 vi.mock("@/features/gigs/gigs.service", () => ({ gigsService: { forGroup: agenda.forGroup } }));
 
+/**
+ * El control decide si un día ya pasó, así que lee el reloj de la app. Acá el reloj se fija: si dependiera
+ * del calendario real, estos tests cambiarían de sentido el día que una fecha de prueba quede atrás.
+ */
+const clock = vi.hoisted(() => ({ today: "2026-11-01" }));
+vi.mock("@/lib/format", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/lib/format")>();
+    return { ...actual, todayInMexico: () => clock.today };
+});
+
 const GROUP = 7;
 const DAY = "2026-11-19";
 /** "jueves 19 de noviembre de 2026": lo que el nombre accesible del control tiene que decir. */
@@ -74,6 +84,8 @@ beforeEach(() => {
     service.removeAvailability.mockResolvedValue(undefined);
     agenda.forGroup.mockReset();
     agenda.forGroup.mockResolvedValue([]);
+    // Un reloj fijo detrás de DAY: las fechas de estos tests siguen siendo futuro.
+    clock.today = "2026-11-01";
 });
 
 describe("S26 · el control dice qué día bloquea", () => {
@@ -339,5 +351,68 @@ describe("S26 · el diálogo avisa si ese día ya tiene un toque confirmado (ron
 
         // Desbloquear no choca con el toque: ese día vuelve a estar disponible y el aviso sería ruido.
         expect(within(dialog).queryByText(/toque confirmado/i)).toBeNull();
+    });
+});
+
+/**
+ * Ronda 11: la manager eligió 24 de octubre de 2026 (y 1–6 de noviembre) y el diálogo le ofreció bloquear
+ * un día que ya había pasado. Bloquear el pasado no es una decisión que se pueda cumplir: el control dice
+ * el hecho y no lo ofrece. Desbloquear un día pasado sigue disponible, porque eso sí se puede cambiar.
+ */
+describe("S26 · un día que ya pasó no se ofrece para bloquear (ronda 11)", () => {
+    const PAST = "2026-10-24";
+    /** "sábado 24 de octubre de 2026": el día largo del nombre accesible y de la descripción. */
+    const PAST_NAME = "sábado 24 de octubre de 2026";
+    /** La frase del control, literal: dice el hecho y hacia dónde ir. */
+    const PAST_NOTE = "Este día ya pasó. Elige hoy o una fecha siguiente.";
+
+    it("states the day is behind and does not offer to block it", async () => {
+        clock.today = "2026-11-07";
+        renderControl(PAST);
+
+        const control = await screen.findByRole("button", { name: `Bloquear el día ${PAST_NAME}` });
+        // La frase se lee junto al control, y es la descripción accesible del botón que está apagado.
+        expect(await screen.findByText(PAST_NOTE)).toBeInTheDocument();
+        await waitFor(() => expect(control).toHaveAccessibleDescription(PAST_NOTE));
+        expect(control).toBeDisabled();
+        // Nada se escribe por abrir el control: el pasado no manda un bloqueo.
+        expect(service.createBusySchedule).not.toHaveBeenCalled();
+    });
+
+    it("still lifts a block that was already there on a day that passed", async () => {
+        const user = userEvent.setup();
+        clock.today = "2026-11-07";
+        // El estado es lo que decide: si el día ya estaba bloqueado, desbloquearlo se puede.
+        service.getGroupSchedules.mockResolvedValue([wholeDayBlock(PAST)]);
+        renderControl(PAST);
+
+        const control = await toggle("Desbloquear", PAST_NAME);
+        await waitFor(() => expect(control).toBeEnabled());
+        // La frase del pasado no aparece: acá el control sí tiene algo que ofrecer.
+        expect(screen.queryByText(PAST_NOTE)).toBeNull();
+
+        await user.click(control);
+        const dialog = screen.getByRole("dialog", { name: "Desbloquear este día" });
+        await user.click(within(dialog).getByRole("button", { name: "Desbloquear día" }));
+        expect(service.removeBusySchedule).toHaveBeenCalledWith(GROUP, "busy_12");
+    });
+
+    it("keeps today blockable, because today is not behind", async () => {
+        const user = userEvent.setup();
+        // El borde de la regla: hoy no es pasado, así que el control ofrece bloquear como siempre.
+        clock.today = DAY;
+        renderControl(DAY);
+
+        const dialog = await openDialog();
+        expect(screen.queryByText(PAST_NOTE)).toBeNull();
+
+        await user.click(within(dialog).getByRole("button", { name: "Bloquear día" }));
+        const { start, end } = bounds(DAY);
+        expect(service.createBusySchedule).toHaveBeenCalledWith(GROUP, {
+            title: "No disponible",
+            start,
+            end,
+            source: "personal",
+        });
     });
 });

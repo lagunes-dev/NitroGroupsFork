@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { ScheduleEventDto } from "./services/groupAvailability.service";
-import { confirmedGigFact, dayBounds, longDayName, shortDayName, wholeDayBlocks } from "./blockDay";
+import {
+    confirmedGigFact,
+    dayBounds,
+    gigNoteText,
+    isPastDay,
+    longDayName,
+    rangeGigFact,
+    shortDayName,
+    wholeDayBlocks,
+} from "./blockDay";
 
 const DAY = "2026-11-19";
 
@@ -45,6 +54,71 @@ describe("confirmedGigFact", () => {
 
     it("keeps a gig it already knows even when the last read failed", () => {
         expect(confirmedGigFact(DAY, read([DAY], true))).toBe("confirmed");
+    });
+});
+
+/**
+ * Ronda 11: el mismo diálogo se abre por dos puertas —el formulario del día y el arrastre sobre el
+ * calendario— y las dos tienen que decir el mismo hecho con las mismas palabras. La regla vive acá, una
+ * sola vez: qué días cubre el arrastre y qué se puede afirmar de ellos.
+ */
+describe("rangeGigFact", () => {
+    const read = (days: string[], failed = false) => ({ days, failed });
+    /* El arrastre del informe: viernes 4 de diciembre, de 19:00 a 21:30. */
+    const start = at("2026-12-04", 19);
+    const end = new Date(Date.parse(start) + 2.5 * 60 * 60 * 1000).toISOString();
+
+    it("says the dragged hours fall on a day with a confirmed gig", () => {
+        expect(rangeGigFact(start, end, read(["2026-12-04"]))).toBe("confirmed");
+    });
+
+    it("says nothing when the days the drag covers are free", () => {
+        expect(rangeGigFact(start, end, read([]))).toBe("none");
+        expect(rangeGigFact(start, end, read(["2026-12-05"]))).toBe("none");
+    });
+
+    it("does not claim the day is free when the agenda could not be read", () => {
+        expect(rangeGigFact(start, end, read([], true))).toBe("unknown");
+    });
+
+    it("counts a gig on any day the drag touches, not only on the day it starts", () => {
+        // Un arrastre que cruza la medianoche toca los dos días: el toque del segundo también es hecho.
+        const crosses = rangeGigFact(at("2026-12-04", 22), at("2026-12-05", 2), read(["2026-12-05"]));
+        expect(crosses).toBe("confirmed");
+    });
+});
+
+/** Las tres frases, en un solo lugar: la puerta del día y la del arrastre no pueden decir cosas distintas. */
+describe("gigNoteText", () => {
+    it("keeps one voice for the confirmed gig, the failed read and the read in progress", () => {
+        expect(gigNoteText("confirmed")).toBe("Ese día ya tienes un toque confirmado. Bloquearlo no lo cancela.");
+        expect(gigNoteText("unknown")).toBe("No pudimos comprobar si ese día ya tienes un toque.");
+        expect(gigNoteText("reading")).toBe("Comprobando si ese día ya tienes un toque…");
+    });
+
+    it("says nothing on a day with no confirmed gig", () => {
+        expect(gigNoteText("none")).toBeNull();
+    });
+});
+
+/**
+ * Ronda 11: la manager eligió 24 de octubre de 2026 y el control le ofreció bloquear un día que ya había
+ * pasado. Bloquear el pasado no es una decisión que se pueda cumplir, así que el control lo dice.
+ */
+describe("isPastDay", () => {
+    const TODAY = "2026-11-07";
+
+    it("calls a day past only when it is behind today", () => {
+        expect(isPastDay("2026-10-24", TODAY)).toBe(true);
+        expect(isPastDay("2026-11-06", TODAY)).toBe(true);
+        // Hoy no es pasado: todavía se puede bloquear.
+        expect(isPastDay(TODAY, TODAY)).toBe(false);
+        expect(isPastDay("2026-11-19", TODAY)).toBe(false);
+    });
+
+    it("has nothing to say about something that is not a day", () => {
+        expect(isPastDay("24/10/2026", TODAY)).toBe(false);
+        expect(isPastDay("2026-10-24", "no-es-fecha")).toBe(false);
     });
 });
 
