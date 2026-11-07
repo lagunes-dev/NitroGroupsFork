@@ -174,8 +174,8 @@ describe("Cómo pagar en el formulario del manager (ronda 9)", () => {
         expect(helper).toHaveTextContent(/a nombre de quién va/i);
         expect(helper).toHaveTextContent(/comprobante/i);
         expect(helper).toHaveTextContent(/concepto/i);
-        // Sin voseo y sin dejar de contar los caracteres.
-        expect(helper).toHaveTextContent(/^0 de 500 · /);
+        // Sin voseo y sin el contador pegado: el conteo vive en su propia línea anunciada.
+        expect(helper).toHaveTextContent(/^Escribe la cuenta/);
     });
 
     it("writes into the state that gets saved", async () => {
@@ -187,5 +187,47 @@ describe("Cómo pagar en el formulario del manager (ronda 9)", () => {
         await user.type(field, "Transfiere a la CLABE 0121 8000 1234 5678.");
 
         expect(field).toHaveValue("Transfiere a la CLABE 0121 8000 1234 5678.");
+    });
+});
+
+/**
+ * Ronda 10: el manager leyó "209 de 500" y no sabía de qué. Un número sin unidad no dice qué se
+ * cuenta, y sin anuncio el contador solo existe para quien mira la pantalla.
+ */
+describe("El contador de Cómo pagar (ronda 10)", () => {
+    it("counts characters by name and announces the count politely as it changes", async () => {
+        const user = userEvent.setup();
+
+        function Stateful() {
+            const [group, setGroup] = useState(GROUP);
+            const set = <K extends keyof MusicGroup>(key: K, value: MusicGroup[K]) =>
+                setGroup((current) => ({ ...current, [key]: value }));
+            return (
+                <GroupProfileEdit group={group} originalGroup={GROUP} selectedGenres={[]} setSelectedGenres={vi.fn()}
+                    isPending={false} saveError={null} genres={[]} isGenresLoading={false}
+                    handleSave={(e) => e.preventDefault()} handleCancel={vi.fn()} set={set} />
+            );
+        }
+        render(<Stateful />);
+
+        const field = screen.getByLabelText(/Cómo pagar/i);
+        const counter = screen.getByText("0 de 500 caracteres");
+        expect(counter).toHaveAttribute("aria-live", "polite");
+        // The count belongs to the field: it is read with the guidance, not instead of it.
+        expect(field).toHaveAccessibleDescription(/0 de 500 caracteres/);
+        expect(field).toHaveAccessibleDescription(/solo lo ve el cliente de un evento aceptado/i);
+
+        await user.type(field, "Efectivo.");
+
+        expect(screen.getByText("9 de 500 caracteres")).toHaveAttribute("aria-live", "polite");
+    });
+
+    it("shows the shape of a good answer while the field is empty", () => {
+        renderForm();
+
+        const field = screen.getByLabelText(/Cómo pagar/i);
+        // The demo value hides what an empty field asks for; the placeholder shows the shape.
+        expect(field).toHaveAttribute("placeholder", expect.stringContaining("CLABE"));
+        expect(field).toHaveAttribute("placeholder", expect.stringContaining("a nombre de"));
     });
 });

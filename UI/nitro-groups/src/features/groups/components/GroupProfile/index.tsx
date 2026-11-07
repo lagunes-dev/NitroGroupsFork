@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MusicGroup } from "../../types/MusicGroup";
 import { NoGroupPaths } from "@/features/membership/components/NoGroupPaths";
@@ -21,7 +21,7 @@ const emptyGroup: MusicGroup = {
   paymentInstructions: "",
 };
 
-export default function GroupProfile({ mode = "private", slug, initialGroup, startInEdit = false }: GroupProfileProps) {
+export default function GroupProfile({ mode = "private", slug, initialGroup, startInEdit = false, onEditingChange }: GroupProfileProps) {
   const { user: currentUser, isLoading: isUserLoading, isError: isUserError } = useCurrentUser();
   const userId = currentUser?.id;
   const isPublic = mode === "public";
@@ -36,6 +36,13 @@ export default function GroupProfile({ mode = "private", slug, initialGroup, sta
    */
   const opensInEdit = !isPublic && startInEdit;
   const [isEditing, setIsEditing] = useState(opensInEdit && Boolean(initialGroup));
+  /*
+   * Ronda 10: the panel above folds the profile. While this is `true` what is on screen is the form,
+   * not the read view, and the panel has to name that screen.
+   */
+  useEffect(() => {
+    onEditingChange?.(isEditing);
+  }, [isEditing, onEditingChange]);
   const [selectedGenres, setSelectedGenres] = useState<number[]>(
     opensInEdit && initialGroup ? initialGroup.genres?.map((genre) => genre.id) ?? [] : []
   );

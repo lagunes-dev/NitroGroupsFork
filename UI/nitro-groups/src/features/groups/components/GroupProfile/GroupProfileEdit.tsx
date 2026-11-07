@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import { fieldHelperId } from "@/components/ui/FieldShell";
 import { ImageUrlField } from "./ImageUrlField";
 import type { MusicGroup } from "../../types/MusicGroup";
 import type { GenreListItem } from "../../services/groups.service";
@@ -61,6 +62,9 @@ export default function GroupProfileEdit({
   const uid = useId();
   const id = (name: string) => `${uid}-${name}`;
   const genresLabelId = id("genres-label");
+  const paymentId = id("payment");
+  const paymentCountId = id("payment-count");
+  const paymentCount = group.paymentInstructions?.length ?? 0;
 
   const toggleGenre = (genreId: number) =>
     setSelectedGenres((prev) => (prev.includes(genreId) ? prev.filter((g) => g !== genreId) : [...prev, genreId]));
@@ -162,10 +166,17 @@ export default function GroupProfileEdit({
 
           {/* Ronda 9: el grupo escribe cómo quiere que se le pague. La app no cobra: solo lo repite.
               Ronda 10: la ayuda dice qué escribir; un "transfiere" suelto deja al cliente preguntando por el chat. */}
-          <Textarea id={id("payment")} label="Cómo pagar" rows={4} maxLength={500}
-            value={group.paymentInstructions ?? ""} onChange={(e) => set("paymentInstructions", e.target.value)}
-            placeholder="Ej. Transferencia a la CLABE 0121 8000 1234 5678, BBVA, a nombre de Mónica Salinas."
-            helperText={`${group.paymentInstructions?.length ?? 0} de 500 · Escribe la cuenta, a nombre de quién va, dónde mandas el comprobante y el concepto: solo lo ve el cliente de un evento aceptado.`} />
+          <div className="flex flex-col gap-2">
+            <Textarea id={paymentId} label="Cómo pagar" rows={4} maxLength={500}
+              value={group.paymentInstructions ?? ""} onChange={(e) => set("paymentInstructions", e.target.value)}
+              placeholder="Ej. Transferencia a la CLABE 0121 8000 1234 5678, BBVA, a nombre de Mónica Salinas."
+              helperText="Escribe la cuenta, a nombre de quién va, dónde mandas el comprobante y el concepto: solo lo ve el cliente de un evento aceptado."
+              aria-describedby={`${fieldHelperId(paymentId)} ${paymentCountId}`} />
+            {/* The count names what it counts and is announced politely: it is not a bare number. */}
+            <p id={paymentCountId} aria-live="polite" className="tabular text-sm leading-5 text-tinta-2">
+              {paymentCount} de 500 caracteres
+            </p>
+          </div>
 
           <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2">
             {/* El número sale del equipo real: un campo editable acá sería un control que la app ignora. */}

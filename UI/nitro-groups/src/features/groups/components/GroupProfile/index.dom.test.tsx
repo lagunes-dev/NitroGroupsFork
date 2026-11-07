@@ -136,3 +136,34 @@ describe("El perfil del grupo abre el formulario cuando el caller lo pide (ronda
         expect(screen.queryByRole("button", { name: "Guardar cambios" })).toBeNull();
     });
 });
+
+/**
+ * Ronda 10: el renglón de plegado del panel tiene que saber si lo que hay en el panel es la ficha o el
+ * formulario. Mientras el editor está abierto no puede decir "Ocultar perfil del grupo": nombraría una
+ * pantalla que no está.
+ */
+describe("El perfil del grupo avisa cuándo el formulario está abierto (ronda 10)", () => {
+    it("reports the editor when it opens and when the manager discards it", async () => {
+        const user = userEvent.setup();
+        const onEditingChange = vi.fn();
+        mocks.listGenres.mockResolvedValue([]);
+
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        render(
+            <QueryClientProvider client={client}>
+                <GroupProfile mode="private" initialGroup={GROUP} onEditingChange={onEditingChange} />
+            </QueryClientProvider>
+        );
+
+        await screen.findByRole("button", { name: /Editar perfil/i });
+        expect(onEditingChange).toHaveBeenLastCalledWith(false);
+
+        await user.click(screen.getByRole("button", { name: /Editar perfil/i }));
+        expect(await screen.findByRole("button", { name: "Guardar cambios" })).toBeInTheDocument();
+        expect(onEditingChange).toHaveBeenLastCalledWith(true);
+
+        await user.click(screen.getByRole("button", { name: "Descartar cambios" }));
+        expect(await screen.findByRole("button", { name: /Editar perfil/i })).toBeInTheDocument();
+        expect(onEditingChange).toHaveBeenLastCalledWith(false);
+    });
+});

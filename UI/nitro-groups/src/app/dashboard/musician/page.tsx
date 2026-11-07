@@ -62,6 +62,11 @@ export default function MusicianDashboardPage() {
    * perfil del grupo": remonta la tarjeta en modo formulario, incluso después de haberlo cerrado.
    */
   const [profileEditKey, setProfileEditKey] = useState(0);
+  /*
+   * Ronda 10: the fold above the card has to name what is on screen and cannot close the editor
+   * silently. The form reports its own mode, and discarding resets the key to open in read view.
+   */
+  const [profileEditing, setProfileEditing] = useState(false);
   // Solo la llegada por enlace mueve el foco al interruptor; abrir la pestaña a mano no lo roba.
   const [arrivedAtAvailability, setArrivedAtAvailability] = useState(false);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -133,8 +138,10 @@ export default function MusicianDashboardPage() {
         <CollapsibleProfile
           title={group?.groupName?.trim() || "Tu grupo"}
           editAction={{ label: "Editar perfil del grupo", onClick: () => setProfileEditKey((key) => key + 1) }}
+          editing={profileEditing}
+          onDiscard={() => setProfileEditKey(0)}
         >
-          <GroupProfile key={profileEditKey} startInEdit={profileEditKey > 0} />
+          <GroupProfile key={profileEditKey} startInEdit={profileEditKey > 0} onEditingChange={setProfileEditing} />
         </CollapsibleProfile>
       ) : null}
 

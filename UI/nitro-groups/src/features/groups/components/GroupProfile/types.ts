@@ -10,6 +10,11 @@ export type GroupProfileProps = {
    * Por defecto `false`: leer el perfil sigue leyendo el perfil.
    */
   startInEdit?: boolean;
+  /**
+   * Ronda 10: the form takes the card's place, so the panel needs to know it to name what is on screen
+   * and to avoid closing it without asking.
+   */
+  onEditingChange?: (editing: boolean) => void;
 };
 
 export type FieldProps = {
