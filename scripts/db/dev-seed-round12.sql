@@ -30,7 +30,7 @@ WHERE title = '[seed] Personal';
 -- grupo en $12,000, un 25% por debajo de su propia ficha. Los dos son datos de demostración que se
 -- leen como defectos del producto.
 UPDATE groups.music_groups
-SET payment_instructions = 'Anticipo por transferencia a la CLABE 0121 8000 1234 5678 90, BBVA, a nombre de Mónica Salinas. El saldo puedes pagarlo por transferencia o en efectivo el día del evento. Manda el comprobante por WhatsApp al 33 1234 5678 con el concepto que te da la app.'
+SET payment_instructions = 'Transferencia a la CLABE 0121 8000 1234 5678 90, BBVA, a nombre de Mónica Salinas. Manda el comprobante por WhatsApp al 33 1234 5678 con el concepto que te da la app. Si prefieres efectivo, acuérdalo antes conmigo por ese mismo WhatsApp.'
 WHERE slug = 'versatil-rock-y-pop';
 
 UPDATE bookings.event_requests r
