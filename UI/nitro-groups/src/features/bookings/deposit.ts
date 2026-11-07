@@ -1,5 +1,5 @@
 import type { EventRequest, EventRequestParty, EventRequestStatus } from "./types";
-import { formatEventDate, formatPrice, todayInMexico } from "@/lib/format";
+import { formatEventDate, formatPrice, isIsoDate, todayInMexico } from "@/lib/format";
 
 /** The deposit as the API sends it: a recorded fact, the app never charges it. */
 export interface DepositPayload {
@@ -92,9 +92,16 @@ type DealRequest = {
     balanceReceivedAt?: string | null;
     /** `YYYY-MM-DD`: the balance deadline the group loaded (T61, S24); null or missing until then. */
     balanceDueDate?: string | null;
+    /** `YYYY-MM-DD`: the day of the event, to tell a gig that is over from one still ahead. */
+    eventDate?: string | null;
 };
 
 /** Whether the group recorded that the balance arrived (T48): a fact, the app never charges it. */
+/** True when `eventDate` is a real `YYYY-MM-DD` strictly before `today`; an unreadable date is not past. */
+function isPast(eventDate: string | null | undefined, today: string): boolean {
+    return isIsoDate(eventDate) && isIsoDate(today) && eventDate < today;
+}
+
 function isBalanceReceived(request: Pick<DealRequest, "balanceReceivedAt">): boolean {
     return typeof request.balanceReceivedAt === "string" && request.balanceReceivedAt.trim().length > 0;
 }
@@ -151,7 +158,8 @@ export function sentLabel(request: { createdAt?: string | null }): string | null
  */
 export function nextStepLabel(
     request: DealRequest,
-    viewer: EventRequestParty
+    viewer: EventRequestParty,
+    today: string = todayInMexico()
 ): string | null {
     if (viewer !== "Client") return null;
     switch (request.status) {
@@ -164,9 +172,17 @@ export function nextStepLabel(
             return "Este evento se canceló.";
         case "Accepted": {
             if (isBalanceReceived(request)) return "No queda nada por pagar.";
+            // Ronda 9: un evento que ya pasó no pide "cerrar la fecha" ni "acordar para el día del
+            // evento": son acciones sobre un futuro que ya no existe. Sin fecha legible no se inventa.
+            if (isPast(request.eventDate, today)) return "Este evento ya pasó.";
             const remaining = remainingAmount(request);
             if (remaining === null) return "Acuerda el anticipo con el grupo para cerrar la fecha.";
-            return remaining <= 0 ? "No queda nada por pagar." : "Acuerda el saldo con el grupo para el día del evento.";
+            if (remaining <= 0) return "No queda nada por pagar.";
+            // Con la fecha límite ya dicha en la línea del saldo, "el día del evento" sería un segundo
+            // plazo para el mismo saldo (y lo contradice): se calla.
+            return dueDateLabel(request.balanceDueDate)
+                ? "Acuerda el saldo con el grupo."
+                : "Acuerda el saldo con el grupo para el día del evento.";
         }
         default:
             return null;
@@ -188,10 +204,11 @@ export interface BalanceBlock {
  */
 export function balanceBlock(
     request: DealRequest & { eventDate?: string | null },
-    viewer: EventRequestParty
+    viewer: EventRequestParty,
+    today: string = todayInMexico()
 ): BalanceBlock | null {
     const balance = balanceLabel(request, viewer);
-    const nextStep = nextStepLabel(request, viewer);
+    const nextStep = nextStepLabel(request, viewer, today);
     if (!balance || !nextStep) return null;
     // Recorded as received: the fact and the settled step, with no "para el ..." that belongs to a debt.
     if (viewer === "Client" && request.status === "Accepted" && isBalanceReceived(request)) {
