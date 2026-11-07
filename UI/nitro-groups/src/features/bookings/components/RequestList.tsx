@@ -36,15 +36,15 @@ export function RequestList({ requests, viewer }: { requests: EventRequest[]; vi
                             <Link href={`/solicitudes/${r.id}${viewer === "Group" ? "?como=grupo" : ""}`} className="no-underline text-tinta font-semibold hover:text-acento after:absolute after:inset-0">
                                 {who}
                             </Link>
-                            {what && <p className="text-tinta-2">{what}</p>}
+                            {what && <p className="pointer-events-none text-tinta-2">{what}</p>}
                             {/* El día ocupado manda: sin esto el pedido imposible se lee como el mejor del mes. */}
-                            {clash && <p className="relative mt-1 text-tinta">{clash}</p>}
-                            {deposit && <p className="relative text-sm text-tinta-2">{deposit}</p>}
+                            {clash && <p className="pointer-events-none relative mt-1 text-tinta">{clash}</p>}
+                            {deposit && <p className="pointer-events-none relative text-sm text-tinta-2">{deposit}</p>}
                             {/* Lo que debo es la única cifra blanca de la fila: el presupuesto original baja a gris (ronda 6). */}
-                            {balance && <p className="relative tabular text-lg text-tinta">{balance}</p>}
-                            {method && <p className="relative text-sm text-tinta-2">{method}</p>}
-                            {nextStep && <p className="relative text-base text-tinta">{nextStep}</p>}
-                            {sent && <p className="relative text-sm text-tinta-2">{sent}</p>}
+                            {balance && <p className="pointer-events-none relative tabular text-lg text-tinta">{balance}</p>}
+                            {method && <p className="pointer-events-none relative text-sm text-tinta-2">{method}</p>}
+                            {nextStep && <p className="pointer-events-none relative text-base text-tinta">{nextStep}</p>}
+                            {sent && <p className="pointer-events-none relative text-sm text-tinta-2">{sent}</p>}
                             {viewer === "Client" && r.canReview && (
                                 <Link href={`/solicitudes/${r.id}`} className="relative mt-1 inline-flex min-h-11 items-center text-acento underline-offset-4 hover:underline">
                                     Puedes dejar tu reseña

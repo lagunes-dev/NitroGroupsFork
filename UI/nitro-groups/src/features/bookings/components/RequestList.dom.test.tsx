@@ -203,3 +203,14 @@ describe("RequestList cómo pagar (ronda 10)", () => {
         expect(screen.queryByText(method)).toBeNull();
     });
 });
+
+describe("RequestList · toda la tarjeta abre el pedido (ronda 11)", () => {
+    it("lets a click on the money line fall through to the card's own link", async () => {
+        // La ronda 11 midió que la única entrada al detalle era el nombre del grupo, 170x21 px: los
+        // párrafos con `relative` quedaban encima del overlay del enlace y se comían el clic.
+        render(<RequestList requests={[{ ...accepted, deposit: { amount: 4000, receivedAt: null } }]} viewer="Client" />);
+
+        const money = await screen.findByText(/^Anticipo /);
+        expect(money.className).toContain("pointer-events-none");
+    });
+});
