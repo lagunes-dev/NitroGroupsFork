@@ -46,7 +46,7 @@ export function NoGroupPaths() {
     if (summary) {
         return (
             <section aria-labelledby="sin-grupo" className="pt-14">
-                <h1 id="sin-grupo" className="titulo">Tus grupos</h1>
+                <h1 id="sin-grupo" className="type-heading text-2xl">Tus grupos</h1>
                 <p className="mt-3 max-w-[60ch] text-tinta-2">
                     {summary} Aún no gestionas uno propio: puedes crear el tuyo o seguir pidiendo unirte a otros.
                 </p>

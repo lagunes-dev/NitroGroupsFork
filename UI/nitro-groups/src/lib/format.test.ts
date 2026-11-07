@@ -24,7 +24,7 @@ describe("priceLabel (misma regla en portada y búsqueda)", () => {
 
 describe("formatEventDate", () => {
     it("escribe la fecha en español", () => {
-        expect(formatEventDate("2026-12-12")).toBe("sábado, 12 de diciembre");
+        expect(formatEventDate("2026-12-12")).toBe("sábado, 12 de diciembre de 2026");
     });
     it("no rompe con una fecha inválida", () => {
         expect(formatEventDate("abc")).toBeNull();

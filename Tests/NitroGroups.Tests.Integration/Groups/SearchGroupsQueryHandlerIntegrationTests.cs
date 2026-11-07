@@ -1,7 +1,11 @@
+using NitroGroups.Core.Bookings.Domain.Entities;
+using NitroGroups.Core.Bookings.Infrastructure.Adapters;
 using NitroGroups.Core.Groups.Application.UseCases.Groups.Search;
 using NitroGroups.Core.Groups.Domain.Entities;
 using NitroGroups.Core.Groups.Infrastructure.Persistence;
 using NitroGroups.Shared.Contracts.Modules;
+using NitroGroups.Shared.Domain.DomainEvents.Bookings.Enums;
+using NitroGroups.Tests.Integration.Bookings;
 using NitroGroups.Tests.Integration.Infrastructure;
 using NSubstitute;
 
@@ -10,6 +14,17 @@ namespace NitroGroups.Tests.Integration.Groups;
 public class SearchGroupsQueryHandlerIntegrationTests(IntegrationTestFixture fixture) : IClassFixture<IntegrationTestFixture>
 {
     private static readonly ISchedulesModuleApi NoSchedules = Substitute.For<ISchedulesModuleApi>();
+
+    /// <summary>A group nobody booked: the default answer of the Bookings contract.</summary>
+    private static readonly IBookingsModuleApi NoBookings = EmptyBookings();
+
+    private static IBookingsModuleApi EmptyBookings()
+    {
+        var bookings = Substitute.For<IBookingsModuleApi>();
+        bookings.GetBusyGroupIdsAsync(Arg.Any<IReadOnlyCollection<long>>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+            .Returns(new HashSet<long>());
+        return bookings;
+    }
 
     private async Task<(GroupsDbContext Context, Dictionary<string, long> Ids)> SeedAsync()
     {
@@ -42,8 +57,11 @@ public class SearchGroupsQueryHandlerIntegrationTests(IntegrationTestFixture fix
         return (context, new() { ["vargas"] = vargas.Id, ["aurora"] = aurora.Id, ["rockers"] = rockers.Id });
     }
 
-    private SearchGroupsQueryHandler Handler(GroupsDbContext context, ISchedulesModuleApi? schedules = null) =>
-        new(fixture.CreateGroupsUnitOfWork(context), schedules ?? NoSchedules);
+    private SearchGroupsQueryHandler Handler(
+        GroupsDbContext context,
+        ISchedulesModuleApi? schedules = null,
+        IBookingsModuleApi? bookings = null) =>
+        new(fixture.CreateGroupsUnitOfWork(context), schedules ?? NoSchedules, bookings ?? NoBookings);
 
     [Fact]
     public async Task SinFiltros_DevuelveSoloActivosQueAceptanReservas_OrdenadosPorCalificacion()
@@ -87,6 +105,120 @@ public class SearchGroupsQueryHandlerIntegrationTests(IntegrationTestFixture fix
         var (from, to) = SearchGroupsQueryHandler.LocalDay(new DateOnly(2026, 12, 12));
         await schedules.Received(1).GetUnavailableGroupIdsAsync(
             Arg.Is<IReadOnlyCollection<long>>(c => c.Count == 2), from, to, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ConFecha_ExcluyeElGrupoQueYaTieneUnEventoAceptadoEseDia_YCuentaSoloLosQueQuedan()
+    {
+        var (context, ids) = await SeedAsync();
+        var day = new DateOnly(2026, 11, 19);
+        await using var bookingsContext = fixture.CreateBookingsContext();
+        await BookingsTestScenario.SeedAsync(
+            bookingsContext, groupId: ids["rockers"], eventDate: day,
+            configure: request => request.Accept(null, DateTime.UtcNow));
+
+        var result = await Handler(context, bookings: new BookingsModuleApi(bookingsContext))
+            .Handle(new SearchGroupsQuery(null, null, null, null, day), default);
+
+        Assert.Equal(["Mariachi Vargas", "Mariachi Aurora"], result.Items.Select(i => i.GroupName));
+        Assert.Equal(2, result.TotalCount);
+        Assert.Equal(result.Items.Count, result.TotalCount);
+    }
+
+    [Theory]
+    [InlineData(EventRequestStatus.Pending)]
+    [InlineData(EventRequestStatus.Declined)]
+    [InlineData(EventRequestStatus.Cancelled)]
+    public async Task ConFecha_UnSolicitudNoAceptadaEseDia_NoOcultaElGrupo(EventRequestStatus status)
+    {
+        var (context, ids) = await SeedAsync();
+        var day = new DateOnly(2026, 11, 19);
+        await using var bookingsContext = fixture.CreateBookingsContext();
+        await BookingsTestScenario.SeedAsync(
+            bookingsContext, groupId: ids["rockers"], eventDate: day,
+            configure: request => MoveTo(request, status));
+
+        var result = await Handler(context, bookings: new BookingsModuleApi(bookingsContext))
+            .Handle(new SearchGroupsQuery(null, null, null, null, day), default);
+
+        Assert.Equal(["Mariachi Vargas", "Mariachi Aurora", "Los Rockers"], result.Items.Select(i => i.GroupName));
+        Assert.Equal(3, result.TotalCount);
+    }
+
+    [Fact]
+    public async Task ConFecha_UnEventoAceptadoOtroDia_NoOcultaElGrupo()
+    {
+        var (context, ids) = await SeedAsync();
+        await using var bookingsContext = fixture.CreateBookingsContext();
+        await BookingsTestScenario.SeedAsync(
+            bookingsContext, groupId: ids["rockers"], eventDate: new DateOnly(2026, 11, 20),
+            configure: request => request.Accept(null, DateTime.UtcNow));
+
+        var result = await Handler(context, bookings: new BookingsModuleApi(bookingsContext))
+            .Handle(new SearchGroupsQuery(null, null, null, null, new DateOnly(2026, 11, 19)), default);
+
+        Assert.Equal(["Mariachi Vargas", "Mariachi Aurora", "Los Rockers"], result.Items.Select(i => i.GroupName));
+        Assert.Equal(3, result.TotalCount);
+    }
+
+    [Fact]
+    public async Task SinFecha_DevuelveLosMismosGruposQueAntes_YNoPreguntaPorReservas()
+    {
+        var (context, ids) = await SeedAsync();
+        var day = new DateOnly(2026, 11, 19);
+        var bookings = Substitute.For<IBookingsModuleApi>();
+        bookings.GetBusyGroupIdsAsync(Arg.Any<IReadOnlyCollection<long>>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+            .Returns(new HashSet<long> { ids["vargas"], ids["aurora"], ids["rockers"] });
+        await using var bookingsContext = fixture.CreateBookingsContext();
+        await BookingsTestScenario.SeedAsync(
+            bookingsContext, groupId: ids["rockers"], eventDate: day,
+            configure: request => request.Accept(null, DateTime.UtcNow));
+
+        var result = await Handler(context, bookings: bookings)
+            .Handle(new SearchGroupsQuery(null, null, null, null, null), default);
+
+        Assert.Equal(["Mariachi Vargas", "Mariachi Aurora", "Los Rockers"], result.Items.Select(i => i.GroupName));
+        Assert.Equal(3, result.TotalCount);
+        await bookings.DidNotReceive().GetBusyGroupIdsAsync(
+            Arg.Any<IReadOnlyCollection<long>>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ConFecha_ExcluyeLosOcupadosPorHorarioYLosQueYaTienenUnEventoAceptado()
+    {
+        var (context, ids) = await SeedAsync();
+        var day = new DateOnly(2026, 11, 19);
+        var schedules = Substitute.For<ISchedulesModuleApi>();
+        schedules.GetUnavailableGroupIdsAsync(Arg.Any<IReadOnlyCollection<long>>(), Arg.Any<DateTimeOffset>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(new HashSet<long> { ids["vargas"] });
+        await using var bookingsContext = fixture.CreateBookingsContext();
+        await BookingsTestScenario.SeedAsync(
+            bookingsContext, groupId: ids["rockers"], eventDate: day,
+            configure: request => request.Accept(null, DateTime.UtcNow));
+
+        var result = await Handler(context, schedules, new BookingsModuleApi(bookingsContext))
+            .Handle(new SearchGroupsQuery(null, null, null, null, day), default);
+
+        Assert.Equal(["Mariachi Aurora"], result.Items.Select(i => i.GroupName));
+        Assert.Equal(1, result.TotalCount);
+    }
+
+    /// <summary>Puts a seeded request in the given status, through its own domain transitions.</summary>
+    private static void MoveTo(EventRequest request, EventRequestStatus status)
+    {
+        var now = DateTime.UtcNow;
+        switch (status)
+        {
+            case EventRequestStatus.Accepted:
+                request.Accept(null, now);
+                break;
+            case EventRequestStatus.Declined:
+                request.Decline(null, now);
+                break;
+            case EventRequestStatus.Cancelled:
+                request.Cancel(EventRequestParty.Client);
+                break;
+        }
     }
 
     [Fact]

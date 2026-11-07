@@ -27,3 +27,7 @@ Documento ODD: Specs → Tasks → Log. Rama `feat/membership-ux`. Verificación
 
 - L1 (usuario, verbatim): "si" — aprueba continuar con la Ola 2 (perfil de músico y agenda de gigs), y recuerda usar las skills y 21st.dev para las mejoras gráficas.
 - L2: se empieza por el perfil de músico; la agenda de gigs va en `odd/tasks/ola-2-agenda-gigs.md` después.
+- L3 (entregado): backend en `bd20a47`, `cb6cf86`, `7de788d` (migración `20261105085110_AddMusicianPublicProfileFields` aplicada; Endpoints 168 e Integration 205 en verde) y frontend en `0982fc5`, `908175e`, `eb5f5a4`, `0263c5c` (vitest 321). El puente entre módulos quedó como `IGroupsModuleApi.GetUserGroupMembershipsAsync`, solo membresías activas, orden Dueño, Manager, Miembro.
+- L4 (verificado con Playwright): `GET api/musicians/11` sin token devuelve el perfil con sus grupos y roles; `GET api/musicians/10` (cliente) da 404; `PUT` sin token da 401. La página `/musicians/11` se abre sin sesión, muestra grupos con rol y CTA de invitación, y no desborda a 390 px. Editando como Mateo (titular, instrumentos, video) el guardado escribe en la base y el perfil público lo refleja.
+- L5 (defecto encontrado y corregido en `e96f997`): la página pedía el perfil con `revalidate: 60`, así que tras guardar seguía mostrando los valores viejos hasta un minuto. Ahora se lee sin ventana de caché.
+- Pendiente de decisión: infraestructura de tests de componente (jsdom + testing-library), que hoy no existe y por eso el formulario solo tiene probadas sus reglas.

@@ -47,6 +47,15 @@ const nextConfig: NextConfig = {
         destination: `${backendUrl}/genres`,
       },
       {
+        // The gig agenda: the caller's own gigs and their attendance answers.
+        source: "/api/me/:path*",
+        destination: `${backendUrl}/me/:path*`,
+      },
+      {
+        source: "/api/gigs/:path*",
+        destination: `${backendUrl}/gigs/:path*`,
+      },
+      {
         source: "/api/auth/sync",
         destination: `${backendUrl}/auth/sync`,
       },

@@ -13,7 +13,8 @@ export function RequestList({ requests, viewer }: { requests: EventRequest[]; vi
         <ul className="flex flex-col">
             {requests.map((r) => {
                 const who = viewer === "Client" ? r.groupName : r.clientName;
-                const price = formatPrice(r.budget, r.currency);
+                // Un presupuesto vacío no es cero pesos: el cliente no lo puso.
+                const price = r.budget ? formatPrice(r.budget, r.currency) : "Sin presupuesto";
                 const what = [eventTypeLabel(r.eventType), r.locationText].filter(Boolean).join(" · ");
                 return (
                     <li key={r.id} className="relative grid gap-x-6 gap-y-2 py-6 md:grid-cols-12 md:items-baseline [&+&]:shadow-[inset_0_1px_0_var(--fondo-3)]">

@@ -8,7 +8,9 @@ namespace NitroGroups.Core.Bookings.Infrastructure.Repositories;
 public class UnitOfWorkBookings(
     BookingsDbContext context,
     IOutboxService outboxService,
-    IEventRequestRepository eventRequests) : UnitOfWork(context, outboxService), IUnitOfWorkBookings
+    IEventRequestRepository eventRequests,
+    IGigAttendanceRepository gigAttendances) : UnitOfWork(context, outboxService), IUnitOfWorkBookings
 {
     public IEventRequestRepository EventRequests { get; } = eventRequests;
+    public IGigAttendanceRepository GigAttendances { get; } = gigAttendances;
 }

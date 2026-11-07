@@ -11,6 +11,8 @@ const BACKEND_API_PREFIXES = [
   "/api/auth/sync",
   "/api/event-requests",
   "/api/genres",
+  "/api/me",
+  "/api/gigs",
 ];
 
 // Our custom auth API routes handled by Next.js route handlers

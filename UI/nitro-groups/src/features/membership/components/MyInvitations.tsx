@@ -10,6 +10,7 @@ import { membershipService } from "../membership.service";
 import { membershipErrorMessage } from "../errors";
 import { musicianActions, splitMyRequests } from "../inbox";
 import { directionLabel } from "../status";
+import { teamQueryKey } from "../team";
 import type { MembershipRequest } from "../types";
 import { RequestCard, RequestGroup, RequestSkeleton } from "./RequestCard";
 
@@ -56,7 +57,11 @@ export function MyInvitations({ onViewMyGroups }: { onViewMyGroups?: () => void 
             setError(membershipErrorMessage(e, "No pudimos completar la acción. Inténtalo de nuevo."));
         },
         // También tras un error: un 404/409 casi siempre significa que la lista quedó vieja.
-        onSettled: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+        onSettled: (_data, _error, { action, request }) => {
+            // Al aceptar, el músico entra al equipo de ese grupo: la lista del manager quedó vieja.
+            if (action === "accept") queryClient.invalidateQueries({ queryKey: teamQueryKey(request.groupId) });
+            return queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+        },
     });
 
     if (requests.isPending) return (

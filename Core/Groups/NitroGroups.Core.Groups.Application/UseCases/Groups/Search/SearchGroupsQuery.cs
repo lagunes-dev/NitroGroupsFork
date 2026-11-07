@@ -15,7 +15,7 @@ namespace NitroGroups.Core.Groups.Application.UseCases.Groups.Search
         int Page = 1,
         int Size = 12) : IQuery<PagedResult<GroupSearchItem>>;
 
-    public sealed class SearchGroupsQueryHandler(IUnitOfWorkGroups unitOfWork, ISchedulesModuleApi schedules)
+    public sealed class SearchGroupsQueryHandler(IUnitOfWorkGroups unitOfWork, ISchedulesModuleApi schedules, IBookingsModuleApi bookings)
         : IQueryHandler<SearchGroupsQuery, PagedResult<GroupSearchItem>>
     {
         public const int MaxPageSize = 48;
@@ -37,16 +37,20 @@ namespace NitroGroups.Core.Groups.Application.UseCases.Groups.Search
             var filter = new GroupSearchFilter(
                 Normalize(query.Text), Normalize(query.GenreSlug), Normalize(query.City), query.MaxPrice);
 
-            IReadOnlySet<long> unavailable = new HashSet<long>();
+            IReadOnlySet<long> excluded = new HashSet<long>();
             if (query.Date is { } date)
             {
-                // La disponibilidad vive en Schedules: se consulta por contrato, solo para los candidatos.
+                // La disponibilidad vive en Schedules y los eventos aceptados en Bookings: se
+                // consultan por contrato, solo para los candidatos. Una fecha con un evento ya
+                // aceptado no se puede ofrecer como libre.
                 var candidates = await unitOfWork.GroupSearch.GetMatchingIdsAsync(filter, cancellationToken);
                 var (from, to) = LocalDay(date);
-                unavailable = await schedules.GetUnavailableGroupIdsAsync(candidates, from, to, cancellationToken);
+                var unavailable = await schedules.GetUnavailableGroupIdsAsync(candidates, from, to, cancellationToken);
+                var booked = await bookings.GetBusyGroupIdsAsync(candidates, date, cancellationToken);
+                excluded = unavailable.Union(booked).ToHashSet();
             }
 
-            return await unitOfWork.GroupSearch.SearchAsync(filter, unavailable, page, size, cancellationToken);
+            return await unitOfWork.GroupSearch.SearchAsync(filter, excluded, page, size, cancellationToken);
         }
 
         /// <summary>[00:00, 24:00) del día en hora de México, como instantes absolutos.</summary>

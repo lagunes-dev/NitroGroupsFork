@@ -8,6 +8,7 @@ import type { GroupMediaResponse } from "@/features/groupMedia/types/GroupMedia"
 import { RequestForm } from "@/features/bookings/components/RequestForm";
 import { JoinShortcut } from "@/features/membership/components/JoinShortcut";
 import { ContractLink } from "@/features/membership/components/ContractLink";
+import { HideForMembers } from "@/features/membership/components/HideForMembers";
 import { RequestToJoin } from "@/features/membership/components/RequestToJoin";
 
 const kind = (m: GroupMediaResponse) => m.type.toLowerCase();
@@ -171,6 +172,7 @@ export function PublicGroupProfile({ group, requestedDate, signedIn = false }: {
             )}
 
             {group.isAcceptingBookings && (
+                <HideForMembers groupId={group.id} slug={group.slug} active={group.active} ownerUserId={group.ownerUserId} signedIn={signedIn}>
                 <section id="solicitar" className="page-frame mt-[var(--section-gap)] scroll-mt-24" aria-labelledby="solicitar-titulo">
                     <h2 id="solicitar-titulo" className="titulo">Pedir una fecha</h2>
                     <p className="mt-4 mb-10 max-w-[52ch] text-lg text-tinta">
@@ -187,6 +189,7 @@ export function PublicGroupProfile({ group, requestedDate, signedIn = false }: {
                         </Link>
                     )}
                 </section>
+                </HideForMembers>
             )}
 
             <RequestToJoin
