@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ROUTES } from "@/config/routes";
-import { serverGet } from "@/lib/serverApi";
+import { FRESH, serverGet } from "@/lib/serverApi";
 import { formatEventDate, formatPrice } from "@/lib/format";
 import { buildApiQuery, leaveOutGroup, pageHref, parseFilters, toUrlFilters, type ParsedFilters } from "@/features/search/searchParams";
 import { noFiltersNote } from "@/features/search/filters";
@@ -32,7 +32,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
     const [genres, results] = await Promise.all([
         serverGet<GenreOption[]>("/genres", 3600),
-        serverGet<PagedResult<GroupSearchItem>>(`/groups/search?${api}`, 30),
+        serverGet<PagedResult<GroupSearchItem>>(`/groups/search?${api}`, FRESH),
     ]);
 
     const genreName = genres?.find((g) => g.slug === filters.genero)?.name;
