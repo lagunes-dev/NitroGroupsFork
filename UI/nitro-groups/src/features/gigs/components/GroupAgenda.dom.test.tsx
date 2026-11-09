@@ -113,4 +113,19 @@ describe("GroupAgenda · el renglón del manager dice el saldo del cliente", () 
 
         expect(screen.getByText("Pagos: Mateo Músico $1,500 pagado · Miguel Miembro $1,500 pendiente de pago")).toBeInTheDocument();
     });
+
+    it("says nobody is assigned instead of 'nobody confirmed' when the gig has no musicians (ronda 12)", () => {
+        renderAgenda({ ...gig, attendees: [] });
+
+        expect(screen.getByText("Aún no hay músicos asignados")).toBeInTheDocument();
+        expect(screen.queryByText("Nadie ha confirmado todavía")).toBeNull();
+    });
+
+    it("says nobody confirmed when musicians are assigned and silent (ronda 12)", () => {
+        renderAgenda({ ...gig, attendees: [{ userId: 5, fullName: "Mateo", status: null, pay: 2000 }] });
+
+        expect(screen.getByText("Nadie ha confirmado todavía")).toBeInTheDocument();
+        expect(screen.getByText("Falta 1 por responder")).toBeInTheDocument();
+        expect(screen.queryByText(/asignados/)).toBeNull();
+    });
 });

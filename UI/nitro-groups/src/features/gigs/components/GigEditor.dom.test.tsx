@@ -34,7 +34,7 @@ function renderEditor(gig: GroupGigPayload = row, onSaved = vi.fn()) {
 describe("GigEditor money as data (T48)", () => {
     it("offers 'Saldo recibido' next to the deposit, with its state in words", async () => {
         renderEditor();
-        const balance = screen.getByRole("checkbox", { name: /Saldo recibido/ });
+        const balance = screen.getByRole("checkbox", { name: /Marcar saldo como recibido/ });
         expect(balance).not.toBeChecked();
         expect(screen.getByText("Saldo pendiente")).toBeInTheDocument();
 
@@ -45,33 +45,47 @@ describe("GigEditor money as data (T48)", () => {
 
     it("shows the date once the balance is recorded", () => {
         renderEditor({ ...row, balanceReceivedAt: "2026-12-13T15:00:00Z" });
-        expect(screen.getByRole("checkbox", { name: /Saldo recibido/ })).toBeChecked();
+        expect(screen.getByRole("checkbox", { name: /Marcar saldo como recibido/ })).toBeChecked();
         expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026")).toBeInTheDocument();
     });
 
     it("offers 'Pagado' per musician, with the date when recorded and pending when not", () => {
         renderEditor();
-        expect(screen.getByRole("checkbox", { name: "Pagado a Mateo Ruiz" })).not.toBeChecked();
-        expect(screen.getByRole("checkbox", { name: "Pagado a Ana Leal" })).toBeChecked();
+        expect(screen.getByRole("checkbox", { name: "Marcar como pagado a Mateo Ruiz" })).not.toBeChecked();
+        expect(screen.getByRole("checkbox", { name: "Marcar como pagado a Ana Leal" })).toBeChecked();
         expect(screen.getByText("Pagado el 13 de diciembre de 2026")).toBeInTheDocument();
         expect(screen.getAllByText("Pendiente de pago")).toHaveLength(1);
     });
 
+    it("labels each box with what ticking does, so it never contradicts the state next to it (ronda 12)", () => {
+        // "Pagado" beside "Pendiente de pago" read as two answers to one question: the box is an action
+        // and the sentence is what the record says right now.
+        renderEditor();
+        const unpaid = screen.getByRole("checkbox", { name: "Marcar como pagado a Mateo Ruiz" });
+        expect(unpaid.closest("label")).toHaveTextContent("Marcar como pagado");
+        expect(screen.queryByText("Pagado", { selector: "label" })).toBeNull();
+        expect(unpaid).toHaveAccessibleDescription("Pendiente de pago");
+
+        const balance = screen.getByRole("checkbox", { name: "Marcar saldo como recibido" });
+        expect(balance.closest("label")).toHaveTextContent("Marcar saldo como recibido");
+        expect(balance).toHaveAccessibleDescription("Saldo pendiente");
+    });
+
     it("does not offer 'Pagado' to a musician with no pay defined", () => {
         renderEditor();
-        expect(screen.queryByRole("checkbox", { name: "Pagado a Luis Peña" })).toBeNull();
+        expect(screen.queryByRole("checkbox", { name: "Marcar como pagado a Luis Peña" })).toBeNull();
         expect(screen.getByText("Sin pago definido")).toBeInTheDocument();
     });
 
     it("works with the keyboard and keeps a 44px target", async () => {
         renderEditor();
-        const paid = screen.getByRole("checkbox", { name: "Pagado a Mateo Ruiz" });
+        const paid = screen.getByRole("checkbox", { name: "Marcar como pagado a Mateo Ruiz" });
         paid.focus();
         await userEvent.keyboard(" ");
         expect(paid).toBeChecked();
         // jsdom measures no pixels: the min-h-11 class on the label is the decision (44px).
         expect(paid.closest("label")).toHaveClass("min-h-11");
-        expect(screen.getByRole("checkbox", { name: /Saldo recibido/ }).closest("label")).toHaveClass("min-h-11");
+        expect(screen.getByRole("checkbox", { name: /Marcar saldo como recibido/ }).closest("label")).toHaveClass("min-h-11");
     });
 
     it("saves the balance with the details and each paid state with the pay", async () => {
@@ -79,8 +93,8 @@ describe("GigEditor money as data (T48)", () => {
         mocks.savePay.mockResolvedValue({});
         const onSaved = renderEditor();
 
-        await userEvent.click(screen.getByRole("checkbox", { name: /Saldo recibido/ }));
-        await userEvent.click(screen.getByRole("checkbox", { name: "Pagado a Mateo Ruiz" }));
+        await userEvent.click(screen.getByRole("checkbox", { name: /Marcar saldo como recibido/ }));
+        await userEvent.click(screen.getByRole("checkbox", { name: "Marcar como pagado a Mateo Ruiz" }));
         await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
         await vi.waitFor(() => expect(onSaved).toHaveBeenCalled());
@@ -98,7 +112,7 @@ describe("GigEditor money as data (T48)", () => {
         mocks.savePay.mockResolvedValue({});
         renderEditor();
 
-        await userEvent.click(screen.getByRole("checkbox", { name: "Pagado a Ana Leal" }));
+        await userEvent.click(screen.getByRole("checkbox", { name: "Marcar como pagado a Ana Leal" }));
         expect(screen.getByText("Se quitará al guardar")).toBeInTheDocument();
         await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
@@ -110,12 +124,29 @@ describe("GigEditor money as data (T48)", () => {
         mocks.saveDetails.mockRejectedValue(new Error("boom"));
         const onSaved = renderEditor();
 
-        await userEvent.click(screen.getByRole("checkbox", { name: /Saldo recibido/ }));
+        await userEvent.click(screen.getByRole("checkbox", { name: /Marcar saldo como recibido/ }));
         await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
         expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos guardar los cambios del toque.");
         expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
         expect(onSaved).not.toHaveBeenCalled();
+    });
+});
+
+describe("Who is on the gig (ronda 12)", () => {
+    it("says nobody is assigned when the gig has no musicians", () => {
+        renderEditor({ ...row, attendees: [] });
+        expect(screen.getByText("No hay músicos asignados a este toque.")).toBeInTheDocument();
+    });
+
+    it("says how many are assigned and that none confirmed", () => {
+        renderEditor({ ...row, attendees: [{ userId: 5, fullName: "Mateo Ruiz", status: null, pay: 2000 }] });
+        expect(screen.getByText("Tienes 1 músico asignado y nadie ha confirmado todavía.")).toBeInTheDocument();
+    });
+
+    it("says how many are assigned and how many confirmed", () => {
+        renderEditor();
+        expect(screen.getByText("Tienes 3 músicos asignados; 3 confirmaron.")).toBeInTheDocument();
     });
 });
 
@@ -299,7 +330,7 @@ describe("Cuadre del toque follows what is typed", () => {
         renderEditor(deal);
         expect(screen.getByText("Pagado $1,500 · pendiente $2,000")).toBeInTheDocument();
 
-        await userEvent.click(screen.getByRole("checkbox", { name: "Pagado a Mateo Ruiz" }));
+        await userEvent.click(screen.getByRole("checkbox", { name: "Marcar como pagado a Mateo Ruiz" }));
 
         expect(screen.getByText("Pagado $3,500 · pendiente $0")).toBeInTheDocument();
         // The split is one of the figures: it follows what is on screen, not what was saved.

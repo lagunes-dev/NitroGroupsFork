@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attendeeSummary, attendanceCountLabel, confirmedGigDates, declinedLabel, unansweredLabel } from "./groupAgenda";
+import { attendeeSummary, attendanceCountLabel, confirmedGigDates, declinedLabel, rosterStateLabel, unansweredLabel } from "./groupAgenda";
 
 describe("attendeeSummary", () => {
     const ALL = [
@@ -48,9 +48,40 @@ describe("attendanceCountLabel", () => {
         expect(attendanceCountLabel({ confirmed: 3, declined: 0, total: 5, unanswered: 2, names: [], declinedNames: [] })).toBe("3 de 5 confirmaron");
     });
 
-    it("says nobody has confirmed yet, even before anyone was asked", () => {
+    it("says nobody has confirmed yet when members were asked and are silent", () => {
         expect(attendanceCountLabel({ confirmed: 0, declined: 0, total: 5, unanswered: 5, names: [], declinedNames: [] })).toBe("Nadie ha confirmado todavía");
-        expect(attendanceCountLabel({ confirmed: 0, declined: 0, total: 0, unanswered: 0, names: [], declinedNames: [] })).toBe("Nadie ha confirmado todavía");
+    });
+
+    it("says nobody is assigned, not that nobody answered, when no one was asked (ronda 12)", () => {
+        expect(attendanceCountLabel({ confirmed: 0, declined: 0, total: 0, unanswered: 0, names: [], declinedNames: [] })).toBe("Aún no hay músicos asignados");
+    });
+});
+
+describe("rosterStateLabel (the editor says which of the three situations it is, ronda 12)", () => {
+    const summary = (list: Parameters<typeof attendeeSummary>[0]) => rosterStateLabel(attendeeSummary(list));
+
+    it("says nobody is assigned", () => {
+        expect(summary([])).toBe("No hay músicos asignados a este toque.");
+        expect(summary(null)).toBe("No hay músicos asignados a este toque.");
+    });
+
+    it("says how many are assigned and that none has confirmed", () => {
+        expect(summary([{ userId: 1, fullName: "A", status: null }, { userId: 2, fullName: "B", status: null }])).toBe(
+            "Tienes 2 músicos asignados y nadie ha confirmado todavía."
+        );
+        expect(summary([{ userId: 1, fullName: "A", status: null }])).toBe("Tienes 1 músico asignado y nadie ha confirmado todavía.");
+    });
+
+    it("says how many are assigned and how many confirmed", () => {
+        const rows = [
+            { userId: 1, fullName: "A", status: "Confirmed" },
+            { userId: 2, fullName: "B", status: "Confirmed" },
+            { userId: 3, fullName: "C", status: null },
+        ];
+        expect(summary(rows)).toBe("Tienes 3 músicos asignados; 2 confirmaron.");
+        expect(summary([{ userId: 1, fullName: "A", status: "Confirmed" }, { userId: 3, fullName: "C", status: null }])).toBe(
+            "Tienes 2 músicos asignados; 1 confirmó."
+        );
     });
 });
 

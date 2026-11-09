@@ -18,6 +18,7 @@ import {
     type LogisticsErrors,
     type LogisticsForm,
 } from "../gigLogistics";
+import { attendeeSummary, rosterStateLabel } from "../groupAgenda";
 import type { GroupGigPayload } from "../types";
 
 interface GigEditorProps {
@@ -106,6 +107,8 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                     </div>
                 </dl>
                 <p className="mt-3 text-sm text-tinta-2">{settlement.note}</p>
+                {/* Ronda 12: nobody assigned, assigned and silent, or some confirmed: said, not left to infer. */}
+                <p className="mt-2 text-sm text-tinta-2">{rosterStateLabel(attendeeSummary(row.attendees))}</p>
             </section>
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -156,7 +159,7 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                             aria-describedby={`${idPrefix}-balance-state`}
                             onChange={(event) => setForm((f) => ({ ...f, balanceReceived: event.target.checked }))}
                         />
-                        Saldo recibido
+                        Marcar saldo como recibido
                     </label>
                     <p id={`${idPrefix}-balance-state`} className="text-sm text-tinta-2">
                         {balanceState}
@@ -223,12 +226,12 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                                                         <input
                                                             type="checkbox"
                                                             className="size-6 accent-acento"
-                                                            aria-label={`Pagado a ${name}`}
+                                                            aria-label={`Marcar como pagado a ${name}`}
                                                             aria-describedby={`${idPrefix}-paid-state-${key}`}
                                                             checked={form.paid[key] ?? false}
                                                             onChange={(event) => setPaid(key, event.target.checked)}
                                                         />
-                                                        Pagado
+                                                        Marcar como pagado
                                                     </label>
                                                     <p id={`${idPrefix}-paid-state-${key}`} className="text-sm text-tinta-2">
                                                         {paidState}
