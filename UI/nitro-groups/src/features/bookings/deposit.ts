@@ -170,9 +170,11 @@ function remainingAmount(request: { budget?: number | null; deposit?: unknown })
 }
 
 /**
- * "Falta pagar $14,000 · para el 15 de noviembre de 2026" from what the app can compute: the cachet
- * minus the deposit the group recorded as received. Null when the figure cannot be stated honestly, so
- * no line is drawn instead of an invented one. The deadline is a fact the group loaded (T61, S24).
+ * "Saldo: falta pagar $14,000 · para el 15 de noviembre de 2026" from what the app can compute: the
+ * cachet minus the deposit the group recorded as received. Null when the figure cannot be stated
+ * honestly, so no line is drawn instead of an invented one. The deadline is a fact the group loaded
+ * (T61, S24). Round 12: the leading "Saldo:" is what tells it apart from the manager's "Pagos:" line
+ * (the musicians); every pending balance in the app says it this way, so use {@link pendingBalanceLine}.
  */
 function owedMoneyLine(request: {
     budget?: number | null;
@@ -184,8 +186,16 @@ function owedMoneyLine(request: {
     if (remaining === null || remaining <= 0) return null;
     const money = formatPrice(remaining, request.currency ?? "MXN");
     if (!money) return null;
-    const due = dueDateLabel(request.balanceDueDate);
-    return due ? `Falta pagar ${money} · ${due}` : `Falta pagar ${money}`;
+    return pendingBalanceLine(money, dueDateLabel(request.balanceDueDate));
+}
+
+/**
+ * The one wording of a pending balance, for the client's screens and the manager's row alike (round 12):
+ * "Saldo: falta pagar $14,000 · para el 15 de noviembre de 2026", or without the deadline when none was
+ * loaded. The figure and the deadline come from the callers; this only decides how they are said.
+ */
+export function pendingBalanceLine(money: string, due: string | null): string {
+    return due ? `Saldo: falta pagar ${money} · ${due}` : `Saldo: falta pagar ${money}`;
 }
 
 /**
@@ -210,7 +220,7 @@ export function paymentDueLabel(request: {
 /**
  * "Saldo recibido el 13 de diciembre de 2026" once the group recorded it — with the figure when the
  * cachet and the deposit let it be computed, so the client can check what she was charged; otherwise
- * the fact alone. `Falta pagar $14,000` for the client of an accepted event whose deposit already
+ * the fact alone. `Saldo: falta pagar $14,000` for the client of an accepted event whose deposit already
  * landed, null while the deposit is pending, for the group's view and without a budget: the app
  * records the deposit, it never charges anything.
  */
@@ -230,7 +240,7 @@ export function balanceLabel(
     }
     const remaining = remainingAmount(request);
     if (remaining !== null && remaining <= 0) return "Sin saldo pendiente";
-    // T61: "Falta pagar $14,000 · para el 15 de noviembre de 2026", el plazo que cargó el manager.
+    // T61: "Saldo: falta pagar $14,000 · para el 15 de noviembre de 2026", el plazo que cargó el manager.
     return owedMoneyLine(request);
 }
 

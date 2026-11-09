@@ -60,7 +60,7 @@ describe("balanceLabel", () => {
     const received = { amount: 4000, receivedAt: "2026-11-05T18:00:00Z" };
 
     it("says what is left to pay once the deposit was received", () => {
-        expect(balanceLabel({ status: "Accepted", budget: 18000, deposit: received }, "Client")).toBe("Falta pagar $14,000");
+        expect(balanceLabel({ status: "Accepted", budget: 18000, deposit: received }, "Client")).toBe("Saldo: falta pagar $14,000");
     });
 
     it("says nothing is owed when the deposit already covers the budget", () => {
@@ -232,20 +232,20 @@ describe("fecha límite del anticipo y del saldo (T61, S24)", () => {
     });
 
     it("says the balance the client owes with its deadline, like the spec's example", () => {
-        expect(balanceLabel({ ...owed, balanceDueDate: "2026-11-15" }, "Client")).toBe("Falta pagar $14,000 · para el 15 de noviembre de 2026");
+        expect(balanceLabel({ ...owed, balanceDueDate: "2026-11-15" }, "Client")).toBe("Saldo: falta pagar $14,000 · para el 15 de noviembre de 2026");
     });
 
     it("keeps today's words when there is no deadline loaded", () => {
         expect(depositLabel({ amount: 3000, receivedAt: null })).toBe("Anticipo $3,000 · pendiente");
         expect(depositLabel({ amount: 3000, receivedAt: "2026-11-04T18:00:00Z" })).toBe("Anticipo $3,000 · recibido el 4 de noviembre de 2026");
-        expect(balanceLabel({ ...owed, balanceDueDate: null }, "Client")).toBe("Falta pagar $14,000");
-        expect(balanceLabel(owed, "Client")).toBe("Falta pagar $14,000");
+        expect(balanceLabel({ ...owed, balanceDueDate: null }, "Client")).toBe("Saldo: falta pagar $14,000");
+        expect(balanceLabel(owed, "Client")).toBe("Saldo: falta pagar $14,000");
     });
 
     it("states a deadline that already passed as the same fact, never as an error", () => {
         // La fecha ya pasó: el texto es el mismo y no aparece ninguna marca de deuda vencida.
         const line = balanceLabel({ ...owed, balanceDueDate: "2026-10-01" }, "Client");
-        expect(line).toBe("Falta pagar $14,000 · para el 1 de octubre de 2026");
+        expect(line).toBe("Saldo: falta pagar $14,000 · para el 1 de octubre de 2026");
         expect(line).not.toMatch(/vencid|atras|error|reclam/i);
         expect(depositLabel({ amount: 3000, dueDate: "2026-10-01" })).toBe("Anticipo $3,000 · pendiente · para el 1 de octubre de 2026");
     });
@@ -255,7 +255,7 @@ describe("fecha límite del anticipo y del saldo (T61, S24)", () => {
         expect(dueDateLabel(null)).toBeNull();
         expect(dueDateLabel("ayer")).toBeNull();
         expect(depositLabel({ amount: 3000, dueDate: "15/11/2026" })).toBe("Anticipo $3,000 · pendiente");
-        expect(balanceLabel({ ...owed, balanceDueDate: "ayer" }, "Client")).toBe("Falta pagar $14,000");
+        expect(balanceLabel({ ...owed, balanceDueDate: "ayer" }, "Client")).toBe("Saldo: falta pagar $14,000");
     });
 
     it("does not add a deadline to money that already arrived", () => {
@@ -276,7 +276,7 @@ describe("fecha límite del anticipo y del saldo (T61, S24)", () => {
 
     it("uses the deadline as the block's 'para el …' instead of repeating it", () => {
         expect(balanceBlock({ ...owed, balanceDueDate: "2026-11-15", eventDate: "2026-12-12" }, "Client", "2026-11-07")).toEqual({
-            balance: "Falta pagar $14,000 · para el 15 de noviembre de 2026",
+            balance: "Saldo: falta pagar $14,000 · para el 15 de noviembre de 2026",
             purpose: null,
             // Una sola fecha para el saldo: la del plazo. "El día del evento" sería otra y se contradirían.
             nextStep: "Paga $14,000 antes del 15 de noviembre de 2026.",
@@ -285,7 +285,7 @@ describe("fecha límite del anticipo y del saldo (T61, S24)", () => {
 
     it("keeps the event day as the purpose while there is no deadline", () => {
         expect(balanceBlock({ ...owed, eventDate: "2026-12-12" }, "Client", "2026-11-07")).toEqual({
-            balance: "Falta pagar $14,000",
+            balance: "Saldo: falta pagar $14,000",
             purpose: "para el 12 de diciembre de 2026",
             nextStep: "Paga $14,000.",
         });
@@ -330,8 +330,8 @@ describe("balance received (T48)", () => {
     });
 
     it("changes nothing before it exists", () => {
-        expect(balanceLabel({ ...settled, balanceReceivedAt: null }, "Client")).toBe("Falta pagar $14,000");
-        expect(balanceLabel({ status: "Accepted", budget: 18000, deposit: received }, "Client")).toBe("Falta pagar $14,000");
+        expect(balanceLabel({ ...settled, balanceReceivedAt: null }, "Client")).toBe("Saldo: falta pagar $14,000");
+        expect(balanceLabel({ status: "Accepted", budget: 18000, deposit: received }, "Client")).toBe("Saldo: falta pagar $14,000");
     });
 
     it("is for the client of an accepted request only", () => {
@@ -354,7 +354,7 @@ describe("balance received (T48)", () => {
             nextStep: "No queda nada por pagar.",
         });
         expect(balanceBlock({ ...settled, balanceReceivedAt: null, eventDate: "2026-12-12" }, "Client")).toEqual({
-            balance: "Falta pagar $14,000",
+            balance: "Saldo: falta pagar $14,000",
             purpose: "para el 12 de diciembre de 2026",
             nextStep: "Paga $14,000.",
         });
@@ -440,13 +440,13 @@ describe("paymentDueLabel (ronda 12)", () => {
 
     it("states the balance once the deposit landed, with the balance deadline", () => {
         expect(paymentDueLabel({ budget: 13000, deposit: received, balanceDueDate: "2026-11-15" })).toBe(
-            "Falta pagar $9,000 · para el 15 de noviembre de 2026"
+            "Saldo: falta pagar $9,000 · para el 15 de noviembre de 2026"
         );
     });
 
     it("says only the half it knows and never invents the missing one", () => {
         expect(paymentDueLabel({ deposit: { amount: 3000, receivedAt: null } })).toBe("Anticipo $3,000 · pendiente");
-        expect(paymentDueLabel({ budget: 13000, deposit: received })).toBe("Falta pagar $9,000");
+        expect(paymentDueLabel({ budget: 13000, deposit: received })).toBe("Saldo: falta pagar $9,000");
         // Sin monto legible no hay línea: la app no adivina cuánto falta.
         expect(paymentDueLabel({ budget: 13000 })).toBeNull();
         expect(paymentDueLabel({ budget: null, deposit: received })).toBeNull();

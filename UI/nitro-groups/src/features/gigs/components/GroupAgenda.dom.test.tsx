@@ -48,7 +48,7 @@ describe("GroupAgenda · el renglón del manager dice el saldo del cliente", () 
     it("states what is still owed with the deadline the group loaded", () => {
         renderAgenda();
 
-        expect(screen.getByText("Falta pagar $6,200 · para el 15 de noviembre de 2026")).toBeInTheDocument();
+        expect(screen.getByText("Saldo: falta pagar $6,200 · para el 15 de noviembre de 2026")).toBeInTheDocument();
         // Lo que ya decía sigue ahí: el anticipo, con su fecha.
         expect(screen.getByText("Anticipo $7,800 · recibido el 4 de noviembre de 2026")).toBeInTheDocument();
     });
@@ -70,14 +70,14 @@ describe("GroupAgenda · el renglón del manager dice el saldo del cliente", () 
     it("states what is still owed without a deadline when there is none", () => {
         renderAgenda({ ...gig, balanceDueDate: null });
 
-        expect(screen.getByText("Falta pagar $6,200")).toBeInTheDocument();
+        expect(screen.getByText("Saldo: falta pagar $6,200")).toBeInTheDocument();
         expect(screen.queryByText(/para el 15 de noviembre/)).toBeNull();
     });
 
     it("draws no balance line when nothing is owed", () => {
         renderAgenda({ ...gig, deposit: { amount: 14000, receivedAt: "2026-11-04T18:00:00Z" } });
 
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
         expect(screen.queryByText(/Sin saldo pendiente/)).toBeNull();
         // El anticipo se sigue leyendo: es el dato que explica por qué no queda saldo.
         expect(screen.getByText("Anticipo $14,000 · recibido el 4 de noviembre de 2026")).toBeInTheDocument();
@@ -87,7 +87,7 @@ describe("GroupAgenda · el renglón del manager dice el saldo del cliente", () 
         renderAgenda({ ...gig, balanceReceivedAt: "2026-12-13T18:00:00Z" });
 
         expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026 · $6,200")).toBeInTheDocument();
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
     });
 
     it("states the balance amount while the deposit has not landed (ronda 11)", () => {
@@ -95,10 +95,14 @@ describe("GroupAgenda · el renglón del manager dice el saldo del cliente", () 
         // deposit lands, and the deposit state ("pendiente") makes clear none of it is money received.
         renderAgenda({ ...gig, deposit: { amount: 4000, receivedAt: null }, balanceDueDate: "2026-11-15" });
 
-        expect(screen.getByText("Saldo $10,000 · pendiente · para el 15 de noviembre de 2026")).toBeInTheDocument();
+        expect(screen.getByText("Saldo: falta pagar $10,000 · para el 15 de noviembre de 2026")).toBeInTheDocument();
         expect(screen.getByText("Anticipo $4,000 · pendiente")).toBeInTheDocument();
         expect(screen.getByText("Cachet total $14,000")).toBeInTheDocument();
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        // Round 12: the pending balance has one wording before and after the deposit lands, always led by
+        // "Saldo:" so it cannot be read as the musicians' "Pagos:"; it is said once, never twice.
+        expect(screen.getAllByText(/falta pagar/i).map((node) => node.textContent)).toEqual([
+            "Saldo: falta pagar $10,000 · para el 15 de noviembre de 2026",
+        ]);
     });
 
     it("says whether each musician was paid, without an editorial silence (ronda 11)", () => {

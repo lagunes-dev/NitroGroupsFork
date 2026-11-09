@@ -201,7 +201,7 @@ describe("Cómo pagar en el hilo del cliente", () => {
 
         renderNotes("Client", { budget: 13000, balanceDueDate: "2026-11-15" });
 
-        const money = await screen.findByText("Falta pagar $9,000 · para el 15 de noviembre de 2026");
+        const money = await screen.findByText("Saldo: falta pagar $9,000 · para el 15 de noviembre de 2026");
         // La línea de dinero no dice con qué se paga: eso es lo que escribe el grupo, y la app no lo inventa.
         expect(money).not.toHaveTextContent(/efectivo|transferencia|CLABE|tarjeta|cuenta/i);
         // El texto del grupo no la dicta: sigue tal cual y por separado.
@@ -214,7 +214,7 @@ describe("Cómo pagar en el hilo del cliente", () => {
         renderNotes("Client", { deposit: { amount: 3000, receivedAt: null, dueDate: "2026-11-15" } });
 
         expect(await screen.findByText("Anticipo $3,000 · pendiente · para el 15 de noviembre de 2026")).toBeInTheDocument();
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
     });
 
     it("says only the half it knows, and never invents an amount", async () => {
@@ -224,7 +224,7 @@ describe("Cómo pagar en el hilo del cliente", () => {
 
         const body = await screen.findByText(groupNote.body);
         const block = body.closest("section")!;
-        expect(within(block).queryByText(/Falta pagar|Anticipo \$/)).toBeNull();
+        expect(within(block).queryByText(/falta pagar|Anticipo \$/i)).toBeNull();
         // El resto del bloque sigue: cómo pagar no depende de que la app sepa la cifra.
         expect(within(block).getByText(concept)).toBeInTheDocument();
     });
@@ -239,7 +239,7 @@ describe("Cómo pagar en el hilo del cliente", () => {
 
         expect(writeText).toHaveBeenCalledWith(
             [
-                "Falta pagar $9,000 · para el 15 de noviembre de 2026",
+                "Saldo: falta pagar $9,000 · para el 15 de noviembre de 2026",
                 concept,
                 groupNote.body,
                 groupNote.managerLine,
@@ -255,7 +255,7 @@ describe("Cómo pagar en el hilo del cliente", () => {
         renderNotes();
         await userEvent.click(await screen.findByRole("button", { name: "Copiar los datos de pago" }));
 
-        expect(writeText).toHaveBeenCalledWith(`Falta pagar $14,000\n${concept}\n${groupNote.body}\n${groupNote.managerLine}`);
+        expect(writeText).toHaveBeenCalledWith(`Saldo: falta pagar $14,000\n${concept}\n${groupNote.body}\n${groupNote.managerLine}`);
         expect(await screen.findByRole("status")).toHaveTextContent("Texto de pago copiado. Pégalo en tu banco.");
     });
 

@@ -128,7 +128,7 @@ describe("RequestThread deal", () => {
         mocks.get.mockResolvedValue(accepted);
         renderThread("Client");
 
-        const balance = await screen.findByText("Falta pagar $14,000");
+        const balance = await screen.findByText("Saldo: falta pagar $14,000");
         // Layout cannot be measured in jsdom: the size class and the DOM order are the decision.
         expect(balance).toHaveClass("text-2xl");
         // Ronda 10: un plazo dice el año; "5 de diciembre" solo era ambiguo junto a una fecha con año.
@@ -146,23 +146,23 @@ describe("RequestThread deal", () => {
         mocks.get.mockResolvedValue(accepted);
         renderThread("Client");
 
-        await screen.findByText("Falta pagar $14,000");
+        await screen.findByText("Saldo: falta pagar $14,000");
         expect(screen.queryByText("Saldo")).toBeNull();
-        expect(document.querySelector("dl")).not.toHaveTextContent("Falta pagar");
+        expect(document.querySelector("dl")).not.toHaveTextContent(/falta pagar/i);
     });
 
     it("draws no balance block while the deposit is pending or for the group", async () => {
         mocks.get.mockResolvedValue({ ...accepted, deposit: { amount: 4000, receivedAt: null } });
         const { unmount } = renderThread("Client");
         expect(await screen.findByText("Paga $4,000 de anticipo.")).toBeInTheDocument();
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
         unmount();
 
         mocks.get.mockResolvedValue(accepted);
         mocks.signals.mockRejectedValue(new Error("boom"));
         renderThread("Group");
         expect(await screen.findByText("Buscamos banda para la entrada y el vals.")).toBeInTheDocument();
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
         expect(screen.queryByText("Próximo paso")).toBeNull();
     });
 
@@ -186,7 +186,7 @@ describe("RequestThread deal", () => {
         // Y el paso, con su encabezado, diciendo lo que de verdad falta.
         expect(screen.getByText("Próximo paso")).toBeInTheDocument();
         expect(screen.getByText("Paga $4,000 de anticipo antes del 10 de noviembre de 2026.")).toBeInTheDocument();
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
     });
 
     it("keeps the heading next to the balance of the event that still owes money", async () => {
@@ -194,7 +194,7 @@ describe("RequestThread deal", () => {
 
         renderThread("Client");
 
-        await screen.findByText("Falta pagar $14,000 · para el 15 de noviembre de 2026");
+        await screen.findByText("Saldo: falta pagar $14,000 · para el 15 de noviembre de 2026");
         expect(screen.getByText("Próximo paso")).toBeInTheDocument();
         expect(screen.getByText("Paga $14,000 antes del 15 de noviembre de 2026.")).toBeInTheDocument();
     });
@@ -236,7 +236,7 @@ describe("RequestThread cómo pagar (ronda 9)", () => {
         expect(mocks.checkoutNotes).toHaveBeenCalledWith(11);
 
         // El saldo manda, y cómo pagar viene justo después: es la misma pregunta con la otra mitad.
-        const balance = within(screen.getByRole("region", { name: "Saldo y próximo paso" })).getByText("Falta pagar $14,000");
+        const balance = within(screen.getByRole("region", { name: "Saldo y próximo paso" })).getByText("Saldo: falta pagar $14,000");
         expect(balance.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
@@ -285,7 +285,7 @@ describe("RequestThread cómo pagar (ronda 9)", () => {
         // Sin nada pendiente el próximo paso ya lo dice: no hay bloque de saldo ni nota de pago.
         await screen.findByText("No queda nada por pagar.");
         expect(screen.queryByText("Cómo pagar")).toBeNull();
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
         expect(mocks.checkoutNotes).not.toHaveBeenCalled();
     });
 });
@@ -389,7 +389,7 @@ describe("RequestThread balance received (T48)", () => {
         const block = await screen.findByRole("region", { name: "Saldo y próximo paso" });
         expect(block).toHaveTextContent("Saldo recibido el 13 de diciembre de 2026 · $14,000");
         expect(block).toHaveTextContent("No queda nada por pagar.");
-        expect(block).not.toHaveTextContent(/Falta pagar|Acuerda el saldo/);
+        expect(block).not.toHaveTextContent(/falta pagar|Acuerda el saldo/i);
     });
 
     it("keeps the debt block until the balance is recorded", async () => {
@@ -398,7 +398,7 @@ describe("RequestThread balance received (T48)", () => {
         renderThread("Client");
 
         const block = await screen.findByRole("region", { name: "Saldo y próximo paso" });
-        expect(block).toHaveTextContent("Falta pagar $14,000");
+        expect(block).toHaveTextContent("Saldo: falta pagar $14,000");
     });
 
     it("does not show the group's view any balance", async () => {

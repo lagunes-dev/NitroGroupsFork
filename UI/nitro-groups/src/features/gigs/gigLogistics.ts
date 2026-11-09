@@ -1,4 +1,4 @@
-import { balanceBlock, budgetLabel, dueDateLabel, receivedDate } from "@/features/bookings/deposit";
+import { balanceBlock, budgetLabel, dueDateLabel, pendingBalanceLine, receivedDate } from "@/features/bookings/deposit";
 import { formatPrice, isIsoDate } from "@/lib/format";
 import { gigTimeLabel } from "./viewModel";
 import type { GroupGigPayload } from "./types";
@@ -376,10 +376,10 @@ function nothingOwed(row: BalanceRow): boolean {
 }
 
 /**
- * The balance line of the manager's row (S18, S23, S24): what the client still owes — "Falta pagar
- * $6,200 · para el 15 de noviembre", or "Falta pagar $6,200" when the group loaded no deadline — and,
- * once the group recorded the arrival, "Saldo recibido el …". Null when there is nothing to state, so
- * a gig with nothing owed draws no line.
+ * The balance line of the manager's row (S18, S23, S24): what the client still owes — "Saldo: falta
+ * pagar $6,200 · para el 15 de noviembre de 2026", or "Saldo: falta pagar $6,200" when the group loaded
+ * no deadline — and, once the group recorded the arrival, "Saldo recibido el …". Null when there is
+ * nothing to state, so a gig with nothing owed draws no line.
  *
  * The money, the dates and the wording come from the deal helpers and from nothing else: this only
  * decides when they apply. The manager reads the client's own line on purpose — it is the same debt,
@@ -390,10 +390,14 @@ function nothingOwed(row: BalanceRow): boolean {
  * known. Same voice as the deposit's line: noun, state, deadline. Nothing is computed from money that
  * has not arrived.
  *
- * Ronda 11: the amount is what the manager AGREED (cachet minus the anticipo he set), not money that
- * arrived, so the line reads "Saldo $10,000 · pendiente" while the deposit is still pending — the
- * deposit's own state already says nothing is paid. A cachet or an anticipo that does not exist draws
- * no figure: only the deadline, or nothing.
+ * Ronda 11: the amount is what the manager AGREED (cachet minus the anticipo they set), not money that
+ * arrived, so the figure is said while the deposit is still pending — the deposit's own state already
+ * says nothing is paid. A cachet or an anticipo that does not exist draws no figure: only the deadline,
+ * or nothing.
+ *
+ * Round 12: a pending balance is said in one voice, before and after the deposit lands, and as the
+ * client reads it: "Saldo: falta pagar $10,000 · para el 15 de noviembre de 2026". Without a figure to
+ * state, the old fallback keeps its words behind the same leading "Saldo:".
  */
 export function agendaBalanceLabel(row: BalanceRow): string | null {
     const currency = typeof row.currency === "string" && row.currency.trim() ? row.currency : "MXN";
@@ -419,7 +423,7 @@ export function agendaBalanceLabel(row: BalanceRow): string | null {
         // The agreed anticipo already covers the cachet: no balance to state, even with a deadline loaded.
         if (agreed <= 0) return null;
         const money = formatPrice(agreed, currency);
-        if (money) return due ? `Saldo ${money} · pendiente · ${due}` : `Saldo ${money} · pendiente`;
+        if (money) return pendingBalanceLine(money, due);
     }
-    return due ? `Saldo · pendiente · ${due}` : null;
+    return due ? `Saldo: pendiente · ${due}` : null;
 }

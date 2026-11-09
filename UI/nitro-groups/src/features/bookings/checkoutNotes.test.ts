@@ -143,13 +143,13 @@ describe("El concepto de la transferencia (ronda 11)", () => {
  */
 describe("El texto que se copia de la nota (ronda 11)", () => {
     const concept = "Concepto: pedido 20 · Corporativo, 4 de diciembre de 2026";
-    const due = "Falta pagar $9,000 · para el 15 de noviembre de 2026";
+    const due = "Saldo: falta pagar $9,000 · para el 15 de noviembre de 2026";
     const view = toCheckoutNotesView([groupNote])!;
 
     it("copies the amount and the deadline, the concept and then the group's words", () => {
         expect(paymentClipboardText(view, concept, due)).toBe(
             [
-                "Falta pagar $9,000 · para el 15 de noviembre de 2026",
+                "Saldo: falta pagar $9,000 · para el 15 de noviembre de 2026",
                 "Concepto: pedido 20 · Corporativo, 4 de diciembre de 2026",
                 "Transfiere a la CLABE 0121 8000 1234 5678, BBVA.",
                 "Te atiende Pedro Vargas.",

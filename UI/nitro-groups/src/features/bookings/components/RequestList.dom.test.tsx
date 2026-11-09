@@ -30,11 +30,11 @@ const accepted: EventRequest = {
 describe("RequestList balance received (T48)", () => {
     const settled: EventRequest = { ...accepted, balanceReceivedAt: "2026-12-13T15:00:00Z" };
 
-    it("says the balance arrived instead of 'Falta pagar', and the next step is the settled one", () => {
+    it("says the balance arrived instead of 'falta pagar', and the next step is the settled one", () => {
         render(<RequestList requests={[settled]} viewer="Client" />);
         expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026 · $14,000")).toBeInTheDocument();
         expect(screen.getByText("No queda nada por pagar.")).toBeInTheDocument();
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
         expect(screen.queryByText(/Acuerda el saldo/)).toBeNull();
     });
 
@@ -55,7 +55,7 @@ describe("RequestList", () => {
     it("closes the deal for the client: deposit, balance and next step", () => {
         render(<RequestList requests={[accepted]} viewer="Client" />);
         expect(screen.getByText(/Anticipo \$4,000 · recibido el/)).toBeInTheDocument();
-        expect(screen.getByText("Falta pagar $14,000")).toBeInTheDocument();
+        expect(screen.getByText("Saldo: falta pagar $14,000")).toBeInTheDocument();
         expect(screen.getByText("Paga $14,000.")).toBeInTheDocument();
     });
 
@@ -66,14 +66,14 @@ describe("RequestList", () => {
     it("makes the next step carry the amount, not only the date the line above already gave", () => {
         render(<RequestList requests={[{ ...accepted, budget: 13000, balanceDueDate: "2026-11-15" }]} viewer="Client" />);
 
-        expect(screen.getByText("Falta pagar $9,000 · para el 15 de noviembre de 2026")).toBeInTheDocument();
+        expect(screen.getByText("Saldo: falta pagar $9,000 · para el 15 de noviembre de 2026")).toBeInTheDocument();
         expect(screen.getByText("Paga $9,000 antes del 15 de noviembre de 2026.")).toBeInTheDocument();
     });
 
     it("makes the balance the only white figure of the row and the original budget a muted 15px", () => {
         render(<RequestList requests={[accepted]} viewer="Client" />);
         // jsdom measures no pixels: the colour and size classes are the decision.
-        expect(screen.getByText("Falta pagar $14,000")).toHaveClass("text-tinta");
+        expect(screen.getByText("Saldo: falta pagar $14,000")).toHaveClass("text-tinta");
         const price = screen.getByText("$18,000");
         expect(price).toHaveClass("text-tinta-2", "text-[15px]");
         expect(price).not.toHaveClass("text-tinta");
@@ -88,13 +88,13 @@ describe("RequestList", () => {
         render(<RequestList requests={[{ ...accepted, status: "Pending", deposit: null }]} viewer="Client" />);
         expect(screen.getByText("Solicitud enviada el jueves, 1 de octubre de 2026")).toBeInTheDocument();
         expect(screen.queryByText("El grupo todavía no respondió.")).toBeNull();
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
     });
 
     it("keeps the money of the deal away from the group's view", () => {
         render(<RequestList requests={[accepted]} viewer="Group" />);
         expect(screen.queryByText(/Anticipo/)).toBeNull();
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
         expect(screen.queryByText(/Acuerda el saldo/)).toBeNull();
         expect(screen.getByText("Camila Ramos")).toBeInTheDocument();
     });
@@ -178,7 +178,7 @@ describe("RequestList cómo pagar (ronda 10)", () => {
         render(<RequestList requests={[withMethod]} viewer="Client" />);
 
         const line = screen.getByText(method);
-        const balance = screen.getByText("Falta pagar $14,000");
+        const balance = screen.getByText("Saldo: falta pagar $14,000");
 
         // Texto, no un control: la app no cobra ni abre un flujo de pago (D1/S18).
         expect(line.tagName).toBe("P");
@@ -205,7 +205,7 @@ describe("RequestList cómo pagar (ronda 10)", () => {
         const { container } = render(<RequestList requests={[accepted]} viewer="Client" />);
 
         expect(container.textContent).not.toMatch(/CLABE|Transfiere/);
-        expect(screen.getByText("Falta pagar $14,000")).toBeInTheDocument();
+        expect(screen.getByText("Saldo: falta pagar $14,000")).toBeInTheDocument();
     });
 
     it("is never on the group's row", () => {

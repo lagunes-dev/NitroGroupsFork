@@ -12,6 +12,7 @@ import {
     validateLogistics,
     type LogisticsForm,
 } from "./gigLogistics";
+import { balanceLabel, paymentDueLabel } from "@/features/bookings/deposit";
 
 const FORM: LogisticsForm = {
     callTime: "",
@@ -237,13 +238,13 @@ describe("agendaBalanceLabel", () => {
 
     it("says what is still owed with the deadline the group loaded", () => {
         expect(agendaBalanceLabel({ ...DEAL, balanceDueDate: "2026-11-15" })).toBe(
-            "Falta pagar $6,200 · para el 15 de noviembre de 2026"
+            "Saldo: falta pagar $6,200 · para el 15 de noviembre de 2026"
         );
     });
 
     it("says what is still owed without a deadline when the group loaded none", () => {
-        expect(agendaBalanceLabel({ ...DEAL, balanceDueDate: null })).toBe("Falta pagar $6,200");
-        expect(agendaBalanceLabel(DEAL)).toBe("Falta pagar $6,200");
+        expect(agendaBalanceLabel({ ...DEAL, balanceDueDate: null })).toBe("Saldo: falta pagar $6,200");
+        expect(agendaBalanceLabel(DEAL)).toBe("Saldo: falta pagar $6,200");
     });
 
     it("draws no balance line when nothing is owed", () => {
@@ -257,7 +258,7 @@ describe("agendaBalanceLabel", () => {
     it("draws no balance line without an anticipo loaded, and states the agreed one without a deadline", () => {
         // Ronda 11: with an agreed anticipo and no deadline, the figure is still said ("Saldo $6,200 ·
         // pendiente"); what is never invented is a figure against an anticipo nobody set.
-        expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 7800, receivedAt: null } })).toBe("Saldo $6,200 · pendiente");
+        expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 7800, receivedAt: null } })).toBe("Saldo: falta pagar $6,200");
         expect(agendaBalanceLabel({ ...DEAL, deposit: null })).toBeNull();
     });
 
@@ -265,9 +266,9 @@ describe("agendaBalanceLabel", () => {
         // The figure comes from what the manager AGREED (cachet and anticipo), not from money received:
         // the deposit state already says whether it landed, and the balance line cannot read as paid.
         expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 4000, receivedAt: null }, balanceDueDate: "2026-11-15" })).toBe(
-            "Saldo $10,000 · pendiente · para el 15 de noviembre de 2026"
+            "Saldo: falta pagar $10,000 · para el 15 de noviembre de 2026"
         );
-        expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 4000, receivedAt: null } })).toBe("Saldo $10,000 · pendiente");
+        expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 4000, receivedAt: null } })).toBe("Saldo: falta pagar $10,000");
     });
 
     it("never computes a balance from money that does not exist (ronda 11)", () => {
@@ -276,11 +277,11 @@ describe("agendaBalanceLabel", () => {
             expect(
                 agendaBalanceLabel({ ...DEAL, budget, deposit: { amount: 4000, receivedAt: null }, balanceDueDate: "2026-11-15" }),
                 String(budget)
-            ).toBe("Saldo · pendiente · para el 15 de noviembre de 2026");
+            ).toBe("Saldo: pendiente · para el 15 de noviembre de 2026");
         }
         // Nor without an anticipo loaded: a difference against one nobody set is not a balance.
         expect(agendaBalanceLabel({ ...DEAL, deposit: null, balanceDueDate: "2026-11-15" })).toBe(
-            "Saldo · pendiente · para el 15 de noviembre de 2026"
+            "Saldo: pendiente · para el 15 de noviembre de 2026"
         );
         // A pending anticipo that already covers the cachet leaves no balance to announce.
         expect(agendaBalanceLabel({ ...DEAL, deposit: { amount: 15000, receivedAt: null }, balanceDueDate: "2026-11-15" })).toBeNull();
@@ -288,7 +289,7 @@ describe("agendaBalanceLabel", () => {
 
     it("states the balance deadline even without a cachet to compare against", () => {
         expect(agendaBalanceLabel({ ...DEAL, budget: null, balanceDueDate: "2026-11-15" })).toBe(
-            "Saldo · pendiente · para el 15 de noviembre de 2026"
+            "Saldo: pendiente · para el 15 de noviembre de 2026"
         );
     });
 
@@ -310,7 +311,7 @@ describe("agendaBalanceLabel", () => {
     });
 
     it("reads a cachet that arrives as text and a missing currency as pesos", () => {
-        expect(agendaBalanceLabel({ ...DEAL, budget: "14000", currency: null })).toBe("Falta pagar $6,200");
+        expect(agendaBalanceLabel({ ...DEAL, budget: "14000", currency: null })).toBe("Saldo: falta pagar $6,200");
     });
 
     it("has nothing to say without a cachet to compare against", () => {
@@ -318,9 +319,20 @@ describe("agendaBalanceLabel", () => {
         expect(agendaBalanceLabel({ ...DEAL, budget: 0 })).toBeNull();
     });
 
+    it("says a pending balance in one voice before and after the deposit lands, and as the client reads it (round 12)", () => {
+        // The manager's row sits next to "Pagos:" (musicians): "Saldo:" up front says whose money it is.
+        const landed = { ...DEAL, balanceDueDate: "2026-11-15" };
+        const agreed = { ...landed, deposit: { amount: 7800, receivedAt: null } };
+        const client = { ...landed, status: "Accepted" as const };
+        expect(agendaBalanceLabel(landed)).toBe(balanceLabel(client, "Client"));
+        expect(agendaBalanceLabel(landed)).toBe(paymentDueLabel(client));
+        expect(agendaBalanceLabel(agreed)).toBe(agendaBalanceLabel(landed));
+        expect(agendaBalanceLabel(agreed)).toMatch(/^Saldo: falta pagar \$6,200 · para el 15 de noviembre de 2026$/);
+    });
+
     it("reads an agreed deposit written as text and a missing currency as pesos", () => {
         expect(agendaBalanceLabel({ ...DEAL, budget: "14000", currency: null, deposit: { amount: "4000", receivedAt: null } })).toBe(
-            "Saldo $10,000 · pendiente"
+            "Saldo: falta pagar $10,000"
         );
     });
 });
