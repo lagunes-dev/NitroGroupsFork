@@ -25,6 +25,17 @@ public interface IEventRequestRepository : IGenericRepository<EventRequest, long
     Task<EventRequest?> GetWithAttendanceAsync(long id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Las solicitudes de ese cliente con ese grupo en esa fecha que siguen vivas (pendientes o
+    /// aceptadas), ordenadas por id. Rechazada y cancelada no cuentan: el cliente puede volver a
+    /// intentarlo, que es lo que hace cuando el grupo dice que no (ronda 13).
+    /// </summary>
+    Task<List<EventRequest>> ListLiveForClientOnDateAsync(
+        long clientUserId,
+        long groupId,
+        DateOnly eventDate,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Los toques <b>aceptados</b> de ese grupo en ese día, sin contar la solicitud indicada
     /// (la del hilo que se está mirando), ordenados por id. Es la base del choque de fecha (D6).
     /// </summary>

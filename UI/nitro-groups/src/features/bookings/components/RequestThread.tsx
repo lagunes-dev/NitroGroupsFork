@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ROUTES } from "@/config/routes";
@@ -8,11 +8,13 @@ import { eventTypeLabel } from "@/lib/eventTypeLabel";
 import { formatEventDate } from "@/lib/format";
 import { dateSearchHref } from "@/features/search/searchParams";
 import { apiErrorMessage, bookingsService } from "../bookings.service";
-import { balanceBlock, budgetLabel, cancelConfirmText, clientDepositLabel, nextStepLabel, sentLabel } from "../deposit";
+import { balanceBlock, budgetLabel, clientDepositLabel, nextStepLabel, sentLabel } from "../deposit";
+import { messageSendReason } from "../formNotes";
 import { availableActions, shortTime, statusLabel } from "../status";
 import { threadItems, type ThreadItem } from "../thread";
 import type { EventRequest, EventRequestParty } from "../types";
 import { CheckoutNotes } from "./CheckoutNotes";
+import { CancelRequestDialog } from "./CancelRequestDialog";
 import { ReviewForm } from "./ReviewForm";
 import { SavedReview } from "./SavedReview";
 import { RequestSignals } from "./RequestSignals";
@@ -64,6 +66,10 @@ function NextStep({ step }: { step: string }) {
 export function RequestThread({ requestId, viewer }: { requestId: number; viewer: EventRequestParty }) {
     const queryClient = useQueryClient();
     const [reply, setReply] = useState("");
+    const [cancelling, setCancelling] = useState(false);
+    const cancelTriggerRef = useRef<HTMLButtonElement>(null);
+    const headingRef = useRef<HTMLHeadingElement>(null);
+    const wasCancelling = useRef(false);
     const query = useQuery({ queryKey: ["event-request", requestId], queryFn: () => bookingsService.get(requestId) });
     const refresh = (data?: EventRequest) => {
         if (data) queryClient.setQueryData(["event-request", requestId], (old: EventRequest | undefined) => ({ ...old, ...data, messages: data.messages ?? old?.messages }));
@@ -72,11 +78,31 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
 
     const accept = useMutation({ mutationFn: () => bookingsService.accept(requestId), onSuccess: refresh });
     const decline = useMutation({ mutationFn: () => bookingsService.decline(requestId), onSuccess: refresh });
-    const cancel = useMutation({ mutationFn: () => bookingsService.cancel(requestId), onSuccess: refresh });
+    const cancel = useMutation({
+        mutationFn: () => bookingsService.cancel(requestId),
+        // Ronda 13: la pregunta se cierra sola cuando la API confirma; si falla, sigue abierta con el motivo
+        // a la vista, porque el mensaje suelto del hilo queda tapado por el velo del diálogo.
+        onSuccess: (data) => {
+            setCancelling(false);
+            refresh(data);
+        },
+    });
     const send = useMutation({
         mutationFn: () => bookingsService.postMessage(requestId, reply.trim()),
         onSuccess: () => { setReply(""); refresh(); },
     });
+
+    /**
+     * El foco vuelve a donde estaba cuando la pregunta se cierra (ronda 13, tarea 5). Si el botón que la abrió
+     * ya no existe —la solicitud quedó cancelada— el foco va al título, que es el principio de esta pantalla.
+     */
+    useEffect(() => {
+        if (wasCancelling.current && !cancelling) {
+            const target = cancelTriggerRef.current?.isConnected ? cancelTriggerRef.current : headingRef.current;
+            target?.focus();
+        }
+        wasCancelling.current = cancelling;
+    }, [cancelling]);
 
     if (query.isPending) return <p className="text-tinta-2" aria-busy>Cargando la solicitud…</p>;
     if (query.isError) {
@@ -90,8 +116,10 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
 
     const r = query.data;
     const actions = availableActions(r, viewer);
-    const failed = [accept, decline, cancel, send].find((m) => m.isError);
+    // El error de cancelar vive en el diálogo, que es donde está el botón que lo provocó.
+    const failed = [accept, decline, send].find((m) => m.isError);
     const busy = [accept, decline, cancel, send].some((m) => m.isPending);
+    const replyReason = messageSendReason(reply);
     const deal = balanceBlock(r, viewer);
     const nextStep = nextStepLabel(r, viewer);
     const title = viewer === "Client" ? r.groupName : r.clientName;
@@ -101,7 +129,7 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
             <header className="md:col-span-12">
                 <StatusBadge status={r.status} />
                 {viewer === "Client" && r.status === "Pending" && <p className="mt-2 text-tinta-2">{statusLabel(r.status, viewer)}</p>}
-                <h1 className="mt-2 titulo">
+                <h1 ref={headingRef} tabIndex={-1} className="mt-2 titulo">
                     {viewer === "Client" ? (
                         <Link href={ROUTES.GROUPS.PUBLIC_PROFILE(r.groupSlug)} className="no-underline hover:text-acento">{title}</Link>
                     ) : title}
@@ -181,9 +209,13 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                         <label htmlFor="respuesta" className="text-sm font-medium text-tinta-2">Escribir un mensaje</label>
                         <textarea id="respuesta" value={reply} onChange={(e) => setReply(e.target.value)} rows={3} maxLength={2000}
                             className="w-full bg-fondo-2 rounded-xl px-4 py-3 text-tinta focus-visible:-outline-offset-2 resize-y" />
-                        <button type="submit" disabled={!reply.trim() || busy} className="self-start h-12 px-6 bg-fondo-3 text-tinta font-semibold hover:bg-fondo-2 rounded-xl disabled:opacity-45">
-                            {send.isPending ? "Enviando…" : "Enviar mensaje"}
-                        </button>
+                        <div className="flex flex-col items-start gap-2">
+                            <button type="submit" disabled={!reply.trim() || busy} aria-describedby={replyReason ? "respuesta-motivo" : undefined} className="self-start h-12 px-6 bg-fondo-3 text-tinta font-semibold hover:bg-fondo-2 rounded-xl disabled:opacity-45">
+                                {send.isPending ? "Enviando…" : "Enviar mensaje"}
+                            </button>
+                            {/* Ronda 13 (tarea 4): el botón apagado dice qué falta. */}
+                            {replyReason && <p id="respuesta-motivo" className="text-sm text-tinta-2">{replyReason}</p>}
+                        </div>
                     </form>
                 )}
 
@@ -225,13 +257,24 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                             </button>
                         )}
                         {actions.cancel && (
-                            <button type="button" disabled={busy}
-                                onClick={() => { if (window.confirm(cancelConfirmText(r))) cancel.mutate(); }}
+                            <button type="button" disabled={busy} ref={cancelTriggerRef}
+                                onClick={() => setCancelling(true)}
                                 className="h-14 px-7 bg-transparent text-tinta underline decoration-error decoration-2 underline-offset-4 disabled:opacity-45">
                                 Cancelar solicitud
                             </button>
                         )}
                     </div>
+                )}
+
+                {/* Ronda 13, tarea 5: la pregunta de cancelar es de la app, no del navegador. */}
+                {cancelling && actions.cancel && (
+                    <CancelRequestDialog
+                        request={r}
+                        isSaving={cancel.isPending}
+                        error={cancel.isError ? apiErrorMessage(cancel.error, "No pudimos cancelar la solicitud. Inténtalo de nuevo.") : null}
+                        onCancel={() => setCancelling(false)}
+                        onConfirm={() => cancel.mutate()}
+                    />
                 )}
             </section>
         </article>

@@ -187,6 +187,89 @@ public class EventRequestCommandHandlersIntegrationTests : IClassFixture<Integra
         Assert.False(outbox.Processed);
     }
 
+    // ---------- Ronda 13: una sola solicitud viva por cliente, grupo y fecha ----------
+
+    /// <summary>
+    /// Petición 29 de la ronda 13: pedir otra vez el mismo grupo para un día que ya estaba pedido (o ya
+    /// aceptado) pasaba sin aviso y después el cliente tenía dos filas iguales en "Mis pedidos".
+    /// </summary>
+    [Fact]
+    public async Task Crear_ConUnaSolicitudPendienteDelMismoDia_FallaYNoGuardaOtra()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        await SeedAsync(context);
+
+        var result = await CreateHandler(context).Handle(CreateCommand(), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(BookingErrorKind.Conflict, result.ErrorKind);
+        Assert.Equal("Ya tienes una solicitud con este grupo para esa fecha.", result.Error);
+        Assert.Single(context.EventRequests);
+    }
+
+    [Fact]
+    public async Task Crear_ConEseDiaYaConfirmado_DiceQueEseDiaEstaConfirmado()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        await SeedGigAsync(context);
+
+        var result = await CreateHandler(context).Handle(CreateCommand(), CancellationToken.None);
+
+        Assert.Equal(BookingErrorKind.Conflict, result.ErrorKind);
+        Assert.Equal("Ya tienes ese día confirmado con este grupo.", result.Error);
+        Assert.Single(context.EventRequests);
+    }
+
+    [Fact]
+    public async Task Crear_DespuesDeUnRechazo_SePuedeVolverAIntentar()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        await SeedAsync(context, configure: r => r.Decline(null, DateTime.UtcNow));
+
+        var result = await CreateHandler(context).Handle(CreateCommand(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(2, context.EventRequests.Count());
+    }
+
+    [Fact]
+    public async Task Crear_DespuesDeUnCancelada_SePuedeVolverAIntentar()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        await SeedAsync(context, configure: r => r.Cancel(EventRequestParty.Client));
+
+        var result = await CreateHandler(context).Handle(CreateCommand(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(2, context.EventRequests.Count());
+    }
+
+    [Fact]
+    public async Task Crear_MismoDiaConOtroGrupoOParaOtraFecha_NoEsConflicto()
+    {
+        // La regla es del par grupo + fecha del mismo cliente, no de cualquier solicitud suya.
+        await using var context = _fixture.CreateBookingsContext();
+        await SeedAsync(context, groupId: OtherGroupId);
+        await SeedAsync(context, eventDate: new DateOnly(2026, 12, 20));
+
+        var result = await CreateHandler(context).Handle(CreateCommand(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(3, context.EventRequests.Count());
+    }
+
+    [Fact]
+    public async Task Crear_MismoDiaYGrupoDeOtroCliente_NoEsConflicto()
+    {
+        await using var context = _fixture.CreateBookingsContext();
+        await SeedAsync(context, clientId: OutsiderId);
+
+        var result = await CreateHandler(context).Handle(CreateCommand(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(2, context.EventRequests.Count());
+    }
+
     // ---------- Aceptar / rechazar ----------
 
     [Theory]

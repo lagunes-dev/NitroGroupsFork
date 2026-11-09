@@ -33,6 +33,8 @@ vi.mock("../bookings.service", () => ({
 beforeEach(() => {
     mocks.checkoutNotes.mockReset();
     mocks.checkoutNotes.mockResolvedValue([]);
+    // Cancelar sí se llama en esta ronda: sin reiniciarlo, el conteo de un test se lee en el siguiente.
+    mocks.cancel.mockReset();
 });
 
 const request: EventRequest = {
@@ -327,39 +329,87 @@ describe("RequestThread cancel on a past event (T52)", () => {
     });
 });
 
-describe("RequestThread cancel and the money already paid (ronda 12)", () => {
+describe("RequestThread cancel and the money already paid (rondas 12 y 13)", () => {
     const future: EventRequest = { ...request, status: "Accepted", eventDate: "2099-12-05", respondedAt: "2099-10-02T18:00:00Z" };
 
     /**
      * Ronda 12 (la clienta): canceló un evento donde ya había pagado $3,000 de anticipo y el diálogo
      * solo avisaba que el grupo se enteraría. La plata ya pagada no se cancela con el pedido (D1).
+     * Ronda 13: ese diálogo tampoco era de la app —era el `confirm()` del navegador—, así que ahora es
+     * el mismo diálogo de "bloquear" y "mover", con la frase de la plata en su propio renglón.
      */
-    it("says what happens to the money already paid, and that the app neither charges nor refunds", async () => {
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    it("asks in the app's own dialog, with the sentence about the money already paid", async () => {
+        const nativeConfirm = vi.spyOn(window, "confirm");
         mocks.get.mockResolvedValue({ ...future, deposit: { amount: 3000, receivedAt: "2099-01-05T18:00:00Z" } });
         mocks.signals.mockResolvedValue({});
 
         renderThread("Client");
         await userEvent.click(await screen.findByRole("button", { name: "Cancelar solicitud" }));
 
-        expect(confirm).toHaveBeenCalledWith(
-            "¿Cancelar esta solicitud? El grupo recibirá un aviso. Lo que ya pagaste lo arreglas con el grupo: la app no cobra ni devuelve nada."
-        );
-        // Dijo que no: la solicitud sigue viva.
+        const dialog = screen.getByRole("dialog", { name: "Cancelar esta solicitud" });
+        expect(within(dialog).getByText("El grupo recibirá un aviso.")).toBeInTheDocument();
+        expect(
+            within(dialog).getByText("Lo que ya pagaste lo arreglas con el grupo: la app no cobra ni devuelve nada.")
+        ).toBeInTheDocument();
+        // El navegador ya no pregunta nada: la pregunta es de la app.
+        expect(nativeConfirm).not.toHaveBeenCalled();
         expect(mocks.cancel).not.toHaveBeenCalled();
-        confirm.mockRestore();
+        nativeConfirm.mockRestore();
     });
 
     it("keeps today's words when no money was recorded, without talking about money", async () => {
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
         mocks.get.mockResolvedValue(future);
         mocks.signals.mockResolvedValue({});
 
         renderThread("Client");
         await userEvent.click(await screen.findByRole("button", { name: "Cancelar solicitud" }));
 
-        expect(confirm).toHaveBeenCalledWith("¿Cancelar esta solicitud? El grupo recibirá un aviso.");
-        confirm.mockRestore();
+        const dialog = screen.getByRole("dialog", { name: "Cancelar esta solicitud" });
+        expect(within(dialog).getByText("El grupo recibirá un aviso.")).toBeInTheDocument();
+        expect(within(dialog).queryByText(/ya pagaste/)).toBeNull();
+    });
+
+    it("cancels the request only when she confirms", async () => {
+        mocks.get.mockResolvedValue(future);
+        mocks.signals.mockResolvedValue({});
+        mocks.cancel.mockResolvedValue({ ...future, status: "Cancelled" });
+
+        renderThread("Client");
+        await userEvent.click(await screen.findByRole("button", { name: "Cancelar solicitud" }));
+        await userEvent.click(screen.getByRole("button", { name: "Cancelar la solicitud" }));
+
+        expect(mocks.cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves the request alone and returns the focus where it came from when she backs out", async () => {
+        mocks.get.mockResolvedValue(future);
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Client");
+        const trigger = await screen.findByRole("button", { name: "Cancelar solicitud" });
+        await userEvent.click(trigger);
+        await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+
+        expect(mocks.cancel).not.toHaveBeenCalled();
+        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(trigger).toHaveFocus();
+    });
+});
+
+describe("RequestThread: a disabled action says why (ronda 13, tarea 4)", () => {
+    it("says what is missing while 'Enviar mensaje' is off", async () => {
+        mocks.get.mockResolvedValue(request);
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Client");
+
+        expect(await screen.findByRole("button", { name: "Enviar mensaje" })).toBeDisabled();
+        expect(screen.getByText("Escribe tu mensaje.")).toBeInTheDocument();
+
+        await userEvent.type(screen.getByLabelText("Escribir un mensaje"), "Hola");
+
+        expect(screen.queryByText("Escribe tu mensaje.")).toBeNull();
+        expect(screen.getByRole("button", { name: "Enviar mensaje" })).toBeEnabled();
     });
 });
 

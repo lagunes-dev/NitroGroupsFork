@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
     balanceBlock,
     balanceLabel,
-    cancelConfirmText,
+    cancelDialogCopy,
     clientDepositLabel,
     clientPaymentMethodLabel,
     depositLabel,
@@ -92,7 +92,13 @@ describe("nextStepLabel", () => {
         expect(nextStepLabel({ status: "Accepted", budget: 18000, deposit: received }, "Client")).toBe("Paga $14,000.");
         expect(nextStepLabel({ status: "Accepted", budget: 4000, deposit: received }, "Client")).toBe("No queda nada por pagar.");
         expect(nextStepLabel({ status: "Declined" }, "Client")).toBe("El grupo no puede con esa fecha. Busca otro grupo.");
-        expect(nextStepLabel({ status: "Cancelled" }, "Client")).toBe("Este evento se canceló.");
+        // Ronda 13: una solicitud que nunca fue un evento no se llama evento. Sin respuesta del grupo
+        // (respondedAt vacío) la solicitud se canceló pendiente, y eso es lo que se dice.
+        expect(nextStepLabel({ status: "Cancelled" }, "Client")).toBe("Esta solicitud se canceló.");
+        // Cancelar un evento que sí llegó a aceptarse sigue diciendo que el evento se canceló.
+        expect(nextStepLabel({ status: "Cancelled", respondedAt: "2026-10-02T18:00:00Z" }, "Client")).toBe(
+            "Este evento se canceló."
+        );
     });
 
     it("is only for the client", () => {
@@ -503,22 +509,34 @@ describe("nextStepLabel names the amount (ronda 12)", () => {
  * Ronda 12 (la clienta): cancelar un evento donde ya había pagado $3,000 de anticipo hablaba solo del
  * aviso al grupo. El dinero ya pagado no desaparece al cancelar: se arregla con el grupo, y la app no
  * cobra ni devuelve (D1). Una sola frase, en "tú" y sin prometer nada.
+ *
+ * Ronda 13: la pregunta dejó de ser un `window.confirm()` del navegador y pasó a ser un diálogo de la
+ * app, así que el texto se parte en lo que un diálogo necesita: título, una frase y la frase de la plata.
  */
-describe("cancelConfirmText (ronda 12)", () => {
-    const paid = "¿Cancelar esta solicitud? El grupo recibirá un aviso. Lo que ya pagaste lo arreglas con el grupo: la app no cobra ni devuelve nada.";
+describe("cancelDialogCopy (rondas 12 y 13)", () => {
+    const money = "Lo que ya pagaste lo arreglas con el grupo: la app no cobra ni devuelve nada.";
 
     it("says that what was already paid is settled with the group, and that the app neither charges nor refunds", () => {
-        expect(cancelConfirmText({ deposit: { amount: 3000, receivedAt: "2026-11-04T18:00:00Z" } })).toBe(paid);
-        expect(cancelConfirmText({ balanceReceivedAt: "2026-12-13T15:00:00Z" })).toBe(paid);
+        expect(cancelDialogCopy({ deposit: { amount: 3000, receivedAt: "2026-11-04T18:00:00Z" } })).toEqual({
+            title: "Cancelar esta solicitud",
+            body: "El grupo recibirá un aviso.",
+            money,
+        });
+        expect(cancelDialogCopy({ balanceReceivedAt: "2026-12-13T15:00:00Z" }).money).toBe(money);
     });
 
-    it("keeps today's words when no money was recorded, and never answers for the group's money", () => {
-        expect(cancelConfirmText({ deposit: { amount: 3000, receivedAt: null } })).toBe("¿Cancelar esta solicitud? El grupo recibirá un aviso.");
-        expect(cancelConfirmText({})).toBe("¿Cancelar esta solicitud? El grupo recibirá un aviso.");
+    it("keeps today's words when no money was recorded, without talking about money", () => {
+        expect(cancelDialogCopy({ deposit: { amount: 3000, receivedAt: null } })).toEqual({
+            title: "Cancelar esta solicitud",
+            body: "El grupo recibirá un aviso.",
+            money: null,
+        });
+        expect(cancelDialogCopy({}).money).toBeNull();
     });
 
     it("speaks in 'tú' and promises nothing", () => {
-        const text = cancelConfirmText({ deposit: { amount: 3000, receivedAt: "2026-11-04T18:00:00Z" } });
+        const copy = cancelDialogCopy({ deposit: { amount: 3000, receivedAt: "2026-11-04T18:00:00Z" } });
+        const text = [copy.title, copy.body, copy.money].join(" ");
         expect(text).toMatch(/ya pagaste/);
         expect(text).not.toMatch(/devolvemos|reembolsamos|te garantizamos|nos encargamos/i);
     });

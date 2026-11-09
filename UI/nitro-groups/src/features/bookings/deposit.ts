@@ -135,6 +135,11 @@ type DealRequest = {
     eventDate?: string | null;
     /** Ronda 10: cómo pagar en una línea, tal como lo manda la API en la lista del cliente. */
     paymentMethod?: string | null;
+    /**
+     * Cuándo respondió el grupo. Es lo que distingue una solicitud cancelada —nunca fue un evento— de un
+     * evento aceptado que después se canceló (ronda 13).
+     */
+    respondedAt?: string | null;
 };
 
 /** Whether the group recorded that the balance arrived (T48): a fact, the app never charges it. */
@@ -145,6 +150,14 @@ function isPast(eventDate: string | null | undefined, today: string): boolean {
 
 function isBalanceReceived(request: Pick<DealRequest, "balanceReceivedAt">): boolean {
     return typeof request.balanceReceivedAt === "string" && request.balanceReceivedAt.trim().length > 0;
+}
+
+/**
+ * true cuando el grupo ya respondió (aceptó o rechazó). Solo el grupo escribe `respondedAt`, así que una
+ * solicitud cancelada sin respuesta se canceló pendiente: nunca fue un evento (ronda 13).
+ */
+function wasEverAnswered(request: Pick<DealRequest, "respondedAt">): boolean {
+    return typeof request.respondedAt === "string" && request.respondedAt.trim().length > 0;
 }
 
 /**
@@ -272,7 +285,9 @@ export function nextStepLabel(
         case "Declined":
             return "El grupo no puede con esa fecha. Busca otro grupo.";
         case "Cancelled":
-            return "Este evento se canceló.";
+            // Ronda 13: "Este evento se canceló" hablaba de un evento que nunca existió. Solo el grupo
+            // responde, así que una cancelada sin respuesta se canceló pendiente: es una solicitud.
+            return wasEverAnswered(request) ? "Este evento se canceló." : "Esta solicitud se canceló.";
         case "Accepted": {
             if (isBalanceReceived(request)) return "No queda nada por pagar.";
             // Ronda 9: un evento que ya pasó no pide "cerrar la fecha" ni "acordar para el día del
@@ -305,15 +320,25 @@ export function nextStepLabel(
 }
 
 /**
- * Ronda 12: lo que dice el diálogo de "Cancelar solicitud". Sobre un evento con dinero ya registrado
- * —el anticipo o el saldo— el aviso al grupo no alcanza: la plata pagada no se cancela con el pedido y
- * se arregla con el grupo, porque la app no cobra ni devuelve nada (D1). Una sola frase, en "tú" y sin
- * prometer nada. Sin dinero registrado el diálogo dice lo de siempre: no habla de plata que no existe.
+ * Ronda 13: lo que dice el diálogo de "Cancelar solicitud", ya como diálogo de la app y no como el
+ * `confirm()` del navegador: título, la frase del aviso al grupo y, cuando hay dinero registrado —anticipo
+ * o saldo—, la frase de la plata. La app no cobra ni devuelve (D1), así que no promete nada: dice con quién
+ * se arregla. Sin dinero registrado no habla de plata que no existe.
  */
-export function cancelConfirmText(request: { deposit?: unknown; balanceReceivedAt?: string | null }): string {
-    const base = "¿Cancelar esta solicitud? El grupo recibirá un aviso.";
+export interface CancelDialogCopy {
+    title: string;
+    body: string;
+    /** La frase del dinero ya pagado; null cuando no hay ninguno registrado. */
+    money: string | null;
+}
+
+export function cancelDialogCopy(request: { deposit?: unknown; balanceReceivedAt?: string | null }): CancelDialogCopy {
     const paid = readDeposit(request.deposit)?.received === true || isBalanceReceived(request);
-    return paid ? `${base} Lo que ya pagaste lo arreglas con el grupo: la app no cobra ni devuelve nada.` : base;
+    return {
+        title: "Cancelar esta solicitud",
+        body: "El grupo recibirá un aviso.",
+        money: paid ? "Lo que ya pagaste lo arreglas con el grupo: la app no cobra ni devuelve nada." : null,
+    };
 }
 
 /** What the client's accepted thread opens with: the balance, what it is for and the next step. */

@@ -189,7 +189,7 @@ export function PublicGroupProfile({ group, teamMembers = [], reviews = null, re
                         Cuéntale a {group.groupName} qué celebras, el día y cuántas horas necesitas. Te responde por escrito.
                     </p>
                     {signedIn ? (
-                        <RequestForm groupId={group.id} groupName={group.groupName} minimumHours={group.minimumDurationHours} defaultDate={requestedDate} />
+                        <RequestForm groupId={group.id} groupName={group.groupName} minimumHours={group.minimumDurationHours} basePrice={group.basePrice ?? null} currency={group.currency || "MXN"} defaultDate={requestedDate} />
                     ) : (
                         <Link
                             href={`${ROUTES.AUTH.LOGIN}?returnTo=${encodeURIComponent(`${ROUTES.GROUPS.PUBLIC_PROFILE(group.slug)}${requestedDate ? `?fecha=${requestedDate}` : ""}#solicitar`)}`}
