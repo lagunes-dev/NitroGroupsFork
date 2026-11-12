@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -56,6 +56,32 @@ const firstWeek = weekStart(today);
 /** "2026-11-09 19:00", en hora local: como la API entrega un bloque. */
 function at(date: Date, hour: number, minute = 0): string {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, minute).toISOString();
+}
+
+/**
+ * jsdom has no layout, so FullCalendar never gets slot coordinates and draws no background event. Each
+ * element reports a box that grows with its place in the document, enough for the week grid to
+ * measure its slots and place the mark.
+ */
+function giveEveryElementABox() {
+    let n = 0;
+    const boxes = new WeakMap<Element, DOMRect>();
+    for (const prop of ["offsetHeight", "offsetWidth", "clientWidth", "clientHeight"]) {
+        const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, prop) ?? Object.getOwnPropertyDescriptor(Element.prototype, prop);
+        Object.defineProperty(HTMLElement.prototype, prop, { configurable: true, get: () => 100 });
+        onTestFinished(() => {
+            if (original) Object.defineProperty(HTMLElement.prototype, prop, original);
+            else delete (HTMLElement.prototype as unknown as Record<string, unknown>)[prop];
+        });
+    }
+    const spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+        if (!boxes.has(this)) {
+            n += 1;
+            boxes.set(this, { x: 0, y: n * 20, left: 0, top: n * 20, right: 100, bottom: n * 20 + 20, width: 100, height: 20, toJSON: () => ({}) });
+        }
+        return boxes.get(this) as DOMRect;
+    });
+    onTestFinished(() => spy.mockRestore());
 }
 
 function renderCalendar(confirmedGigDays: string[] = [], mode: GroupCalendarMode = "private") {
@@ -288,6 +314,8 @@ describe("GroupCalendar · un día con toque confirmado no se pinta como disponi
     });
 
     it("still paints the availability of the days around it", async () => {
+        // The mark is a background event (ronda 13): FullCalendar only draws one once the grid has a layout.
+        giveEveryElementABox();
         const tomorrow = addDays(today, 1);
         getGroupSchedules.mockResolvedValue([availableDay(isoDay(tomorrow))]);
         const calendar = renderCalendar([isoDay(today)]);
@@ -495,6 +523,137 @@ describe("ronda 12 · un bloque pasado se sigue pudiendo quitar", () => {
             return found as HTMLElement;
         });
         await user.click(chip);
+
+        expect(await screen.findByRole("dialog", { name: "Quitar «Ensayo»" })).toBeInTheDocument();
+    });
+});
+
+/**
+ * Ronda 13: "On a day already marked, dragging over the hours moves the mark instead of blocking hours."
+ * Blocking hours is the common action and moving a mark the rare one, so the mark is painted as a
+ * background event: FullCalendar lets a drag start on it (`isValidDateDownEl` skips `.fc-bg-event`) and
+ * never makes it draggable, while it keeps the `.fc-event` class that `eventClick` listens to. jsdom
+ * cannot drive a real drag, so these pin the DOM facts FullCalendar's own drag logic reads.
+ */
+describe("ronda 13 · arrastrar sobre un día marcado como disponible bloquea horas", () => {
+    const AVAILABLE = { id: "avail_3", title: "Disponible", start: at(today, 8), end: at(addDays(today, 1), 0), isAvailable: true };
+    const BUSY = { id: "busy_12", title: "Ensayo", start: at(today, 17), end: at(today, 20) };
+
+    function foregroundChips(container: HTMLElement, text: string): HTMLElement[] {
+        return Array.from(container.querySelectorAll<HTMLElement>(".fc-event:not(.fc-bg-event)")).filter((chip) =>
+            chip.textContent?.includes(text)
+        );
+    }
+
+    async function chipNamed(container: HTMLElement, text: string, selector = ".fc-event"): Promise<HTMLElement> {
+        return waitFor(() => {
+            const found = Array.from(container.querySelectorAll<HTMLElement>(selector)).find((chip) =>
+                chip.textContent?.includes(text)
+            );
+            expect(found).toBeDefined();
+            return found as HTMLElement;
+        });
+    }
+
+    async function weekWithMark() {
+        giveEveryElementABox();
+        getGroupSchedules.mockResolvedValue([AVAILABLE]);
+        const calendar = renderCalendar();
+        return calendar;
+    }
+
+    it("paints the availability mark as a background event, so a drag can start on it", async () => {
+        const calendar = await weekWithMark();
+
+        const mark = await chipNamed(calendar.container, "Disponible", ".fc-bg-event");
+
+        // FullCalendar only starts a hour selection on a pointer-down that is not inside `.fc-event:not(.fc-bg-event)`.
+        expect(mark).toHaveClass("fc-bg-event");
+        expect(mark.closest(".fc-event:not(.fc-bg-event)")).toBeNull();
+    });
+
+    it("never offers the availability mark as draggable, so it cannot be moved by drag", async () => {
+        const calendar = await weekWithMark();
+
+        const mark = await chipNamed(calendar.container, "Disponible", ".fc-bg-event");
+
+        expect(mark).not.toHaveClass("fc-event-draggable");
+        expect(mark).not.toHaveClass("fc-event-resizable");
+    });
+
+    // The first attempt had a test here named "still offers to remove the availability mark when it is
+    // tapped". It was removed: jsdom fires the click on the element itself, while FullCalendar never
+    // delivers `eventClick` for a background event, so it passed while a finger could not remove the mark.
+    // What it can prove now is the foreground chip below; the tap itself is only provable in a browser.
+
+    it("offers one removable all-day chip per marked day, as a foreground event nobody can drag", async () => {
+        const calendar = await weekWithMark();
+
+        const chip = await chipNamed(calendar.container, "Disponible", ".fc-daygrid-event, .fc-timegrid-event:not(.fc-bg-event)");
+
+        expect(chip.closest(".fc-timegrid-allday, .fc-daygrid-body")).not.toBeNull();
+        expect(chip).not.toHaveClass("fc-bg-event");
+        expect(chip).not.toHaveClass("fc-event-draggable");
+        expect(chip).not.toHaveClass("fc-event-resizable");
+        expect(foregroundChips(calendar.container, "Disponible")).toHaveLength(1);
+    });
+
+    it("does not duplicate the chip when the week is left and re-entered", async () => {
+        const user = userEvent.setup();
+        const calendar = await weekWithMark();
+        await chipNamed(calendar.container, "Disponible", ".fc-daygrid-event");
+
+        await user.click(calendar.next());
+        await user.click(screen.getByRole("button", { name: "Semana antes" }));
+
+        await waitFor(() => expect(foregroundChips(calendar.container, "Disponible")).toHaveLength(1));
+    });
+
+    it("routes a tap on the chip to the removal confirmation, and confirming removes the mark once", async () => {
+        const user = userEvent.setup();
+        removeAvailability.mockResolvedValue(undefined);
+        const calendar = await weekWithMark();
+
+        await user.click(await chipNamed(calendar.container, "Disponible", ".fc-daygrid-event"));
+        expect(await screen.findByRole("dialog", { name: "Quitar «Disponible»" })).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Quitar del calendario" }));
+
+        await waitFor(() => expect(removeAvailability).toHaveBeenCalledTimes(1));
+        expect(removeAvailability).toHaveBeenCalledWith(1, "avail_3");
+    });
+
+    it("keeps 44 px on both answers of the removal dialog", async () => {
+        // Medido a mano: "Quitar del calendario" salía de 40 px, bajo el mínimo que ya sostienen los
+        // diálogos de bloquear y de mover. Una decisión sobre la agenda no se toma con un blanco chico.
+        const user = userEvent.setup();
+        const calendar = await weekWithMark();
+
+        await user.click(await chipNamed(calendar.container, "Disponible", ".fc-daygrid-event"));
+        const dialog = await screen.findByRole("dialog", { name: "Quitar «Disponible»" });
+
+        for (const name of ["Cancelar", "Quitar del calendario"]) {
+            const button = within(dialog).getByRole("button", { name });
+            expect(button).toHaveClass("min-h-11");
+            expect(button.className).not.toMatch(/outline-none/);
+        }
+    });
+
+    it("keeps a busy block draggable, so moving it still asks first", async () => {
+        getGroupSchedules.mockResolvedValue([BUSY]);
+        const calendar = renderCalendar();
+
+        const busy = await chipNamed(calendar.container, "Ensayo");
+
+        expect(busy).toHaveClass("fc-event-draggable");
+        expect(busy).not.toHaveClass("fc-bg-event");
+    });
+
+    it("still offers to remove a busy block when it is tapped", async () => {
+        const user = userEvent.setup();
+        getGroupSchedules.mockResolvedValue([BUSY]);
+        const calendar = renderCalendar();
+
+        await user.click(await chipNamed(calendar.container, "Ensayo"));
 
         expect(await screen.findByRole("dialog", { name: "Quitar «Ensayo»" })).toBeInTheDocument();
     });

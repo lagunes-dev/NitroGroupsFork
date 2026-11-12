@@ -8,7 +8,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import type { DateSelectArg, EventChangeArg, EventInput, DatesSetArg, EventClickArg } from "@fullcalendar/core";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { groupAvailabilityService as schedulesService, type CreateBusyScheduleRequest } from "../services/groupAvailability.service";
+import { groupAvailabilityService as schedulesService, type CreateBusyScheduleRequest, type ScheduleEventDto } from "../services/groupAvailability.service";
 import { useGroupGigs } from "@/features/gigs/gigs.queries";
 import { blockKindOf, planBlockDrag } from "../blockMove";
 import { gigDayList, gigHourBlocks, GIG_BLOCK_TITLE } from "../gigBlocks";
@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { todayInMexico } from "@/lib/format";
 import { keepWholeDayBlocksInTheirColumn, withoutAvailabilityOnBookedDays } from "../bookedDays";
+import { availabilityChips } from "../availabilityChips";
 import { BlockDayControl } from "./BlockDayControl";
 import { BlockSlotDialog } from "./BlockSlotDialog";
 import {
@@ -31,8 +32,46 @@ import {
   CALENDAR_SWIPE_HINT,
 } from "./calendarLayout";
 
+/**
+ * Ronda 13: el tinte de una marca de disponibilidad. FullCalendar pinta los eventos de fondo con
+ * `opacity: .3` y el título en cursiva, tan tenue que "Disponible" no se leía sobre el tema oscuro. El
+ * color lleva su propia transparencia y la clase sube la opacidad a 1; los `!` ganan contra la hoja de
+ * FullCalendar, que no está en una capa (la misma trampa del anillo de foco, L50). Es verde como el
+ * resto de lo "libre" y distinto del bloque ocupado (acento), sin tocar `globals.css`.
+ */
+const AVAILABILITY_TINT = "color-mix(in srgb, var(--ok) 20%, transparent)";
+const AVAILABILITY_TINT_CLASSES = [
+  "ng-available",
+  "opacity-100!",
+  "[&_.fc-event-title]:not-italic!",
+  "[&_.fc-event-title]:text-tinta!",
+];
+
 /** Marcador de un día con toque confirmado: no es un bloque del calendario y no se puede mover. */
 const GIG_ID_PREFIX = "gig_";
+
+function toCalendarEvent(ev: ScheduleEventDto): EventInput {
+  const isBusy = blockKindOf(String(ev.id ?? "")) === "busy";
+  if (isBusy) {
+    return { ...ev, backgroundColor: undefined, borderColor: undefined, textColor: undefined, classNames: ["ng-busy"] };
+  }
+  /*
+   * Ronda 13: un día marcado como disponible se pintaba como UN bloque de 08:00 a 00:00, y el arrastre que
+   * empezaba encima movía la marca en vez de elegir horas para bloquear. Bloquear horas es lo común y mover
+   * una marca lo raro, así que la marca es un evento de fondo: FullCalendar deja empezar una selección sobre
+   * él (`isValidDateDownEl` ignora `.fc-bg-event`) y nunca lo hace arrastrable. Como tampoco entrega su
+   * `eventClick`, quitarla se hace desde la ficha de día completo (`availabilityChips`). Un bloque ocupado
+   * sigue siendo un evento normal: se mueve con confirmación y se quita al tocarlo.
+   */
+  return {
+    ...ev,
+    display: "background",
+    backgroundColor: AVAILABILITY_TINT,
+    borderColor: undefined,
+    textColor: undefined,
+    classNames: AVAILABILITY_TINT_CLASSES,
+  };
+}
 
 export type GroupCalendarMode = "public" | "private";
 
@@ -112,7 +151,7 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
 
   const bookedDays = useMemo(() => new Set(gigDays), [gigDays]);
   const events = useMemo<EventInput[]>(
-    () =>
+    () => {
       /*
        * Ronda 10: un día con toque confirmado no está disponible. La semana del 30 nov al 6 dic pintaba
        * el 4 dic como "Toque confirmado" y además como "0:00 Disponible", y un manager la leía libre. La
@@ -122,13 +161,17 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
        * Ronda 12: el día se extiende hasta la madrugada, así que un bloqueo de día entero se pintaba también
        * como una franja al final de la columna anterior. `keepWholeDayBlocksInTheirColumn` lo deja en su día.
        */
-      keepWholeDayBlocksInTheirColumn(withoutAvailabilityOnBookedDays(serverEvents, bookedDays)).map((ev) => ({
-        ...ev,
-        backgroundColor: undefined,
-        borderColor: undefined,
-        textColor: undefined,
-        classNames: [blockKindOf(String(ev.id ?? "")) === "busy" ? "ng-busy" : "ng-available"],
-      })),
+      const shown = keepWholeDayBlocksInTheirColumn(withoutAvailabilityOnBookedDays(serverEvents, bookedDays));
+      return [
+        ...shown.map(toCalendarEvent),
+        /*
+         * Ronda 13: FullCalendar no entrega `eventClick` de un evento de fondo, así que el tinte solo no se
+         * puede quitar con el dedo. La misma marca tiene una segunda forma en primer plano, una ficha por
+         * día en la franja de día completo (donde ya vive y se toca "Toque confirmado"), que no se arrastra.
+         */
+        ...availabilityChips(shown),
+      ];
+    },
     [serverEvents, bookedDays],
   );
 
@@ -225,8 +268,10 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
 
   const handleEventClick = (clickInfo: EventClickArg) => {
     if (!isPrivate) return;
-    const id = clickInfo.event.id;
-    const title = clickInfo.event.title || "Evento";
+    /* La ficha de día completo de una marca de disponibilidad quita la marca, no a sí misma. */
+    const removes = clickInfo.event.extendedProps?.removes as { id: string; title: string } | undefined;
+    const id = removes?.id ?? clickInfo.event.id;
+    const title = (removes?.title ?? clickInfo.event.title) || "Evento";
     const kind = blockKindOf(id);
     if (!kind) return;
     setPendingDelete({ id, title, kind });
@@ -256,7 +301,7 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
           <h2 id="calendario-titulo" className="sr-only">Calendario</h2>
           <p className="text-tinta-2">
             {isPrivate
-              ? "Cuentas como disponible salvo en lo que marques. Arrastra sobre las horas para bloquearlas, mueve un bloque y confirma a dónde va, o tócalo para quitarlo."
+              ? "Cuentas como disponible salvo en lo que marques. Arrastra sobre las horas para bloquearlas, incluso en un día marcado como disponible; mueve un bloque ocupado y confirma a dónde va, o tócalo para quitarlo."
               : "El grupo está disponible salvo en los bloques marcados."}
             {isPrivate && ` ${CALENDAR_LATE_NIGHT_HINT}`}
             {isPrivate && (gigDays.length > 0) && " Los días con un toque confirmado no se marcan como disponibles."}
@@ -268,7 +313,7 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
             No disponible
           </li>
           <li className="inline-flex items-center gap-2">
-            <span aria-hidden className="ng-swatch-available size-3" />
+            <span aria-hidden className="ng-swatch-available size-3" style={{ backgroundColor: AVAILABILITY_TINT }} />
             Disponible (bloque marcado)
           </li>
           <li className="inline-flex items-center gap-2">
@@ -409,10 +454,10 @@ export default function GroupCalendar({ groupId, mode = "public", confirmedGigDa
                 : "El bloque desaparece del calendario."}
             </p>
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button type="button" variant="ghost" onClick={() => setPendingDelete(null)} autoFocus>
+              <Button type="button" variant="ghost" className="min-h-11" onClick={() => setPendingDelete(null)} autoFocus>
                 Cancelar
               </Button>
-              <Button type="button" variant="destructive" onClick={confirmDelete}>
+              <Button type="button" variant="destructive" className="min-h-11" onClick={confirmDelete}>
                 Quitar del calendario
               </Button>
             </div>
