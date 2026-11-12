@@ -23,11 +23,14 @@ public class PaymentInstructionsGroupEndpointsTests(NitroGroupsWebAppFactory fac
     private readonly HttpClient _client = factory.CreateClient();
     private readonly IMediator _mediator = factory.Mediator;
 
-    /// <summary>Las propiedades del perfil público, en orden. Cómo pagar no está y no puede estar.</summary>
+    /// <summary>
+    /// Las propiedades del perfil público, en orden. Ni cómo pagar, ni el teléfono, ni el correo del
+    /// grupo están y no pueden estar: el visitante anónimo no los lee.
+    /// </summary>
     private static readonly string[] PublicProfileProperties =
     [
         "id", "ownerUserId", "slug", "groupName", "description", "biography", "numMembers", "yearsExperience",
-        "phone", "email", "locationText", "serviceRadiusKm", "currency", "basePrice", "hourlyRate",
+        "locationText", "serviceRadiusKm", "currency", "basePrice", "hourlyRate",
         "minimumDurationHours", "setupTimeMinutes", "averageRating", "totalReviews", "viewCount",
         "bookingCount", "isVerified", "isFeatured", "isAcceptingBookings", "active", "profilePictureUrl",
         "coverImageUrl", "genres", "media"
@@ -44,7 +47,6 @@ public class PaymentInstructionsGroupEndpointsTests(NitroGroupsWebAppFactory fac
                 Slug = "los-rockers",
                 GroupName = "Los Rockers",
                 OwnerUserId = 10,
-                Email = "grupo@rockers.mx",
                 Active = true
             }));
 
@@ -56,6 +58,8 @@ public class PaymentInstructionsGroupEndpointsTests(NitroGroupsWebAppFactory fac
         // El visitante anónimo no lee cómo pagar: es un acuerdo entre el grupo y su cliente.
         Assert.Equal(PublicProfileProperties, json.RootElement.EnumerateObject().Select(property => property.Name));
         Assert.False(json.RootElement.TryGetProperty("paymentInstructions", out _));
+        Assert.False(json.RootElement.TryGetProperty("phone", out _));
+        Assert.False(json.RootElement.TryGetProperty("email", out _));
     }
 
     [Fact]
