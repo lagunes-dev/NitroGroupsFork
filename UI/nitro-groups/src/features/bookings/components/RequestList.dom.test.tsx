@@ -30,17 +30,17 @@ const accepted: EventRequest = {
 describe("RequestList balance received (T48)", () => {
     const settled: EventRequest = { ...accepted, balanceReceivedAt: "2026-12-13T15:00:00Z" };
 
-    it("says the balance arrived instead of 'Falta pagar', and the next step is the settled one", () => {
+    it("says the balance arrived instead of 'falta pagar', and the next step is the settled one", () => {
         render(<RequestList requests={[settled]} viewer="Client" />);
-        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026")).toBeInTheDocument();
+        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026 · $14,000")).toBeInTheDocument();
         expect(screen.getByText("No queda nada por pagar.")).toBeInTheDocument();
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
         expect(screen.queryByText(/Acuerda el saldo/)).toBeNull();
     });
 
     it("keeps the balance as the white line of the row, like the debt it replaces", () => {
         render(<RequestList requests={[settled]} viewer="Client" />);
-        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026")).toHaveClass("text-tinta");
+        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026 · $14,000")).toHaveClass("text-tinta");
         expect(screen.getByText("$18,000")).toHaveClass("text-tinta-2");
     });
 
@@ -55,14 +55,25 @@ describe("RequestList", () => {
     it("closes the deal for the client: deposit, balance and next step", () => {
         render(<RequestList requests={[accepted]} viewer="Client" />);
         expect(screen.getByText(/Anticipo \$4,000 · recibido el/)).toBeInTheDocument();
-        expect(screen.getByText("Falta pagar $14,000")).toBeInTheDocument();
-        expect(screen.getByText("Acuerda el saldo con el grupo para el día del evento.")).toBeInTheDocument();
+        expect(screen.getByText("Saldo: falta pagar $14,000")).toBeInTheDocument();
+        expect(screen.getByText("Paga $14,000.")).toBeInTheDocument();
+    });
+
+    /**
+     * Ronda 12 (la clienta): el banner decía "Falta pagar $9,000 · para el 15 de noviembre de 2026" y
+     * 112 px abajo el paso repetía la misma fecha sin el monto. El paso nombra ahora la cifra.
+     */
+    it("makes the next step carry the amount, not only the date the line above already gave", () => {
+        render(<RequestList requests={[{ ...accepted, budget: 13000, balanceDueDate: "2026-11-15" }]} viewer="Client" />);
+
+        expect(screen.getByText("Saldo: falta pagar $9,000 · para el 15 de noviembre de 2026")).toBeInTheDocument();
+        expect(screen.getByText("Paga $9,000 antes del 15 de noviembre de 2026.")).toBeInTheDocument();
     });
 
     it("makes the balance the only white figure of the row and the original budget a muted 15px", () => {
         render(<RequestList requests={[accepted]} viewer="Client" />);
         // jsdom measures no pixels: the colour and size classes are the decision.
-        expect(screen.getByText("Falta pagar $14,000")).toHaveClass("text-tinta");
+        expect(screen.getByText("Saldo: falta pagar $14,000")).toHaveClass("text-tinta");
         const price = screen.getByText("$18,000");
         expect(price).toHaveClass("text-tinta-2", "text-[15px]");
         expect(price).not.toHaveClass("text-tinta");
@@ -77,13 +88,13 @@ describe("RequestList", () => {
         render(<RequestList requests={[{ ...accepted, status: "Pending", deposit: null }]} viewer="Client" />);
         expect(screen.getByText("Solicitud enviada el jueves, 1 de octubre de 2026")).toBeInTheDocument();
         expect(screen.queryByText("El grupo todavía no respondió.")).toBeNull();
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
     });
 
     it("keeps the money of the deal away from the group's view", () => {
         render(<RequestList requests={[accepted]} viewer="Group" />);
         expect(screen.queryByText(/Anticipo/)).toBeNull();
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
         expect(screen.queryByText(/Acuerda el saldo/)).toBeNull();
         expect(screen.getByText("Camila Ramos")).toBeInTheDocument();
     });
@@ -151,5 +162,66 @@ describe("RequestList review cue", () => {
         unmount();
         render(<RequestList requests={[{ ...accepted, canReview: true }]} viewer="Group" />);
         expect(screen.queryByText("Puedes dejar tu reseña")).toBeNull();
+    });
+});
+
+/**
+ * Ronda 10: el cliente preguntaba cómo pagar y la respuesta vivía una pantalla abajo, dentro del
+ * hilo. La fila dice el método en una línea, junto al dinero del que habla, y deja de decirlo cuando
+ * no queda nada por pagar: el mismo criterio que la línea del saldo, en las dos superficies.
+ */
+describe("RequestList cómo pagar (ronda 10)", () => {
+    const method = "Transfiere a la CLABE 0121 8000 1234 5678, BBVA.";
+    const withMethod: EventRequest = { ...accepted, paymentMethod: method };
+
+    it("answers how to pay on the row itself, next to the money it belongs to", () => {
+        render(<RequestList requests={[withMethod]} viewer="Client" />);
+
+        const line = screen.getByText(method);
+        const balance = screen.getByText("Saldo: falta pagar $14,000");
+
+        // Texto, no un control: la app no cobra ni abre un flujo de pago (D1/S18).
+        expect(line.tagName).toBe("P");
+        expect(balance.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(screen.queryByRole("button", { name: /pagar/i })).toBeNull();
+        expect(screen.queryByRole("link", { name: /pagar/i })).toBeNull();
+    });
+
+    it("says nothing once the balance is recorded as received", () => {
+        render(<RequestList requests={[{ ...withMethod, balanceReceivedAt: "2026-12-13T15:00:00Z" }]} viewer="Client" />);
+
+        expect(screen.getByText("Saldo recibido el 13 de diciembre de 2026 · $14,000")).toBeInTheDocument();
+        expect(screen.queryByText(method)).toBeNull();
+    });
+
+    it("says nothing when there is nothing left over either", () => {
+        render(<RequestList requests={[{ ...withMethod, budget: 4000 }]} viewer="Client" />);
+
+        expect(screen.getByText("Sin saldo pendiente")).toBeInTheDocument();
+        expect(screen.queryByText(method)).toBeNull();
+    });
+
+    it("says nothing when the group wrote nothing", () => {
+        const { container } = render(<RequestList requests={[accepted]} viewer="Client" />);
+
+        expect(container.textContent).not.toMatch(/CLABE|Transfiere/);
+        expect(screen.getByText("Saldo: falta pagar $14,000")).toBeInTheDocument();
+    });
+
+    it("is never on the group's row", () => {
+        render(<RequestList requests={[withMethod]} viewer="Group" />);
+
+        expect(screen.queryByText(method)).toBeNull();
+    });
+});
+
+describe("RequestList · toda la tarjeta abre el pedido (ronda 11)", () => {
+    it("lets a click on the money line fall through to the card's own link", async () => {
+        // La ronda 11 midió que la única entrada al detalle era el nombre del grupo, 170x21 px: los
+        // párrafos con `relative` quedaban encima del overlay del enlace y se comían el clic.
+        render(<RequestList requests={[{ ...accepted, deposit: { amount: 4000, receivedAt: null } }]} viewer="Client" />);
+
+        const money = await screen.findByText(/^Anticipo /);
+        expect(money.className).toContain("pointer-events-none");
     });
 });

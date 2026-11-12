@@ -30,6 +30,13 @@ namespace NitroGroups.Shared.Contracts.Groups.Responses
         public string? ProfilePictureUrl { get; set; }
         public string? CoverImageUrl { get; set; }
 
+        /// <summary>
+        /// Cómo quiere el grupo que se le pague (ronda 9). Viaja en la lectura del manager, que es
+        /// la que edita el perfil, y en la respuesta de guardarlo; nunca en el perfil público
+        /// (<see cref="PublicGroupResponse"/> no declara este campo).
+        /// </summary>
+        public string? PaymentInstructions { get; set; }
+
         public List<GenreResponse> Genres { get; set; } = [];
         public List<GroupMediaResponse> Media { get; set; } = [];
     }

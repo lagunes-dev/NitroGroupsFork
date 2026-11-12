@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ROUTES } from "@/config/routes";
@@ -9,13 +9,19 @@ import { formatEventDate } from "@/lib/format";
 import { dateSearchHref } from "@/features/search/searchParams";
 import { apiErrorMessage, bookingsService } from "../bookings.service";
 import { balanceBlock, budgetLabel, clientDepositLabel, nextStepLabel, sentLabel } from "../deposit";
+import { limitRead, messageSendReason, pastedLength } from "../formNotes";
 import { availableActions, shortTime, statusLabel } from "../status";
 import { threadItems, type ThreadItem } from "../thread";
 import type { EventRequest, EventRequestParty } from "../types";
+import { CheckoutNotes } from "./CheckoutNotes";
+import { CancelRequestDialog } from "./CancelRequestDialog";
 import { ReviewForm } from "./ReviewForm";
 import { SavedReview } from "./SavedReview";
 import { RequestSignals } from "./RequestSignals";
 import { StatusBadge } from "./StatusBadge";
+
+/** El mismo tope que el formulario de solicitud: un mensaje largo se corta al pegarlo, y se avisa. */
+const REPLY_MAX = 2000;
 
 const timeFmt = new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Mexico_City" });
 
@@ -43,12 +49,32 @@ function Detail({ label, value }: { label: string; value: string | null | undefi
 }
 
 /**
+ * El próximo paso con su encabezado, en una sola forma: con saldo al lado o sin él (ronda 11). Antes el
+ * encabezado solo existía cuando el bloque de saldo se dibujaba, así que el evento del anticipo que
+ * vencía en tres días decía el paso sin título y el evento del saldo lo decía con título.
+ */
+function NextStep({ step }: { step: string }) {
+    return (
+        <div>
+            <p className="text-sm text-tinta-2">Próximo paso</p>
+            <p className="mt-1 text-tinta">{step}</p>
+        </div>
+    );
+}
+
+/**
  * Una solicitud y su conversación. La parte que mira se deduce de la API: si el usuario
  * administra el grupo, es "Group"; si no, es el cliente (la API ya negó a cualquier otro).
  */
 export function RequestThread({ requestId, viewer }: { requestId: number; viewer: EventRequestParty }) {
     const queryClient = useQueryClient();
     const [reply, setReply] = useState("");
+    // Un pegado que no cabe se corta en silencio salvo que lo digamos: la frase cambia según la causa.
+    const [replyPasted, setReplyPasted] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
+    const cancelTriggerRef = useRef<HTMLButtonElement>(null);
+    const headingRef = useRef<HTMLHeadingElement>(null);
+    const wasCancelling = useRef(false);
     const query = useQuery({ queryKey: ["event-request", requestId], queryFn: () => bookingsService.get(requestId) });
     const refresh = (data?: EventRequest) => {
         if (data) queryClient.setQueryData(["event-request", requestId], (old: EventRequest | undefined) => ({ ...old, ...data, messages: data.messages ?? old?.messages }));
@@ -57,11 +83,31 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
 
     const accept = useMutation({ mutationFn: () => bookingsService.accept(requestId), onSuccess: refresh });
     const decline = useMutation({ mutationFn: () => bookingsService.decline(requestId), onSuccess: refresh });
-    const cancel = useMutation({ mutationFn: () => bookingsService.cancel(requestId), onSuccess: refresh });
+    const cancel = useMutation({
+        mutationFn: () => bookingsService.cancel(requestId),
+        // Ronda 13: la pregunta se cierra sola cuando la API confirma; si falla, sigue abierta con el motivo
+        // a la vista, porque el mensaje suelto del hilo queda tapado por el velo del diálogo.
+        onSuccess: (data) => {
+            setCancelling(false);
+            refresh(data);
+        },
+    });
     const send = useMutation({
         mutationFn: () => bookingsService.postMessage(requestId, reply.trim()),
         onSuccess: () => { setReply(""); refresh(); },
     });
+
+    /**
+     * El foco vuelve a donde estaba cuando la pregunta se cierra (ronda 13, tarea 5). Si el botón que la abrió
+     * ya no existe —la solicitud quedó cancelada— el foco va al título, que es el principio de esta pantalla.
+     */
+    useEffect(() => {
+        if (wasCancelling.current && !cancelling) {
+            const target = cancelTriggerRef.current?.isConnected ? cancelTriggerRef.current : headingRef.current;
+            target?.focus();
+        }
+        wasCancelling.current = cancelling;
+    }, [cancelling]);
 
     if (query.isPending) return <p className="text-tinta-2" aria-busy>Cargando la solicitud…</p>;
     if (query.isError) {
@@ -75,9 +121,13 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
 
     const r = query.data;
     const actions = availableActions(r, viewer);
-    const failed = [accept, decline, cancel, send].find((m) => m.isError);
+    // El error de cancelar vive en el diálogo, que es donde está el botón que lo provocó.
+    const failed = [accept, decline, send].find((m) => m.isError);
     const busy = [accept, decline, cancel, send].some((m) => m.isPending);
+    const replyReason = messageSendReason(reply);
+    const replyLimit = limitRead(reply, REPLY_MAX, replyPasted && reply.length >= REPLY_MAX);
     const deal = balanceBlock(r, viewer);
+    const nextStep = nextStepLabel(r, viewer);
     const title = viewer === "Client" ? r.groupName : r.clientName;
 
     return (
@@ -85,7 +135,7 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
             <header className="md:col-span-12">
                 <StatusBadge status={r.status} />
                 {viewer === "Client" && r.status === "Pending" && <p className="mt-2 text-tinta-2">{statusLabel(r.status, viewer)}</p>}
-                <h1 className="mt-2 titulo">
+                <h1 ref={headingRef} tabIndex={-1} className="mt-2 titulo">
                     {viewer === "Client" ? (
                         <Link href={ROUTES.GROUPS.PUBLIC_PROFILE(r.groupSlug)} className="no-underline hover:text-acento">{title}</Link>
                     ) : title}
@@ -115,8 +165,9 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                 <section className="md:col-span-12 rounded-xl bg-fondo-2 p-5" aria-label="Saldo y próximo paso">
                     <p className="text-2xl font-semibold tabular text-tinta">{deal.balance}</p>
                     {deal.purpose && <p className="mt-1 text-tinta-2">{deal.purpose}</p>}
-                    <p className="mt-4 text-sm text-tinta-2">Próximo paso</p>
-                    <p className="mt-1 text-tinta">{deal.nextStep}</p>
+                    <div className="mt-4">
+                        <NextStep step={deal.nextStep} />
+                    </div>
                 </section>
             )}
 
@@ -131,10 +182,17 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                 <Detail label="Anticipo" value={clientDepositLabel(r, viewer)?.replace(/^Anticipo /, "") ?? null} />
             </dl>
 
-            {/* Sin saldo que decir no hay bloque: el próximo paso sigue como párrafo suelto. */}
-            {!deal && nextStepLabel(r, viewer) && (
-                <p className="md:col-span-12 text-tinta">{nextStepLabel(r, viewer)}</p>
+            {/* Ronda 11: sin bloque de saldo igual hay un paso que decir, con su encabezado. */}
+            {!deal && nextStep && (
+                <section className="md:col-span-12 rounded-xl bg-fondo-2 p-5" aria-label="Próximo paso">
+                    <NextStep step={nextStep} />
+                </section>
             )}
+
+            {/* Ronda 9: cómo pagar, justo donde el cliente ya mira la plata: después del saldo y el anticipo.
+                Ronda 10: se calla cuando no queda nada por pagar, como la línea del saldo.
+                Ronda 12: el bloque recibe el pedido para decir cuánto falta y para cuándo sin depender del banner. */}
+            <CheckoutNotes request={r} viewer={viewer} />
 
             <section className="md:col-span-8 flex flex-col gap-8" aria-label="Conversación">
                 <ol className="flex flex-col gap-6">
@@ -155,11 +213,22 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                 {actions.message && (
                     <form onSubmit={(e) => { e.preventDefault(); if (reply.trim()) send.mutate(); }} className="flex flex-col gap-3">
                         <label htmlFor="respuesta" className="text-sm font-medium text-tinta-2">Escribir un mensaje</label>
-                        <textarea id="respuesta" value={reply} onChange={(e) => setReply(e.target.value)} rows={3} maxLength={2000}
+                        <textarea id="respuesta" value={reply} rows={3} maxLength={REPLY_MAX}
+                            aria-describedby="respuesta-contador"
+                            onChange={(e) => setReply(e.target.value)}
+                            onPaste={(e) => setReplyPasted(pastedLength(e.currentTarget, e.clipboardData.getData("text")) > REPLY_MAX)}
                             className="w-full bg-fondo-2 rounded-xl px-4 py-3 text-tinta focus-visible:-outline-offset-2 resize-y" />
-                        <button type="submit" disabled={!reply.trim() || busy} className="self-start h-12 px-6 bg-fondo-3 text-tinta font-semibold hover:bg-fondo-2 rounded-xl disabled:opacity-45">
-                            {send.isPending ? "Enviando…" : "Enviar mensaje"}
-                        </button>
+                        {/* El contador dice qué cuenta y se anuncia solo; la frase explica por qué el texto no entró entero. */}
+                        <p id="respuesta-contador" aria-live="polite" className="tabular text-sm leading-5 text-tinta-2">
+                            {[replyLimit.counter, replyLimit.note].filter(Boolean).join(" · ")}
+                        </p>
+                        <div className="flex flex-col items-start gap-2">
+                            <button type="submit" disabled={!reply.trim() || busy} aria-describedby={replyReason ? "respuesta-motivo" : undefined} className="self-start h-12 px-6 bg-fondo-3 text-tinta font-semibold hover:bg-fondo-2 rounded-xl disabled:opacity-45">
+                                {send.isPending ? "Enviando…" : "Enviar mensaje"}
+                            </button>
+                            {/* Ronda 13 (tarea 4): el botón apagado dice qué falta. */}
+                            {replyReason && <p id="respuesta-motivo" className="text-sm text-tinta-2">{replyReason}</p>}
+                        </div>
                     </form>
                 )}
 
@@ -201,13 +270,24 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                             </button>
                         )}
                         {actions.cancel && (
-                            <button type="button" disabled={busy}
-                                onClick={() => { if (window.confirm("¿Cancelar esta solicitud? El grupo recibirá un aviso.")) cancel.mutate(); }}
+                            <button type="button" disabled={busy} ref={cancelTriggerRef}
+                                onClick={() => setCancelling(true)}
                                 className="h-14 px-7 bg-transparent text-tinta underline decoration-error decoration-2 underline-offset-4 disabled:opacity-45">
                                 Cancelar solicitud
                             </button>
                         )}
                     </div>
+                )}
+
+                {/* Ronda 13, tarea 5: la pregunta de cancelar es de la app, no del navegador. */}
+                {cancelling && actions.cancel && (
+                    <CancelRequestDialog
+                        request={r}
+                        isSaving={cancel.isPending}
+                        error={cancel.isError ? apiErrorMessage(cancel.error, "No pudimos cancelar la solicitud. Inténtalo de nuevo.") : null}
+                        onCancel={() => setCancelling(false)}
+                        onConfirm={() => cancel.mutate()}
+                    />
                 )}
             </section>
         </article>

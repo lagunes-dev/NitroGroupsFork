@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { ROUTES } from "@/config/routes";
-import { serverGet } from "@/lib/serverApi";
+import { FRESH, serverGet } from "@/lib/serverApi";
 import { priceLabel, shortDateParts, todayInMexico, upcomingPartyDates } from "@/lib/format";
 import { SearchForm } from "@/features/search/components/SearchForm";
 import { profileHref } from "@/features/search/searchParams";
@@ -17,7 +17,7 @@ export default async function Home() {
     const saturday = party.find((d) => new Date(`${d}T12:00:00Z`).getUTCDay() === 6) ?? party[0];
     const [genres, free] = await Promise.all([
         serverGet<GenreOption[]>("/genres", 3600),
-        serverGet<PagedResult<GroupSearchItem>>(`/groups/search?${new URLSearchParams({ date: saturday, size: "6" })}`, 60),
+        serverGet<PagedResult<GroupSearchItem>>(`/groups/search?${new URLSearchParams({ date: saturday, size: "6" })}`, FRESH),
     ]);
     const available = free?.items ?? [];
     const featured = available[0];

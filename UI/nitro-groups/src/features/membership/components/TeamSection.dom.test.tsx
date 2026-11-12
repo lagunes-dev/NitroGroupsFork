@@ -105,7 +105,7 @@ describe("TeamSection", () => {
         }
     });
 
-    it("keeps the craft on one line, the role beside the name and the join date on one line", async () => {
+    it("lets the craft wrap to two lines, the role beside the name and the join date on one line", async () => {
         team.mockResolvedValue([
             { ...rows[0], instruments: "Guitarra eléctrica, acordeón y coros", city: "San Pedro Tlaquepaque, Jalisco" },
         ]);
@@ -114,7 +114,10 @@ describe("TeamSection", () => {
         const list = await screen.findByRole("list", { name: "1 músico en el equipo" });
         const member = within(list).getByRole("listitem");
         const craft = within(member).getByText("Guitarra eléctrica, acordeón y coros · San Pedro Tlaquepaque, Jalisco");
-        expect(craft).toHaveClass("truncate");
+        // Ronda 10: cortar el oficio con puntos suspensivos lo perdía en un celular, donde no hay hover.
+        // Se permite que ocupe dos renglones: la fila crece como mucho ~20 px y el dato se puede leer.
+        expect(craft).toHaveClass("line-clamp-2");
+        expect(craft.className).not.toMatch(/\btruncate\b/);
         expect(craft).toHaveAttribute("title", "Guitarra eléctrica, acordeón y coros · San Pedro Tlaquepaque, Jalisco");
         // Medido a 390 px: el rol en su propio renglón y la fecha partida en dos hacían la fila de 162 px.
         const role = within(member).getByText("Rol: Dueño");
@@ -128,5 +131,20 @@ describe("TeamSection", () => {
         renderSection();
         expect(screen.getByText("Cargando el equipo…")).toBeInTheDocument();
         expect(screen.getByRole("status")).toHaveTextContent("Cargando el equipo…");
+    });
+});
+
+describe("TeamSection craft line (round 10)", () => {
+    it("shows the whole craft line instead of cutting it", async () => {
+        // El oficio se cortaba con puntos suspensivos y en un celular no hay hover: el dato se perdía.
+        team.mockResolvedValue([
+            { ...rows[0], instruments: "Voz, dirección musical", city: "Guadalajara, Jalisco" },
+        ]);
+        renderSection();
+
+        const craft = await screen.findByText("Voz, dirección musical · Guadalajara, Jalisco");
+        expect(craft).toHaveClass("line-clamp-2");
+        expect(craft.className).not.toMatch(/\btruncate\b/);
+        expect(craft).toHaveAttribute("title", "Voz, dirección musical · Guadalajara, Jalisco");
     });
 });

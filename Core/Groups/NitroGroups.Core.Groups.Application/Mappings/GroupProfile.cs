@@ -31,9 +31,14 @@ namespace NitroGroups.Core.Groups.Application.Mappings
                 src.SetupTimeMinutes,
                 src.IsAcceptingBookings,
                 src.ProfilePictureUrl,
-                src.CoverImageUrl));
+                src.CoverImageUrl,
+                src.PaymentInstructions));
 
-            CreateMap<UpdateGroupCommand, Group>();
+            // Ronda 9: el texto de cómo pagar lo escribe la entidad (normaliza y fecha el cambio), no
+            // el mapeo; si AutoMapper lo copiara, la fecha nunca se movería.
+            CreateMap<UpdateGroupCommand, Group>()
+                .ForMember(d => d.PaymentInstructions, o => o.Ignore())
+                .ForMember(d => d.PaymentInstructionsUpdatedAt, o => o.Ignore());
             CreateMap<UpdateGroupCommand, GroupResponse>();
             
             // Create maps
@@ -56,12 +61,19 @@ namespace NitroGroups.Core.Groups.Application.Mappings
                     src.MinimumDurationHours,
                     src.SetupTimeMinutes,
                     src.IsAcceptingBookings,
-                    src.Active));
+                    src.Active,
+                    src.PaymentInstructions));
 
-            CreateMap<CreateGroupCommand, Group>();
+            CreateMap<CreateGroupCommand, Group>()
+                .ForMember(d => d.PaymentInstructions, o => o.Ignore())
+                .ForMember(d => d.PaymentInstructionsUpdatedAt, o => o.Ignore());
 
             CreateMap<GroupMember, GroupMemberResponse>();
             CreateMap<Group, GroupResponse>();
+
+            // El perfil público es la copia sin los campos del manager: `PublicGroupResponse` no
+            // declara `paymentInstructions`, así que el JSON anónimo no puede llevarlo (ronda 9).
+            CreateMap<Group, PublicGroupResponse>();
 
             // Genre & Media maps
             CreateMap<GroupGenre, GenreResponse>()

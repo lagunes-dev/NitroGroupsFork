@@ -21,7 +21,7 @@ export function receivedDate(value: string): string | null {
 /**
  * "15 de noviembre" from a `YYYY-MM-DD` calendar day; null when there is no readable day. One rule for
  * every short day in the deal copy, and never a date formatted by hand: `formatEventDate` formats it and
- * its weekday and year are dropped because the surrounding line already says the rest.
+ * its weekday is dropped because the surrounding line already says the rest.
  */
 export function shortDayLabel(value: unknown): string | null {
     if (typeof value !== "string" || !value.trim()) return null;
@@ -29,13 +29,28 @@ export function shortDayLabel(value: unknown): string | null {
     return day?.replace(/^[^,]+,\s*/, "").replace(/ de \d{4}$/, "") ?? null;
 }
 
-/** "para el 15 de noviembre", o null cuando no hay plazo que decir (T61, S24). */
+/**
+ * "15 de noviembre de 2026": a deadline without the year is ambiguous next to a product that says the
+ * year everywhere else (round 10). Same helper as every other long date, minus the weekday.
+ */
+export function longDayLabel(value: unknown): string | null {
+    if (typeof value !== "string" || !value.trim()) return null;
+    return formatEventDate(value.slice(0, 10))?.replace(/^[^,]+,\s*/, "") ?? null;
+}
+
+/** "para el 15 de noviembre de 2026", o null cuando no hay plazo que decir (T61, S24). */
 export function dueDateLabel(value: unknown): string | null {
-    const day = shortDayLabel(value);
+    const day = longDayLabel(value);
     return day ? `para el ${day}` : null;
 }
 
-/** The deposit split into the two facts the deal needs: how much, and whether it already landed. */
+/** "antes del 15 de noviembre de 2026": el mismo día, dicho como lo que el paso pide (ronda 11). */
+export function beforeDateLabel(value: unknown): string | null {
+    const day = longDayLabel(value);
+    return day ? `antes del ${day}` : null;
+}
+
+/** The deposit as the app knows it: an amount the group recorded and whether it already landed. */
 function readDeposit(deposit: unknown): { amount: number; received: boolean } | null {
     if (!deposit || typeof deposit !== "object") return null;
     const { amount, receivedAt } = deposit as DepositPayload;
@@ -45,8 +60,18 @@ function readDeposit(deposit: unknown): { amount: number; received: boolean } | 
 }
 
 /**
+ * Ronda 11: lo que la app ya sabe del anticipo, para que el próximo paso no pida acordar lo que ya está
+ * cargado. Null cuando no hay monto recordado o cuando ese anticipo ya entró: ya no hay nada que pagar.
+ */
+function pendingDeposit(deposit: unknown): DepositPayload | null {
+    const read = readDeposit(deposit);
+    if (!read || read.received) return null;
+    return deposit as DepositPayload;
+}
+
+/**
  * "Anticipo $3,000 · recibido el 4 de noviembre de 2026", or "Anticipo $3,000 · pendiente" with the
- * deadline the group loaded when there is one: "Anticipo $3,000 · pendiente · para el 15 de noviembre".
+ * deadline the group loaded when there is one: "Anticipo $3,000 · pendiente · para el 15 de noviembre de 2026".
  * Null when there is no usable amount, so callers render nothing for a gig without a deposit.
  */
 export function depositLabel(deposit: unknown): string | null {
@@ -73,6 +98,20 @@ export function clientDepositLabel(request: Pick<EventRequest, "status" | "depos
 }
 
 /**
+ * Ronda 10: cómo pagar en la fila de la lista del cliente, junto al dinero del que habla. Es texto, no
+ * un control (la app no cobra, D1/S18). Null cuando el grupo no escribió nada, cuando no hay trato
+ * cerrado y cuando no queda nada por pagar: bajo "Saldo recibido" una CLABE es ruido.
+ */
+export function clientPaymentMethodLabel(
+    request: Pick<DealRequest, "status" | "budget" | "deposit" | "balanceReceivedAt" | "paymentMethod">,
+    viewer: EventRequestParty
+): string | null {
+    if (viewer !== "Client" || request.status !== "Accepted" || nothingLeftToPay(request)) return null;
+    const method = typeof request.paymentMethod === "string" ? request.paymentMethod.trim() : "";
+    return method || null;
+}
+
+/**
  * "$18,000", or "Sin presupuesto" when the client left it empty: un cero no es un precio, y la lista
  * y el detalle tienen que decir lo mismo del mismo dato.
  */
@@ -94,6 +133,13 @@ type DealRequest = {
     balanceDueDate?: string | null;
     /** `YYYY-MM-DD`: the day of the event, to tell a gig that is over from one still ahead. */
     eventDate?: string | null;
+    /** Ronda 10: cómo pagar en una línea, tal como lo manda la API en la lista del cliente. */
+    paymentMethod?: string | null;
+    /**
+     * Cuándo respondió el grupo. Es lo que distingue una solicitud cancelada —nunca fue un evento— de un
+     * evento aceptado que después se canceló (ronda 13).
+     */
+    respondedAt?: string | null;
 };
 
 /** Whether the group recorded that the balance arrived (T48): a fact, the app never charges it. */
@@ -106,6 +152,27 @@ function isBalanceReceived(request: Pick<DealRequest, "balanceReceivedAt">): boo
     return typeof request.balanceReceivedAt === "string" && request.balanceReceivedAt.trim().length > 0;
 }
 
+/**
+ * true cuando el grupo ya respondió (aceptó o rechazó). Solo el grupo escribe `respondedAt`, así que una
+ * solicitud cancelada sin respuesta se canceló pendiente: nunca fue un evento (ronda 13).
+ */
+function wasEverAnswered(request: Pick<DealRequest, "respondedAt">): boolean {
+    return typeof request.respondedAt === "string" && request.respondedAt.trim().length > 0;
+}
+
+/**
+ * true cuando no queda nada por pagar, con la misma regla que la línea del saldo (ronda 10): el grupo
+ * registró el saldo como recibido, o lo que falta es cero o menos. Un anticipo todavía pendiente no es
+ * un trato cerrado, así que ahí sí hay algo que pagar y cómo pagarlo importa.
+ */
+export function nothingLeftToPay(
+    request: Pick<DealRequest, "balanceReceivedAt" | "budget" | "deposit">
+): boolean {
+    if (isBalanceReceived(request)) return true;
+    const remaining = remainingAmount(request);
+    return remaining !== null && remaining <= 0;
+}
+
 /** What is still owed, in pesos. Null when the numbers cannot be stated honestly. */
 function remainingAmount(request: { budget?: number | null; deposit?: unknown }): number | null {
     const deposit = readDeposit(request.deposit);
@@ -116,9 +183,58 @@ function remainingAmount(request: { budget?: number | null; deposit?: unknown })
 }
 
 /**
- * "Saldo recibido el 13 de diciembre de 2026" once the group recorded it; otherwise
- * "Falta pagar $14,000" for the client of an accepted event whose deposit already landed. Null while
- * the deposit is pending, for the group's view and when there is no budget to compare against: the app
+ * "Saldo: falta pagar $14,000 · para el 15 de noviembre de 2026" from what the app can compute: the
+ * cachet minus the deposit the group recorded as received. Null when the figure cannot be stated
+ * honestly, so no line is drawn instead of an invented one. The deadline is a fact the group loaded
+ * (T61, S24). Round 12: the leading "Saldo:" is what tells it apart from the manager's "Pagos:" line
+ * (the musicians); every pending balance in the app says it this way, so use {@link pendingBalanceLine}.
+ */
+function owedMoneyLine(request: {
+    budget?: number | null;
+    deposit?: unknown;
+    currency?: string;
+    balanceDueDate?: string | null;
+}): string | null {
+    const remaining = remainingAmount(request);
+    if (remaining === null || remaining <= 0) return null;
+    const money = formatPrice(remaining, request.currency ?? "MXN");
+    if (!money) return null;
+    return pendingBalanceLine(money, dueDateLabel(request.balanceDueDate));
+}
+
+/**
+ * The one wording of a pending balance, for the client's screens and the manager's row alike (round 12):
+ * "Saldo: falta pagar $14,000 · para el 15 de noviembre de 2026", or without the deadline when none was
+ * loaded. The figure and the deadline come from the callers; this only decides how they are said.
+ */
+export function pendingBalanceLine(money: string, due: string | null): string {
+    return due ? `Saldo: falta pagar ${money} · ${due}` : `Saldo: falta pagar ${money}`;
+}
+
+/**
+ * Ronda 12: la línea de dinero del bloque de pago, para que se baste solo. Dice lo que falta **en esta
+ * etapa del trato** —el anticipo mientras no entra, el saldo después— con el plazo cargado para esa
+ * etapa, en la voz que ya usa el resto de la app. No dice método: eso lo escribe el grupo.
+ *
+ * <p>Sin monto legible no hay línea: la app no adivina cuánto falta ni cuándo vence. Lo que no se sabe
+ * no se dibuja.</p>
+ */
+export function paymentDueLabel(request: {
+    budget?: number | null;
+    deposit?: unknown;
+    currency?: string;
+    balanceDueDate?: string | null;
+}): string | null {
+    const deposit = pendingDeposit(request.deposit);
+    if (deposit) return depositLabel(deposit);
+    return owedMoneyLine(request);
+}
+
+/**
+ * "Saldo recibido el 13 de diciembre de 2026" once the group recorded it — with the figure when the
+ * cachet and the deposit let it be computed, so the client can check what she was charged; otherwise
+ * the fact alone. `Saldo: falta pagar $14,000` for the client of an accepted event whose deposit already
+ * landed, null while the deposit is pending, for the group's view and without a budget: the app
  * records the deposit, it never charges anything.
  */
 export function balanceLabel(
@@ -129,16 +245,16 @@ export function balanceLabel(
     // T48: what the group recorded wins over what we can compute from the deposit and the budget.
     if (isBalanceReceived(request)) {
         const date = receivedDate(request.balanceReceivedAt as string);
-        return date ? `Saldo recibido el ${date}` : "Saldo recibido";
+        const fact = date ? `Saldo recibido el ${date}` : "Saldo recibido";
+        // Ronda 11: la cifra solo cuando sale de lo que la app ya sabe, y nunca un cero.
+        const received = remainingAmount(request);
+        const money = received !== null && received > 0 ? formatPrice(received, request.currency ?? "MXN") : null;
+        return money ? `${fact} · ${money}` : fact;
     }
     const remaining = remainingAmount(request);
-    if (remaining === null) return null;
-    if (remaining <= 0) return "Sin saldo pendiente";
-    const money = formatPrice(remaining, request.currency ?? "MXN");
-    if (!money) return null;
-    // T61: "Falta pagar $14,000 · para el 15 de noviembre", el plazo que cargó el manager.
-    const due = dueDateLabel(request.balanceDueDate);
-    return due ? `Falta pagar ${money} · ${due}` : `Falta pagar ${money}`;
+    if (remaining !== null && remaining <= 0) return "Sin saldo pendiente";
+    // T61: "Saldo: falta pagar $14,000 · para el 15 de noviembre de 2026", el plazo que cargó el manager.
+    return owedMoneyLine(request);
 }
 
 /**
@@ -169,30 +285,66 @@ export function nextStepLabel(
         case "Declined":
             return "El grupo no puede con esa fecha. Busca otro grupo.";
         case "Cancelled":
-            return "Este evento se canceló.";
+            // Ronda 13: "Este evento se canceló" hablaba de un evento que nunca existió. Solo el grupo
+            // responde, así que una cancelada sin respuesta se canceló pendiente: es una solicitud.
+            return wasEverAnswered(request) ? "Este evento se canceló." : "Esta solicitud se canceló.";
         case "Accepted": {
             if (isBalanceReceived(request)) return "No queda nada por pagar.";
             // Ronda 9: un evento que ya pasó no pide "cerrar la fecha" ni "acordar para el día del
             // evento": son acciones sobre un futuro que ya no existe. Sin fecha legible no se inventa.
             if (isPast(request.eventDate, today)) return "Este evento ya pasó.";
+            // Ronda 11: el anticipo ya está cargado como pendiente, así que no queda nada que acordar.
+            // Con el plazo cargado el paso lo nombra; sin plazo pide pagar y no inventa una fecha.
+            const deposit = pendingDeposit(request.deposit);
+            if (deposit) {
+                const before = beforeDateLabel(deposit.dueDate);
+                // Ronda 12: el paso nombra el monto que pide. Sin anticipo legible conserva sus palabras.
+                const money = formatPrice(readDeposit(deposit)?.amount ?? null, request.currency ?? "MXN");
+                if (!money) return before ? `Paga el anticipo ${before}.` : "Paga el anticipo.";
+                return before ? `Paga ${money} de anticipo ${before}.` : `Paga ${money} de anticipo.`;
+            }
             const remaining = remainingAmount(request);
             if (remaining === null) return "Acuerda el anticipo con el grupo para cerrar la fecha.";
             if (remaining <= 0) return "No queda nada por pagar.";
             // Con la fecha límite ya dicha en la línea del saldo, "el día del evento" sería un segundo
-            // plazo para el mismo saldo (y lo contradice): se calla.
-            return dueDateLabel(request.balanceDueDate)
-                ? "Acuerda el saldo con el grupo."
-                : "Acuerda el saldo con el grupo para el día del evento.";
+            // plazo para el mismo saldo (y lo contradice): se nombra el plazo cargado y se pide pagar.
+            const before = beforeDateLabel(request.balanceDueDate);
+            // Ronda 12: con la cifra cargada, el paso agrega el monto en vez de repetir solo la fecha.
+            const money = formatPrice(remaining, request.currency ?? "MXN");
+            if (!money) return before ? `Paga el saldo ${before}.` : "Acuerda el saldo con el grupo para el día del evento.";
+            return before ? `Paga ${money} ${before}.` : `Paga ${money}.`;
         }
         default:
             return null;
     }
 }
 
+/**
+ * Ronda 13: lo que dice el diálogo de "Cancelar solicitud", ya como diálogo de la app y no como el
+ * `confirm()` del navegador: título, la frase del aviso al grupo y, cuando hay dinero registrado —anticipo
+ * o saldo—, la frase de la plata. La app no cobra ni devuelve (D1), así que no promete nada: dice con quién
+ * se arregla. Sin dinero registrado no habla de plata que no existe.
+ */
+export interface CancelDialogCopy {
+    title: string;
+    body: string;
+    /** La frase del dinero ya pagado; null cuando no hay ninguno registrado. */
+    money: string | null;
+}
+
+export function cancelDialogCopy(request: { deposit?: unknown; balanceReceivedAt?: string | null }): CancelDialogCopy {
+    const paid = readDeposit(request.deposit)?.received === true || isBalanceReceived(request);
+    return {
+        title: "Cancelar esta solicitud",
+        body: "El grupo recibirá un aviso.",
+        money: paid ? "Lo que ya pagaste lo arreglas con el grupo: la app no cobra ni devuelve nada." : null,
+    };
+}
+
 /** What the client's accepted thread opens with: the balance, what it is for and the next step. */
 export interface BalanceBlock {
     balance: string;
-    /** "para el 19 de noviembre"; null when the date cannot be read. */
+    /** "para el 19 de noviembre de 2026"; null when the date cannot be read. */
     purpose: string | null;
     nextStep: string;
 }
@@ -221,7 +373,7 @@ export function balanceBlock(
     // evento como otro "para el …" inventaría un segundo plazo que nadie acordó.
     if (dueDateLabel(request.balanceDueDate)) return { balance, purpose: null, nextStep };
 
-    // "jueves, 19 de noviembre de 2026" -> "19 de noviembre": el encabezado del hilo ya dice el resto.
-    const short = shortDayLabel(request.eventDate);
-    return { balance, purpose: short ? `para el ${short}` : null, nextStep };
+    // "jueves, 19 de noviembre de 2026" -> "para el 19 de noviembre de 2026": es un plazo, y un plazo
+    // lleva el año (ronda 10). El mismo helper que la fecha límite, para no tener dos formas del mismo dato.
+    return { balance, purpose: dueDateLabel(request.eventDate), nextStep };
 }

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -24,9 +25,16 @@ vi.mock("@/features/groups/services/groups.service", () => ({
                 : null,
     },
 }));
-vi.mock("@/features/groups/components/GroupProfile", () => ({
-    default: () => <div>Tarjeta del perfil del grupo</div>,
-}));
+vi.mock("@/features/groups/components/GroupProfile", () => {
+    /** The real card reports its mode: the panel needs it to name what is on screen (ronda 10). */
+    const GroupProfileStub = ({ startInEdit, onEditingChange }: { startInEdit?: boolean; onEditingChange?: (editing: boolean) => void }) => {
+        useEffect(() => {
+            onEditingChange?.(Boolean(startInEdit));
+        }, [startInEdit, onEditingChange]);
+        return <div>{startInEdit ? "Formulario del perfil del grupo" : "Tarjeta del perfil del grupo"}</div>;
+    };
+    return { default: GroupProfileStub };
+});
 vi.mock("@/features/groupAvailability/components/GroupCalendar", () => ({ default: () => <div>Calendario</div> }));
 vi.mock("@/features/groupMedia/components/GroupGallery", () => ({ default: () => <div>Galería</div> }));
 vi.mock("@/features/bookings/components/GroupInbox", () => ({ GroupInbox: () => <div>Pedidos de fecha</div> }));
@@ -64,7 +72,7 @@ describe("musician dashboard at 390 px", () => {
     it("keeps the profile folded above the tabs so the pending work is on the first screen", async () => {
         renderPage();
 
-        const toggle = await screen.findByRole("button", { name: "Ver perfil" });
+        const toggle = await screen.findByRole("button", { name: "Ver perfil del grupo" });
         expect(toggle).toHaveAttribute("aria-expanded", "false");
 
         const panel = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
@@ -86,13 +94,63 @@ describe("musician dashboard at 390 px", () => {
         const user = userEvent.setup();
         renderPage();
 
-        await user.click(await screen.findByRole("button", { name: "Ver perfil" }));
+        await user.click(await screen.findByRole("button", { name: "Ver perfil del grupo" }));
 
-        const close = screen.getByRole("button", { name: "Ocultar perfil" });
+        const close = screen.getByRole("button", { name: "Ocultar perfil del grupo" });
         expect(close).toHaveAttribute("aria-expanded", "true");
         expect(document.getElementById(close.getAttribute("aria-controls") ?? "")).toHaveClass("block");
         // Nada de lo que había arriba se perdió: la tarjeta entera está ahí.
         expect(screen.getByText("Tarjeta del perfil del grupo")).toBeVisible();
+        // Leer el perfil no abre el formulario: son dos acciones distintas (ronda 10).
+        expect(screen.queryByText("Formulario del perfil del grupo")).toBeNull();
+    });
+
+    it("opens the group profile in edit mode in one tap, next to reading it", async () => {
+        const user = userEvent.setup();
+        renderPage();
+
+        await screen.findByText("Tarjeta del perfil del grupo");
+        // Una pulsación desde el panel: el formulario del grupo, sin pasar por la ficha.
+        await user.click(screen.getByRole("button", { name: "Editar perfil del grupo" }));
+
+        expect(await screen.findByText("Formulario del perfil del grupo")).toBeVisible();
+        // Ronda 10: con el editor en pantalla el renglón nombra el editor, no el perfil del grupo.
+        const close = await screen.findByRole("button", { name: "Ocultar el formulario del grupo" });
+        expect(close).toHaveAttribute("aria-expanded", "true");
+        expect(screen.queryByRole("button", { name: "Ocultar perfil del grupo" })).toBeNull();
+    });
+
+    it("asks before closing the editor and gives the form back untouched when the manager stays", async () => {
+        const user = userEvent.setup();
+        renderPage();
+
+        await user.click(await screen.findByRole("button", { name: "Editar perfil del grupo" }));
+        await user.click(await screen.findByRole("button", { name: "Ocultar el formulario del grupo" }));
+
+        expect(screen.getByRole("dialog", { name: "¿Cerrar el formulario sin guardar?" })).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Seguir editando" }));
+
+        // Nothing was thrown away: the form is still on screen and the panel is still open.
+        expect(screen.getByText("Formulario del perfil del grupo")).toBeVisible();
+        expect(screen.getByRole("button", { name: "Ocultar el formulario del grupo" })).toHaveAttribute("aria-expanded", "true");
+    });
+
+    it("gives the manager the form again after it was closed", async () => {
+        const user = userEvent.setup();
+        renderPage();
+
+        await user.click(await screen.findByRole("button", { name: "Editar perfil del grupo" }));
+        await user.click(await screen.findByRole("button", { name: "Ocultar el formulario del grupo" }));
+        await user.click(screen.getByRole("button", { name: "Cerrar sin guardar" }));
+
+        // Closing the editor for real returns to reading, and the entry names the card again.
+        const entry = await screen.findByRole("button", { name: "Ver perfil del grupo" });
+        expect(entry).toHaveAttribute("aria-expanded", "false");
+
+        await user.click(screen.getByRole("button", { name: "Editar perfil del grupo" }));
+
+        // La segunda pulsación vuelve a pedir el formulario, no un panel ya abierto en modo lectura.
+        expect(await screen.findByText("Formulario del perfil del grupo")).toBeVisible();
     });
 });
 

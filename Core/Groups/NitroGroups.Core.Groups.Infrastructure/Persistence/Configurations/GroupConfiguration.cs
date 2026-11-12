@@ -46,6 +46,9 @@ public class GroupConfiguration : IEntityTypeConfiguration<Group>
         builder.Property(g => g.Active).HasDefaultValue(true).HasColumnName("active");
         builder.Property(g => g.ProfilePictureUrl).HasMaxLength(500).HasColumnName("profile_picture_url");
         builder.Property(g => g.CoverImageUrl).HasMaxLength(500).HasColumnName("cover_image_url");
+        // Ronda 9: cómo quiere el grupo que se le pague. Texto libre, tope de 500; null cuando no lo cargó.
+        builder.Property(g => g.PaymentInstructions).HasMaxLength(500).HasColumnName("payment_instructions");
+        builder.Property(g => g.PaymentInstructionsUpdatedAt).HasColumnName("payment_instructions_updated_at");
 
         builder.HasMany(g => g.Members)
             .WithOne(m => m.Group)

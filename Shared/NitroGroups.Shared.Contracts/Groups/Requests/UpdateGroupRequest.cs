@@ -18,6 +18,11 @@ namespace NitroGroups.Shared.Contracts.Groups.Requests
         public int MinimumDurationHours { get; set; }
         public int SetupTimeMinutes { get; set; }
         public bool IsAcceptingBookings { get; set; }
+        /// <summary>
+        /// Cómo quiere el grupo que se le pague (ronda 9, D1/S18): texto libre de hasta 500
+        /// caracteres. Enviarlo vacío lo borra: el campo vacío es cómo el grupo dice que no cargó nada.
+        /// </summary>
+        public string? PaymentInstructions { get; set; }
         public string? ProfilePictureUrl { get; set; }
         public string? CoverImageUrl { get; set; }
     }

@@ -45,11 +45,18 @@ export interface EventRequest {
     deposit?: DepositPayload | null;
     /** T48: ISO timestamp the group recorded when the balance arrived; null until then. */
     balanceReceivedAt?: string | null;
+    /** T61/S24: `YYYY-MM-DD` deadline the group loaded for the balance; null until then. */
+    balanceDueDate?: string | null;
     /**
      * T39: only on the lists the group receives, one per row, and only when the day already has an
      * accepted gig. The client's list never carries it and keeps rendering exactly as it did.
      */
     dateClash?: DateClashSignal | null;
+    /**
+     * Ronda 10: the group's payment method in one line, for the client's row. Only on the client's
+     * list and only for accepted requests; missing when the group wrote nothing.
+     */
+    paymentMethod?: string | null;
     /** D7: only on the client's payloads. True when the accepted event already happened and has no review. */
     canReview?: boolean;
     review?: EventReview | null;

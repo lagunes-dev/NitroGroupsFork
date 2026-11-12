@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RequestThread } from "./RequestThread";
 import type { EventRequest } from "../types";
@@ -8,6 +9,7 @@ import type { EventRequest } from "../types";
 const mocks = vi.hoisted(() => ({
     get: vi.fn(),
     signals: vi.fn(),
+    checkoutNotes: vi.fn(),
     accept: vi.fn(),
     decline: vi.fn(),
     cancel: vi.fn(),
@@ -18,6 +20,7 @@ vi.mock("../bookings.service", () => ({
     bookingsService: {
         get: mocks.get,
         signals: mocks.signals,
+        checkoutNotes: mocks.checkoutNotes,
         accept: mocks.accept,
         decline: mocks.decline,
         cancel: mocks.cancel,
@@ -25,6 +28,14 @@ vi.mock("../bookings.service", () => ({
     },
     apiErrorMessage: (_error: unknown, fallback: string) => fallback,
 }));
+
+/** Las notas de "cómo pagar" no son de este archivo: por defecto no hay ninguna que dibujar. */
+beforeEach(() => {
+    mocks.checkoutNotes.mockReset();
+    mocks.checkoutNotes.mockResolvedValue([]);
+    // Cancelar sí se llama en esta ronda: sin reiniciarlo, el conteo de un test se lee en el siguiente.
+    mocks.cancel.mockReset();
+});
 
 const request: EventRequest = {
     id: 11,
@@ -119,12 +130,13 @@ describe("RequestThread deal", () => {
         mocks.get.mockResolvedValue(accepted);
         renderThread("Client");
 
-        const balance = await screen.findByText("Falta pagar $14,000");
+        const balance = await screen.findByText("Saldo: falta pagar $14,000");
         // Layout cannot be measured in jsdom: the size class and the DOM order are the decision.
         expect(balance).toHaveClass("text-2xl");
-        expect(screen.getByText("para el 5 de diciembre")).toBeInTheDocument();
+        // Ronda 10: un plazo dice el año; "5 de diciembre" solo era ambiguo junto a una fecha con año.
+        expect(screen.getByText("para el 5 de diciembre de 2026")).toBeInTheDocument();
         expect(screen.getByText("Próximo paso")).toBeInTheDocument();
-        expect(screen.getByText("Acuerda el saldo con el grupo para el día del evento.")).toBeInTheDocument();
+        expect(screen.getByText("Paga $14,000.")).toBeInTheDocument();
 
         const block = balance.closest("section") as HTMLElement;
         const specs = document.querySelector("dl") as HTMLElement;
@@ -136,24 +148,57 @@ describe("RequestThread deal", () => {
         mocks.get.mockResolvedValue(accepted);
         renderThread("Client");
 
-        await screen.findByText("Falta pagar $14,000");
+        await screen.findByText("Saldo: falta pagar $14,000");
         expect(screen.queryByText("Saldo")).toBeNull();
-        expect(document.querySelector("dl")).not.toHaveTextContent("Falta pagar");
+        expect(document.querySelector("dl")).not.toHaveTextContent(/falta pagar/i);
     });
 
     it("draws no balance block while the deposit is pending or for the group", async () => {
         mocks.get.mockResolvedValue({ ...accepted, deposit: { amount: 4000, receivedAt: null } });
         const { unmount } = renderThread("Client");
-        expect(await screen.findByText("Acuerda el anticipo con el grupo para cerrar la fecha.")).toBeInTheDocument();
-        expect(screen.queryByText("Próximo paso")).toBeNull();
+        expect(await screen.findByText("Paga $4,000 de anticipo.")).toBeInTheDocument();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
         unmount();
 
         mocks.get.mockResolvedValue(accepted);
         mocks.signals.mockRejectedValue(new Error("boom"));
         renderThread("Group");
         expect(await screen.findByText("Buscamos banda para la entrada y el vals.")).toBeInTheDocument();
-        expect(screen.queryByText(/Falta pagar/)).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
         expect(screen.queryByText("Próximo paso")).toBeNull();
+    });
+
+    /**
+     * Ronda 11 (la clienta): el 19 de diciembre el detalle mostraba "Falta pagar" y el encabezado
+     * "Próximo paso"; el 4 de diciembre —el anticipo que vence en tres días— no mostraba ninguno de los
+     * dos. El paso se dibuja donde hay un paso que decir, tenga o no tenga bloque de saldo al lado.
+     */
+    it("shows the next step with its heading on the event whose deposit is still pending", async () => {
+        mocks.get.mockResolvedValue({
+            ...accepted,
+            eventDate: "2026-12-04",
+            eventType: "Corporate",
+            deposit: { amount: 4000, receivedAt: null, dueDate: "2026-11-10" },
+        });
+
+        renderThread("Client");
+
+        // Los datos que ya estaban al lado, sin cambios.
+        expect(await screen.findByText("$4,000 · pendiente · para el 10 de noviembre de 2026")).toBeInTheDocument();
+        // Y el paso, con su encabezado, diciendo lo que de verdad falta.
+        expect(screen.getByText("Próximo paso")).toBeInTheDocument();
+        expect(screen.getByText("Paga $4,000 de anticipo antes del 10 de noviembre de 2026.")).toBeInTheDocument();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
+    });
+
+    it("keeps the heading next to the balance of the event that still owes money", async () => {
+        mocks.get.mockResolvedValue({ ...accepted, eventDate: "2026-12-19", balanceDueDate: "2026-11-15" });
+
+        renderThread("Client");
+
+        await screen.findByText("Saldo: falta pagar $14,000 · para el 15 de noviembre de 2026");
+        expect(screen.getByText("Próximo paso")).toBeInTheDocument();
+        expect(screen.getByText("Paga $14,000 antes del 15 de noviembre de 2026.")).toBeInTheDocument();
     });
 
     it("calls an empty budget what the list calls it, never zero pesos", async () => {
@@ -162,6 +207,88 @@ describe("RequestThread deal", () => {
 
         expect(await screen.findByText("Sin presupuesto")).toBeInTheDocument();
         expect(screen.queryByText("$0")).toBeNull();
+    });
+});
+
+describe("RequestThread cómo pagar (ronda 9)", () => {
+    const accepted: EventRequest = {
+        ...request,
+        status: "Accepted",
+        budget: 18000,
+        deposit: { amount: 4000, receivedAt: "2026-11-05T18:00:00Z" },
+    };
+
+    // Ronda 10: una sola nota. El texto del grupo es el único método y el manager va en su línea.
+    const groupNote = {
+        title: "Cómo pagar",
+        body: "Transfiere a la CLABE 0121 8000 1234 5678, BBVA.",
+        managerLine: "Te atiende Pedro Vargas.",
+        userDescription: "Pagas directo al grupo; NitroGroups no cobra ni interviene.",
+        updatedOn: "2026-11-05",
+    };
+
+    it("gives the client how to pay, right after the balance and the deposit", async () => {
+        mocks.get.mockResolvedValue(accepted);
+        mocks.checkoutNotes.mockResolvedValue([groupNote]);
+
+        renderThread("Client");
+
+        const note = await screen.findByText(groupNote.body);
+        expect(screen.getByText("Actualizado el 5 de noviembre")).toBeInTheDocument();
+        expect(mocks.checkoutNotes).toHaveBeenCalledWith(11);
+
+        // El saldo manda, y cómo pagar viene justo después: es la misma pregunta con la otra mitad.
+        const balance = within(screen.getByRole("region", { name: "Saldo y próximo paso" })).getByText("Saldo: falta pagar $14,000");
+        expect(balance.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("keeps the thread usable when the notes cannot be read", async () => {
+        mocks.get.mockResolvedValue(accepted);
+        mocks.checkoutNotes.mockRejectedValue(new Error("boom"));
+
+        renderThread("Client");
+
+        expect(await screen.findByText("Buscamos banda para la entrada y el vals.")).toBeInTheDocument();
+        expect(screen.queryByText(/Actualizado el/)).toBeNull();
+    });
+
+    it("never shows them to the group: the manager inbox is not where the client pays", async () => {
+        mocks.get.mockResolvedValue(accepted);
+        mocks.signals.mockResolvedValue({});
+        mocks.checkoutNotes.mockClear();
+
+        renderThread("Group");
+
+        await screen.findByRole("heading", { name: "Camila Ramos" });
+        expect(mocks.checkoutNotes).not.toHaveBeenCalled();
+        expect(screen.queryByText(groupNote.body)).toBeNull();
+    });
+
+    // Ronda 10: en el aniversario ya pagado el cliente seguía leyendo "Cómo pagar" y una CLABE bajo
+    // un encabezado que decía "No queda nada por pagar". El bloque se calla, como la línea del saldo.
+    it("says nothing on an event the group already recorded as paid", async () => {
+        mocks.get.mockResolvedValue({ ...accepted, balanceReceivedAt: "2026-12-13T15:00:00Z" });
+        mocks.checkoutNotes.mockClear();
+
+        renderThread("Client");
+
+        await screen.findByText(/Saldo recibido el 13 de diciembre de 2026/);
+        expect(screen.getByText("No queda nada por pagar.")).toBeInTheDocument();
+        expect(screen.queryByText("Cómo pagar")).toBeNull();
+        expect(mocks.checkoutNotes).not.toHaveBeenCalled();
+    });
+
+    it("says nothing when the deposit already covered the whole budget", async () => {
+        mocks.get.mockResolvedValue({ ...accepted, budget: 4000 });
+        mocks.checkoutNotes.mockClear();
+
+        renderThread("Client");
+
+        // Sin nada pendiente el próximo paso ya lo dice: no hay bloque de saldo ni nota de pago.
+        await screen.findByText("No queda nada por pagar.");
+        expect(screen.queryByText("Cómo pagar")).toBeNull();
+        expect(screen.queryByText(/falta pagar/i)).toBeNull();
+        expect(mocks.checkoutNotes).not.toHaveBeenCalled();
     });
 });
 
@@ -202,6 +329,90 @@ describe("RequestThread cancel on a past event (T52)", () => {
     });
 });
 
+describe("RequestThread cancel and the money already paid (rondas 12 y 13)", () => {
+    const future: EventRequest = { ...request, status: "Accepted", eventDate: "2099-12-05", respondedAt: "2099-10-02T18:00:00Z" };
+
+    /**
+     * Ronda 12 (la clienta): canceló un evento donde ya había pagado $3,000 de anticipo y el diálogo
+     * solo avisaba que el grupo se enteraría. La plata ya pagada no se cancela con el pedido (D1).
+     * Ronda 13: ese diálogo tampoco era de la app —era el `confirm()` del navegador—, así que ahora es
+     * el mismo diálogo de "bloquear" y "mover", con la frase de la plata en su propio renglón.
+     */
+    it("asks in the app's own dialog, with the sentence about the money already paid", async () => {
+        const nativeConfirm = vi.spyOn(window, "confirm");
+        mocks.get.mockResolvedValue({ ...future, deposit: { amount: 3000, receivedAt: "2099-01-05T18:00:00Z" } });
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Client");
+        await userEvent.click(await screen.findByRole("button", { name: "Cancelar solicitud" }));
+
+        const dialog = screen.getByRole("dialog", { name: "Cancelar esta solicitud" });
+        expect(within(dialog).getByText("El grupo recibirá un aviso.")).toBeInTheDocument();
+        expect(
+            within(dialog).getByText("Lo que ya pagaste lo arreglas con el grupo: la app no cobra ni devuelve nada.")
+        ).toBeInTheDocument();
+        // El navegador ya no pregunta nada: la pregunta es de la app.
+        expect(nativeConfirm).not.toHaveBeenCalled();
+        expect(mocks.cancel).not.toHaveBeenCalled();
+        nativeConfirm.mockRestore();
+    });
+
+    it("keeps today's words when no money was recorded, without talking about money", async () => {
+        mocks.get.mockResolvedValue(future);
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Client");
+        await userEvent.click(await screen.findByRole("button", { name: "Cancelar solicitud" }));
+
+        const dialog = screen.getByRole("dialog", { name: "Cancelar esta solicitud" });
+        expect(within(dialog).getByText("El grupo recibirá un aviso.")).toBeInTheDocument();
+        expect(within(dialog).queryByText(/ya pagaste/)).toBeNull();
+    });
+
+    it("cancels the request only when she confirms", async () => {
+        mocks.get.mockResolvedValue(future);
+        mocks.signals.mockResolvedValue({});
+        mocks.cancel.mockResolvedValue({ ...future, status: "Cancelled" });
+
+        renderThread("Client");
+        await userEvent.click(await screen.findByRole("button", { name: "Cancelar solicitud" }));
+        await userEvent.click(screen.getByRole("button", { name: "Cancelar la solicitud" }));
+
+        expect(mocks.cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves the request alone and returns the focus where it came from when she backs out", async () => {
+        mocks.get.mockResolvedValue(future);
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Client");
+        const trigger = await screen.findByRole("button", { name: "Cancelar solicitud" });
+        await userEvent.click(trigger);
+        await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+
+        expect(mocks.cancel).not.toHaveBeenCalled();
+        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(trigger).toHaveFocus();
+    });
+});
+
+describe("RequestThread: a disabled action says why (ronda 13, tarea 4)", () => {
+    it("says what is missing while 'Enviar mensaje' is off", async () => {
+        mocks.get.mockResolvedValue(request);
+        mocks.signals.mockResolvedValue({});
+
+        renderThread("Client");
+
+        expect(await screen.findByRole("button", { name: "Enviar mensaje" })).toBeDisabled();
+        expect(screen.getByText("Escribe tu mensaje.")).toBeInTheDocument();
+
+        await userEvent.type(screen.getByLabelText("Escribir un mensaje"), "Hola");
+
+        expect(screen.queryByText("Escribe tu mensaje.")).toBeNull();
+        expect(screen.getByRole("button", { name: "Enviar mensaje" })).toBeEnabled();
+    });
+});
+
 describe("RequestThread search context", () => {
     it("takes the date of a closed request to the search, so nobody retypes it", async () => {
         mocks.get.mockResolvedValue({ ...request, status: "Declined", respondedAt: "2026-10-02T18:00:00Z" });
@@ -226,9 +437,9 @@ describe("RequestThread balance received (T48)", () => {
         renderThread("Client");
 
         const block = await screen.findByRole("region", { name: "Saldo y próximo paso" });
-        expect(block).toHaveTextContent("Saldo recibido el 13 de diciembre de 2026");
+        expect(block).toHaveTextContent("Saldo recibido el 13 de diciembre de 2026 · $14,000");
         expect(block).toHaveTextContent("No queda nada por pagar.");
-        expect(block).not.toHaveTextContent(/Falta pagar|Acuerda el saldo/);
+        expect(block).not.toHaveTextContent(/falta pagar|Acuerda el saldo/i);
     });
 
     it("keeps the debt block until the balance is recorded", async () => {
@@ -237,7 +448,7 @@ describe("RequestThread balance received (T48)", () => {
         renderThread("Client");
 
         const block = await screen.findByRole("region", { name: "Saldo y próximo paso" });
-        expect(block).toHaveTextContent("Falta pagar $14,000");
+        expect(block).toHaveTextContent("Saldo: falta pagar $14,000");
     });
 
     it("does not show the group's view any balance", async () => {
@@ -249,5 +460,61 @@ describe("RequestThread balance received (T48)", () => {
         await screen.findByRole("region", { name: "Conversación" });
         expect(screen.queryByText(/Saldo recibido/)).toBeNull();
         expect(screen.queryByRole("region", { name: "Saldo y próximo paso" })).toBeNull();
+    });
+});
+
+describe("RequestThread: the reply box speaks about its limit (ronda 13)", () => {
+    async function openReply() {
+        mocks.get.mockResolvedValue(request);
+        mocks.signals.mockResolvedValue({});
+        renderThread("Client");
+        return (await screen.findByLabelText("Escribir un mensaje")) as HTMLTextAreaElement;
+    }
+
+    it("shows a polite live counter that follows the typing and keeps its maxlength", async () => {
+        const reply = await openReply();
+
+        const counter = screen.getByText("0 de 2000");
+        expect(counter).toHaveAttribute("aria-live", "polite");
+        expect(reply.getAttribute("aria-describedby")).toContain(counter.id);
+        expect(reply).toHaveAttribute("maxlength", "2000");
+
+        await userEvent.type(reply, "Hola");
+
+        expect(screen.getByText("4 de 2000")).toBe(counter);
+    });
+
+    it("says it when typing reaches the limit", async () => {
+        const reply = await openReply();
+
+        await userEvent.click(reply);
+        await userEvent.paste("x".repeat(2000));
+
+        expect(
+            screen.getByText("2000 de 2000 · Llegaste al límite de 2000 caracteres: lo que escribas después no entra.")
+        ).toBeInTheDocument();
+    });
+
+    it("says a paste did not fit and keeps the first 2000 characters", async () => {
+        const reply = await openReply();
+
+        await userEvent.click(reply);
+        await userEvent.paste("x".repeat(2500));
+
+        expect(reply.value).toHaveLength(2000);
+        expect(
+            screen.getByText("2000 de 2000 · Pegaste más texto del que cabe: el campo se quedó con los primeros 2000 caracteres.")
+        ).toBeInTheDocument();
+    });
+
+    it("drops the sentence once the text is back under the limit", async () => {
+        const reply = await openReply();
+
+        await userEvent.click(reply);
+        await userEvent.paste("x".repeat(2500));
+        await userEvent.type(reply, "{Backspace}");
+
+        expect(screen.getByText("1999 de 2000")).toBeInTheDocument();
+        expect(screen.queryByText(/Pegaste más texto/)).toBeNull();
     });
 });

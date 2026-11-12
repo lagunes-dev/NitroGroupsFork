@@ -4,7 +4,7 @@ import type { MusicGroup } from "@/features/groups/types/MusicGroup";
 import type { PublicGroupTeamMember } from "@/features/groups/types/PublicGroupTeamMember";
 import { loadGroupReviews } from "@/features/groups/lib/loadGroupReviews";
 import { PublicGroupProfile } from "@/features/groups/components/PublicGroupProfile";
-import { serverGetResult } from "@/lib/serverApi";
+import { FRESH, serverGetResult } from "@/lib/serverApi";
 import { isIsoDate } from "@/lib/format";
 import { getNitroSession } from "@/services/session";
 
@@ -15,7 +15,7 @@ type Props = {
 
 /** null solo si el grupo no existe; una caída de la API lanza (página de error, no 404). */
 async function loadGroup(slug: string): Promise<MusicGroup | null> {
-    const result = await serverGetResult<MusicGroup>(`/groups/slug/${encodeURIComponent(slug)}`, 60);
+    const result = await serverGetResult<MusicGroup>(`/groups/slug/${encodeURIComponent(slug)}`, FRESH);
     if (result.ok) return result.data;
     if (result.status === 404) return null;
     throw new Error(`No se pudo cargar el grupo (estado ${result.status}).`);
@@ -26,7 +26,7 @@ async function loadGroup(slug: string): Promise<MusicGroup | null> {
  * en una línea: un fallo no puede tumbar el perfil público entero.
  */
 async function loadTeam(groupId: number): Promise<PublicGroupTeamMember[]> {
-    const result = await serverGetResult<PublicGroupTeamMember[]>(`/groups/${groupId}/team/public`, 60);
+    const result = await serverGetResult<PublicGroupTeamMember[]>(`/groups/${groupId}/team/public`, FRESH);
     return result.ok && Array.isArray(result.data) ? result.data : [];
 }
 

@@ -166,3 +166,23 @@ cd /home/adminr/repos/NitroGroupsFork/scripts/qa && node -e "import('./lib.mjs')
 - Teléfono del manager: ¿querés además un interruptor para que cada manager decida si lo muestra?
 - Aviso "no me pagaron": hoy se rechaza si el músico había avisado que no podía ir. Si preferís lo
   contrario, es un cambio de una línea con su test.
+
+## 11. La base puede volver distinta tras un reinicio (trampa 8, medida el 9 de noviembre)
+
+Tras un reinicio, `docker start nitro_pg` puede levantar un Postgres con **otro contenido**: se midió uno de
+16.15 con 13 usuarios, sin el pedido #25 y sin la columna `groups.music_groups.payment_instructions`. La API
+habría respondido 500 contra esa base y una crítica habría reportado "defectos" que eran de entorno. Antes de
+medir nada, tras CUALQUIER reinicio:
+
+```bash
+export PGPASSWORD=postgres
+P="psql -h 127.0.0.1 -p 5433 -U postgres -d nitrogroups -tA"
+$P -c "select count(*) from users.users"                                                        # 10 en la demo
+$P -c "select count(*) from information_schema.columns where column_name='payment_instructions'"  # 1
+```
+
+Si no coincide: guardar lo encontrado con `pg_dump -Fc`, `DROP DATABASE`/`CREATE DATABASE` con la API caída y
+`pg_restore --no-owner` del respaldo. **Los respaldos viven en `~/ng-backups`, nunca en `/tmp`**, que se vacía en
+cada reinicio (se perdió dos veces). El único error esperable al restaurar es `unrecognized configuration
+parameter "transaction_timeout"` (dump de `pg_dump` 18 contra servidor 16): es inocuo, y el resultado se verifica
+comparando `scripts/qa/rows.sh` contra la foto de filas tomada al respaldar.

@@ -44,6 +44,19 @@ export async function open(persona, { width = 1440, height = 900 } = {}) {
   }
   const page = await ctx.newPage();
   page.setDefaultTimeout(60000);
+  // EVIDENCIA AUTOMÁTICA: cada respuesta 4xx/5xx del API y cada error de consola o de página quedan
+  // registrados por persona. Una crítica que dice "no funcionó" sin esto solo tiene su impresión; con esto
+  // tiene el endpoint, el estado y la hora. Los 401 de la sonda de sesión también caen aquí: se leen, no
+  // se reportan a ciegas.
+  const logFile = `${WORK}/http-errors.log`;
+  const note = (kind, detail) => fs.appendFileSync(logFile, `${new Date().toISOString()} ${persona} ${kind} ${detail}\n`);
+  page.on('response', (res) => {
+    const url = res.url();
+    const isApi = url.includes(':5144/') || /localhost:3001\/api\//.test(url);
+    if (isApi && res.status() >= 400) note('HTTP', `${res.status()} ${res.request().method()} ${url}`);
+  });
+  page.on('console', (msg) => { if (msg.type() === 'error') note('CONSOLE', msg.text().slice(0, 300)); });
+  page.on('pageerror', (err) => note('PAGEERROR', String(err.message).slice(0, 300)));
   return { browser, ctx, page, close: () => browser.close() };
 }
 

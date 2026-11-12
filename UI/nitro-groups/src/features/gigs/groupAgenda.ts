@@ -55,10 +55,26 @@ export function unansweredLabel(summary: AttendeeSummary): string | null {
     return summary.unanswered === 1 ? "Falta 1 por responder" : `Faltan ${summary.unanswered} por responder`;
 }
 
-/** "3 de 5 confirmaron", or the plain truth when nobody has answered yet. */
+/**
+ * "3 de 5 confirmaron"; "Nadie ha confirmado todavía" when members were asked and are silent; and
+ * "Aún no hay músicos asignados" when nobody was asked (ronda 12): the first reads as "chase answers",
+ * the last as "invite people", and the manager needs to tell them apart.
+ */
 export function attendanceCountLabel(summary: AttendeeSummary): string {
-    if (summary.total === 0 || summary.confirmed === 0) return "Nadie ha confirmado todavía";
+    if (summary.total === 0) return "Aún no hay músicos asignados";
+    if (summary.confirmed === 0) return "Nadie ha confirmado todavía";
     return `${summary.confirmed} de ${summary.total} confirmaron`;
+}
+
+/**
+ * The same three situations as one sentence for the editor (ronda 12): nobody assigned, assigned and
+ * silent, or some confirmed. The row states the count; the editor states who the pay table is about.
+ */
+export function rosterStateLabel(summary: AttendeeSummary): string {
+    if (summary.total === 0) return "No hay músicos asignados a este toque.";
+    const assigned = summary.total === 1 ? "1 músico asignado" : `${summary.total} músicos asignados`;
+    if (summary.confirmed === 0) return `Tienes ${assigned} y nadie ha confirmado todavía.`;
+    return `Tienes ${assigned}; ${summary.confirmed} ${summary.confirmed === 1 ? "confirmó" : "confirmaron"}.`;
 }
 
 /** The days that already have a confirmed gig, readable and unique, for marking the calendar. */

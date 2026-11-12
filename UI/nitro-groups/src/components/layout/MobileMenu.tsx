@@ -33,7 +33,15 @@ export function MobileMenu() {
         setOpen(false);
     }
 
-    if (isLoading) return null;
+    // Ronda 12: mientras la sesión no se sabe, el lugar del botón se reserva (44 px) para que la fila no
+    // salte cuando el menú aparece.
+    if (isLoading) {
+        return (
+            <div className="md:hidden">
+                <span aria-hidden className="block size-11 -mr-2" />
+            </div>
+        );
+    }
 
     const directory = directoryEntry(pending.hasGroup);
     const entries = dashboardEntries(user?.userType === UserTypeEnum.Musician, pending);

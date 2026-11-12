@@ -51,6 +51,21 @@ internal sealed class EventRequestRepository(BookingsDbContext dbContext)
                 .OrderBy(r => r.EventDate).ThenBy(r => r.StartTime).ThenBy(r => r.Id)
                 .ToListAsync(cancellationToken);
 
+    public Task<List<EventRequest>> ListLiveForClientOnDateAsync(
+        long clientUserId,
+        long groupId,
+        DateOnly eventDate,
+        CancellationToken cancellationToken = default)
+        // "Viva" es pendiente o aceptada: son los dos estados en los que el pedido sigue en juego. Una
+        // rechazada o cancelada es un cierre, y el cliente tiene que poder pedir otra vez.
+        => dbContext.EventRequests.AsNoTracking()
+            .Where(r => r.ClientUserId == clientUserId
+                && r.GroupId == groupId
+                && r.EventDate == eventDate
+                && (r.Status == EventRequestStatus.Pending || r.Status == EventRequestStatus.Accepted))
+            .OrderBy(r => r.Id)
+            .ToListAsync(cancellationToken);
+
     public Task<List<EventRequest>> ListAcceptedOnDateAsync(
         long groupId,
         DateOnly eventDate,

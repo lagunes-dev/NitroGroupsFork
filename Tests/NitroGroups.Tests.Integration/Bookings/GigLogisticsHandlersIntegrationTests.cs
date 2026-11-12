@@ -355,8 +355,11 @@ public class GigLogisticsHandlersIntegrationTests : IClassFixture<IntegrationTes
         Assert.True(result.IsSuccess, result.Error);
         Assert.Equal(5000m, result.Value!.Deposit.Amount);
         Assert.Equal(Now.UtcDateTime, result.Value.Deposit.ReceivedAt);
+        // Lo que el cliente no ve es lo que se le paga a cada músico (MyPay), no cómo paga él: su
+        // método de pago sí viaja desde la ronda 10 (PaymentMethod).
         var properties = typeof(EventRequestResponse).GetProperties().Select(p => p.Name);
-        Assert.DoesNotContain(properties, name => name.Contains("Setlist") || name.Contains("CallTime") || name.Contains("Pay"));
+        Assert.DoesNotContain(properties, name =>
+            name.Contains("Setlist") || name.Contains("CallTime") || name.Contains("MyPay") || name.Contains("PaidAt"));
     }
 
     // T48 (S18): saldo recibido y pagado como dato.
@@ -519,8 +522,10 @@ public class GigLogisticsHandlersIntegrationTests : IClassFixture<IntegrationTes
 
         Assert.True(result.IsSuccess, result.Error);
         Assert.Equal(Now.UtcDateTime, result.Value!.BalanceReceivedAt);
+        // Igual que arriba: el pago del músico (MyPay / PaidAt) no viaja; el método del cliente sí.
         var properties = typeof(EventRequestResponse).GetProperties().Select(p => p.Name);
-        Assert.DoesNotContain(properties, name => name.Contains("Paid") || name.Contains("Pay") || name.Contains("Setlist"));
+        Assert.DoesNotContain(properties, name =>
+            name.Contains("MyPay") || name.Contains("PaidAt") || name.Contains("Setlist"));
     }
 
     // T61 (S24): el anticipo y el saldo llevan fecha límite, un día del calendario. El manager la

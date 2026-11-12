@@ -48,6 +48,16 @@ internal sealed class BookingsTestScenario
     /// </summary>
     public Dictionary<long, GroupSummary> GroupsById { get; } = new() { [GroupId] = Vargas, [OtherGroupId] = Otro };
 
+    /// <summary>
+    /// Cómo pagar de cada grupo (ronda 9), como lo entrega el contrato de Groups. Un grupo sin
+    /// entrada no cargó nada: el contrato devuelve null y el cliente ve solo la nota del acuerdo.
+    /// </summary>
+    public Dictionary<long, GroupPaymentInstructions> PaymentInstructions { get; } = new();
+
+    /// <summary>El texto que se ve en la nota del cliente, con la fecha del último cambio.</summary>
+    public void SetPaymentInstructions(long groupId, string text, DateTime? updatedAt = null)
+        => PaymentInstructions[groupId] = new GroupPaymentInstructions(text, updatedAt);
+
     public Dictionary<long, UserSummary> AllUsers { get; } = new()
     {
         [ManagerId] = new UserSummary(ManagerId, "manager@vargas.mx", "Pedro", "Vargas", UserType.Musician, null),
@@ -106,6 +116,9 @@ internal sealed class BookingsTestScenario
             .Returns(ci => Memberships.TryGetValue(ci.ArgAt<long>(0), out var memberships)
                 ? (IReadOnlyList<GroupMembershipSummary>)memberships
                 : []);
+
+        Groups.GetPaymentInstructionsAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(ci => PaymentInstructions.GetValueOrDefault(ci.ArgAt<long>(0)));
 
         Users.GetUserAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
             .Returns(ci => AllUsers.GetValueOrDefault(ci.ArgAt<long>(0)));

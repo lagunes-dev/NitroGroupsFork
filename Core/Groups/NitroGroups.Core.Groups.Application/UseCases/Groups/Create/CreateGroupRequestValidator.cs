@@ -32,6 +32,11 @@ public class CreateGroupRequestValidator : AbstractValidator<CreateGroupRequest>
             .MaximumLength(20)
             .WithMessage("Phone cannot exceed 20 characters.");
 
+        // Ronda 9: cómo pagar es texto libre, con tope. La app no valida datos bancarios ni cobra.
+        RuleFor(x => x.PaymentInstructions)
+            .MaximumLength(500)
+            .WithMessage("Cómo pagar no puede pasar de 500 caracteres.");
+
         RuleFor(x => x.LocationText)
             .MaximumLength(200)
             .WithMessage("LocationText cannot exceed 200 characters.");

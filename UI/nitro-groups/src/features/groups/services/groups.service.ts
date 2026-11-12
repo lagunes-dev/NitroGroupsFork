@@ -23,6 +23,8 @@ export interface CreateGroupRequest {
     setupTimeMinutes: number;
     isAcceptingBookings: boolean;
     active: boolean;
+    /** Ronda 9: cómo pagar, hasta 500 caracteres. Solo lo lee el cliente de un evento aceptado. */
+    paymentInstructions?: string | null;
 }
 
 export interface UpdateGroupRequest {
@@ -42,6 +44,8 @@ export interface UpdateGroupRequest {
     minimumDurationHours: number;
     setupTimeMinutes: number;
     isAcceptingBookings: boolean;
+    /** Ronda 9: cómo pagar. Vacío lo borra; el cliente de un evento aceptado deja de verlo. */
+    paymentInstructions?: string | null;
     profilePictureUrl?: string;
     coverImageUrl?: string;
 }
@@ -68,6 +72,8 @@ export interface GroupResponse {
     active: boolean;
     profilePictureUrl?: string;
     coverImageUrl?: string;
+    /** Ronda 9: cómo pagar. Solo viaja en la lectura del manager, no en el perfil público. */
+    paymentInstructions?: string | null;
     genres?: GenreResponse[];
     media?: GroupMediaResponse[];
 }

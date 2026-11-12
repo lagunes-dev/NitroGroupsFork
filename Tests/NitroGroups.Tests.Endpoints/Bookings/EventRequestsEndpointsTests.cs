@@ -145,6 +145,36 @@ public class EventRequestsEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
         Assert.Contains("El grupo no está disponible en esa fecha.", await response.Content.ReadAsStringAsync());
     }
 
+    /// <summary>
+    /// Ronda 13 (petición 29, tarea 1): el cliente no puede pedir el mismo grupo dos veces para la misma
+    /// fecha. El 409 llega tal cual a la pantalla del formulario, que es donde el cliente lee sus errores.
+    /// </summary>
+    [Fact]
+    public async Task Crear_PidiendoOtraVezElMismoGrupoElMismoDia_Returns409ConElMensajeQueDiceQueYaExiste()
+    {
+        _mediator.SendCommandAsync<CreateEventRequestCommand, BookingResult<EventRequestResponse>>(Arg.Any<CreateEventRequestCommand>())
+            .Returns(BookingResult<EventRequestResponse>.Failure(BookingErrorKind.Conflict, "Ya tienes una solicitud con este grupo para esa fecha."));
+
+        var response = await _client.PostAsJsonAsync("api/event-requests", ValidBody());
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        using var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("Ya tienes una solicitud con este grupo para esa fecha.", problem.RootElement.GetProperty("detail").GetString());
+    }
+
+    [Fact]
+    public async Task Crear_PidiendoUnaFechaYaConfirmada_Returns409ConLaFraseDeEseDiaConfirmado()
+    {
+        _mediator.SendCommandAsync<CreateEventRequestCommand, BookingResult<EventRequestResponse>>(Arg.Any<CreateEventRequestCommand>())
+            .Returns(BookingResult<EventRequestResponse>.Failure(BookingErrorKind.Conflict, "Ya tienes ese día confirmado con este grupo."));
+
+        var response = await _client.PostAsJsonAsync("api/event-requests", ValidBody());
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        using var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("Ya tienes ese día confirmado con este grupo.", problem.RootElement.GetProperty("detail").GetString());
+    }
+
     /// <summary>Un renglón con todos los campos del contrato, como lo arma el handler.</summary>
     private static EventRequestResponse Row(long id = 3) => new()
     {
@@ -258,6 +288,29 @@ public class EventRequestsEndpointsTests : IClassFixture<NitroGroupsWebAppFactor
         Assert.DoesNotContain("dateClash", await response.Content.ReadAsStringAsync());
         // T48: lo único nuevo es el saldo recibido, al final de los campos de siempre.
         Assert.Equal([.. LegacyKeys, "balanceReceivedAt", "balanceDueDate"], item.EnumerateObject().Select(property => property.Name));
+    }
+
+    // Ronda 10: la fila del cliente responde "cómo pago" sin abrir el hilo, en una línea y al final
+    // del contrato; sin método escrito por el grupo, el campo no viaja.
+    [Fact]
+    public async Task Mias_LaFilaDelClienteLlevaElMetodoDePagoAlFinal_SinMetodoNoViaja()
+    {
+        var withMethod = Row();
+        withMethod.Status = EventRequestStatus.Accepted;
+        withMethod.PaymentMethod = "Transfiere a la CLABE 0121 8000 1234 5678, BBVA.";
+        _mediator.SendQueryAsync<GetMyEventRequestsQuery, List<EventRequestResponse>>(Arg.Any<GetMyEventRequestsQuery>())
+            .Returns([withMethod, Row()]);
+
+        var response = await _client.GetAsync("api/event-requests/mine");
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var row = json.RootElement[0];
+        Assert.Equal("Transfiere a la CLABE 0121 8000 1234 5678, BBVA.", row.GetProperty("paymentMethod").GetString());
+        Assert.Equal(
+            [.. LegacyKeys, "balanceReceivedAt", "balanceDueDate", "paymentMethod"],
+            row.EnumerateObject().Select(property => property.Name));
+        // Un null no viaja: la fila sin método queda exactamente como estaba.
+        Assert.False(json.RootElement[1].TryGetProperty("paymentMethod", out _));
     }
 
     // T48 (S18): el cliente ve cuándo se recibió su saldo, y nunca lo que se le paga a los músicos.

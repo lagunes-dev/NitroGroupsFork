@@ -25,7 +25,10 @@ namespace NitroGroups.Core.Groups.Application.UseCases.Groups.Update
         int SetupTimeMinutes,
         bool IsAcceptingBookings,
         string? ProfilePictureUrl,
-        string? CoverImageUrl) : ICommand<Result<GroupResponse>>;
+        string? CoverImageUrl,
+        // Ronda 9: cómo quiere el grupo que se le pague. Opcional para no romper a quien ya construye
+        // el comando sin él; el valor lo normaliza la entidad.
+        string? PaymentInstructions = null) : ICommand<Result<GroupResponse>>;
 
     public class UpdateGroupCommandHandler(IUnitOfWorkGroups unitOfWork, IMapper mapper) : ICommandHandler<UpdateGroupCommand, Result<GroupResponse>>
     {
@@ -41,6 +44,10 @@ namespace NitroGroups.Core.Groups.Application.UseCases.Groups.Update
 
             _mapper.Map(command, group);
 
+            // El texto de cómo pagar no lo copia el mapeo: lo guarda la entidad, que normaliza el
+            // vacío a null y solo mueve la fecha de actualización cuando el texto cambió de verdad.
+            group.SetPaymentInstructions(command.PaymentInstructions, DateTime.UtcNow);
+
             _unitOfWork.Groups.Update(group);
             await _unitOfWork.CompleteAsync();
 
@@ -54,4 +61,4 @@ namespace NitroGroups.Core.Groups.Application.UseCases.Groups.Update
             return _mapper.Map<GroupResponse>(updatedGroup);
         }
     }
-}
+}

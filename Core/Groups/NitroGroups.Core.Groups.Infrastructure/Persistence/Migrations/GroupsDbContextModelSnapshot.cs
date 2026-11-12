@@ -151,6 +151,15 @@ namespace NitroGroups.Core.Groups.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("owner_user_id");
 
+                    b.Property<string>("PaymentInstructions")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("payment_instructions");
+
+                    b.Property<DateTime?>("PaymentInstructionsUpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("payment_instructions_updated_at");
+
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasMaxLength(20)
