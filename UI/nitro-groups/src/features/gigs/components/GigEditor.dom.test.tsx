@@ -361,3 +361,47 @@ describe("Cuadre del toque follows what is typed", () => {
     });
 });
 
+
+describe("Setlist speaks while typing (ronda 13)", () => {
+    const setlist = () => screen.getByLabelText("Setlist") as HTMLTextAreaElement;
+
+    it("shows a polite live counter that follows the typing", async () => {
+        renderEditor();
+
+        const counter = screen.getByText("0 de 4000 caracteres");
+        expect(counter).toHaveAttribute("aria-live", "polite");
+        expect(setlist().getAttribute("aria-describedby")).toContain(counter.id);
+
+        await userEvent.type(setlist(), "Intro");
+
+        expect(screen.getByText("5 de 4000 caracteres")).toBe(counter);
+        expect(screen.queryByText(/Te pasaste/)).toBeNull();
+    });
+
+    it("tells the manager she is over the limit while pasting, and keeps her text whole", async () => {
+        renderEditor();
+
+        await userEvent.click(setlist());
+        await userEvent.paste("x".repeat(4001));
+
+        expect(setlist().value).toHaveLength(4001);
+        expect(setlist()).not.toHaveAttribute("maxlength");
+        expect(screen.getByText("4001 de 4000 caracteres")).toBeInTheDocument();
+        expect(screen.getByText("Te pasaste por 1 carácter: el setlist admite hasta 4000 y no se guarda con más.")).toBeInTheDocument();
+    });
+
+    it("still refuses to save over the limit and writes nothing", async () => {
+        renderEditor();
+        // Este archivo no reinicia los mocks entre pruebas: se cuenta desde acá, no desde cero.
+        const detailsBefore = mocks.saveDetails.mock.calls.length;
+        const payBefore = mocks.savePay.mock.calls.length;
+
+        await userEvent.click(setlist());
+        await userEvent.paste("x".repeat(4001));
+        await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+        expect(screen.getByText("El setlist admite hasta 4,000 caracteres.")).toBeInTheDocument();
+        expect(mocks.saveDetails.mock.calls.length).toBe(detailsBefore);
+        expect(mocks.savePay.mock.calls.length).toBe(payBefore);
+    });
+});

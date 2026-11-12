@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, DatePicker, Input, Textarea, TimeSelect } from "@/components/ui";
+import { fieldErrorId, fieldHelperId } from "@/components/ui/FieldShell";
 import { cn } from "@/lib/utils";
 import { groupGigsKey } from "../gigs.queries";
 import { gigsService } from "../gigs.service";
@@ -13,7 +14,7 @@ import {
     initialLogisticsForm,
     parseAmount,
     recordedStateLabel,
-    setlistCounter,
+    setlistRead,
     validateLogistics,
     type LogisticsErrors,
     type LogisticsForm,
@@ -174,15 +175,29 @@ export function GigEditor({ row, groupId, idPrefix, onSaved, onCancel }: GigEdit
                 </div>
             </div>
 
-            <Textarea
-                id={`${idPrefix}-setlist`}
-                label="Setlist"
-                rows={6}
-                value={form.setlist}
-                error={errors.setlist}
-                helperText={`${setlistCounter(form.setlist)} · Los músicos lo ven en su agenda; el cliente no.`}
-                onChange={(event) => setForm((f) => ({ ...f, setlist: event.target.value }))}
-            />
+            {/* No maxlength: cutting a pasted setlist would be worse than telling her. Saving still refuses it. */}
+            <div className="flex flex-col gap-2">
+                <Textarea
+                    id={`${idPrefix}-setlist`}
+                    label="Setlist"
+                    rows={6}
+                    value={form.setlist}
+                    error={errors.setlist}
+                    helperText="Los músicos lo ven en su agenda; el cliente no."
+                    aria-describedby={`${errors.setlist ? fieldErrorId(`${idPrefix}-setlist`) : fieldHelperId(`${idPrefix}-setlist`)} ${idPrefix}-setlist-count`}
+                    onChange={(event) => setForm((f) => ({ ...f, setlist: event.target.value }))}
+                />
+                {/* The count names what it counts and is announced politely: it is not a bare number. */}
+                <div className="flex flex-col gap-1">
+                    {/* El contador dice qué cuenta y se anuncia solo; la frase va aparte para no duplicar el anuncio. */}
+                    <p id={`${idPrefix}-setlist-count`} aria-live="polite" className="tabular text-sm leading-5 text-tinta-2">
+                        {setlistRead(form.setlist).counter}
+                    </p>
+                    {setlistRead(form.setlist).note && (
+                        <p className="text-sm leading-5 text-error">{setlistRead(form.setlist).note}</p>
+                    )}
+                </div>
+            </div>
 
             {attendees.length > 0 && (
                 <div>

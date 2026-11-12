@@ -8,7 +8,7 @@ import {
     buildPayBody,
     initialLogisticsForm,
     parseAmount,
-    setlistCounter,
+    setlistRead,
     validateLogistics,
     type LogisticsForm,
 } from "./gigLogistics";
@@ -217,10 +217,24 @@ describe("attendeePayLines", () => {
     });
 });
 
-describe("setlistCounter", () => {
-    it("shows used over maximum", () => {
-        expect(setlistCounter("abc")).toBe("3 / 4,000");
-        expect(setlistCounter("")).toBe("0 / 4,000");
+describe("setlistRead", () => {
+    it("counts the characters over the maximum, in words and without separators", () => {
+        expect(setlistRead("abc").counter).toBe("3 de 4000 caracteres");
+        expect(setlistRead("").counter).toBe("0 de 4000 caracteres");
+        expect(setlistRead("abc").note).toBeNull();
+    });
+
+    it("says nothing extra at exactly the maximum", () => {
+        expect(setlistRead("x".repeat(SETLIST_MAX)).note).toBeNull();
+    });
+
+    it("says by how many characters the text is over, one character included", () => {
+        expect(setlistRead("x".repeat(SETLIST_MAX + 1)).note).toBe(
+            "Te pasaste por 1 carácter: el setlist admite hasta 4000 y no se guarda con más."
+        );
+        expect(setlistRead("x".repeat(SETLIST_MAX + 25)).note).toBe(
+            "Te pasaste por 25 caracteres: el setlist admite hasta 4000 y no se guarda con más."
+        );
     });
 });
 

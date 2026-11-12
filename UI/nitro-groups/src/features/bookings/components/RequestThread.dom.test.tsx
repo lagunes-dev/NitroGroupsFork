@@ -462,3 +462,59 @@ describe("RequestThread balance received (T48)", () => {
         expect(screen.queryByRole("region", { name: "Saldo y próximo paso" })).toBeNull();
     });
 });
+
+describe("RequestThread: the reply box speaks about its limit (ronda 13)", () => {
+    async function openReply() {
+        mocks.get.mockResolvedValue(request);
+        mocks.signals.mockResolvedValue({});
+        renderThread("Client");
+        return (await screen.findByLabelText("Escribir un mensaje")) as HTMLTextAreaElement;
+    }
+
+    it("shows a polite live counter that follows the typing and keeps its maxlength", async () => {
+        const reply = await openReply();
+
+        const counter = screen.getByText("0 de 2000");
+        expect(counter).toHaveAttribute("aria-live", "polite");
+        expect(reply.getAttribute("aria-describedby")).toContain(counter.id);
+        expect(reply).toHaveAttribute("maxlength", "2000");
+
+        await userEvent.type(reply, "Hola");
+
+        expect(screen.getByText("4 de 2000")).toBe(counter);
+    });
+
+    it("says it when typing reaches the limit", async () => {
+        const reply = await openReply();
+
+        await userEvent.click(reply);
+        await userEvent.paste("x".repeat(2000));
+
+        expect(
+            screen.getByText("2000 de 2000 · Llegaste al límite de 2000 caracteres: lo que escribas después no entra.")
+        ).toBeInTheDocument();
+    });
+
+    it("says a paste did not fit and keeps the first 2000 characters", async () => {
+        const reply = await openReply();
+
+        await userEvent.click(reply);
+        await userEvent.paste("x".repeat(2500));
+
+        expect(reply.value).toHaveLength(2000);
+        expect(
+            screen.getByText("2000 de 2000 · Pegaste más texto del que cabe: el campo se quedó con los primeros 2000 caracteres.")
+        ).toBeInTheDocument();
+    });
+
+    it("drops the sentence once the text is back under the limit", async () => {
+        const reply = await openReply();
+
+        await userEvent.click(reply);
+        await userEvent.paste("x".repeat(2500));
+        await userEvent.type(reply, "{Backspace}");
+
+        expect(screen.getByText("1999 de 2000")).toBeInTheDocument();
+        expect(screen.queryByText(/Pegaste más texto/)).toBeNull();
+    });
+});

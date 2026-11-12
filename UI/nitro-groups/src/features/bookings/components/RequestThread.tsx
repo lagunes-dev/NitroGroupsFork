@@ -9,7 +9,7 @@ import { formatEventDate } from "@/lib/format";
 import { dateSearchHref } from "@/features/search/searchParams";
 import { apiErrorMessage, bookingsService } from "../bookings.service";
 import { balanceBlock, budgetLabel, clientDepositLabel, nextStepLabel, sentLabel } from "../deposit";
-import { messageSendReason } from "../formNotes";
+import { limitRead, messageSendReason, pastedLength } from "../formNotes";
 import { availableActions, shortTime, statusLabel } from "../status";
 import { threadItems, type ThreadItem } from "../thread";
 import type { EventRequest, EventRequestParty } from "../types";
@@ -19,6 +19,9 @@ import { ReviewForm } from "./ReviewForm";
 import { SavedReview } from "./SavedReview";
 import { RequestSignals } from "./RequestSignals";
 import { StatusBadge } from "./StatusBadge";
+
+/** El mismo tope que el formulario de solicitud: un mensaje largo se corta al pegarlo, y se avisa. */
+const REPLY_MAX = 2000;
 
 const timeFmt = new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Mexico_City" });
 
@@ -66,6 +69,8 @@ function NextStep({ step }: { step: string }) {
 export function RequestThread({ requestId, viewer }: { requestId: number; viewer: EventRequestParty }) {
     const queryClient = useQueryClient();
     const [reply, setReply] = useState("");
+    // Un pegado que no cabe se corta en silencio salvo que lo digamos: la frase cambia según la causa.
+    const [replyPasted, setReplyPasted] = useState(false);
     const [cancelling, setCancelling] = useState(false);
     const cancelTriggerRef = useRef<HTMLButtonElement>(null);
     const headingRef = useRef<HTMLHeadingElement>(null);
@@ -120,6 +125,7 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
     const failed = [accept, decline, send].find((m) => m.isError);
     const busy = [accept, decline, cancel, send].some((m) => m.isPending);
     const replyReason = messageSendReason(reply);
+    const replyLimit = limitRead(reply, REPLY_MAX, replyPasted && reply.length >= REPLY_MAX);
     const deal = balanceBlock(r, viewer);
     const nextStep = nextStepLabel(r, viewer);
     const title = viewer === "Client" ? r.groupName : r.clientName;
@@ -207,8 +213,15 @@ export function RequestThread({ requestId, viewer }: { requestId: number; viewer
                 {actions.message && (
                     <form onSubmit={(e) => { e.preventDefault(); if (reply.trim()) send.mutate(); }} className="flex flex-col gap-3">
                         <label htmlFor="respuesta" className="text-sm font-medium text-tinta-2">Escribir un mensaje</label>
-                        <textarea id="respuesta" value={reply} onChange={(e) => setReply(e.target.value)} rows={3} maxLength={2000}
+                        <textarea id="respuesta" value={reply} rows={3} maxLength={REPLY_MAX}
+                            aria-describedby="respuesta-contador"
+                            onChange={(e) => setReply(e.target.value)}
+                            onPaste={(e) => setReplyPasted(pastedLength(e.currentTarget, e.clipboardData.getData("text")) > REPLY_MAX)}
                             className="w-full bg-fondo-2 rounded-xl px-4 py-3 text-tinta focus-visible:-outline-offset-2 resize-y" />
+                        {/* El contador dice qué cuenta y se anuncia solo; la frase explica por qué el texto no entró entero. */}
+                        <p id="respuesta-contador" aria-live="polite" className="tabular text-sm leading-5 text-tinta-2">
+                            {[replyLimit.counter, replyLimit.note].filter(Boolean).join(" · ")}
+                        </p>
                         <div className="flex flex-col items-start gap-2">
                             <button type="submit" disabled={!reply.trim() || busy} aria-describedby={replyReason ? "respuesta-motivo" : undefined} className="self-start h-12 px-6 bg-fondo-3 text-tinta font-semibold hover:bg-fondo-2 rounded-xl disabled:opacity-45">
                                 {send.isPending ? "Enviando…" : "Enviar mensaje"}

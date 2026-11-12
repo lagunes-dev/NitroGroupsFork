@@ -198,9 +198,26 @@ export function attendeePayLines(attendees: GroupGigPayload["attendees"]): strin
     return lines;
 }
 
-/** "120 / 4,000". */
-export function setlistCounter(setlist: string): string {
-    return `${setlist.length.toLocaleString("es-MX")} / ${SETLIST_MAX.toLocaleString("es-MX")}`;
+/** The live counter of the setlist and, once the text is over the maximum, the sentence that says by how much. */
+export interface SetlistRead {
+    /** "1234 de 4000 caracteres". */
+    counter: string;
+    /** Null while the text fits. */
+    note: string | null;
+}
+
+/**
+ * The setlist is never cut (a manager may paste a long one and trim it): the field speaks instead, while
+ * she types, and saving still refuses the same text in `validateLogistics`.
+ */
+export function setlistRead(setlist: string): SetlistRead {
+    const over = setlist.length - SETLIST_MAX;
+    return {
+        counter: `${setlist.length} de ${SETLIST_MAX} caracteres`,
+        note: over > 0
+            ? `Te pasaste por ${over} ${over === 1 ? "carácter" : "caracteres"}: el setlist admite hasta ${SETLIST_MAX} y no se guarda con más.`
+            : null,
+    };
 }
 
 /** A money field as a number, or null when it is empty or cannot be read as a non-negative amount. */
